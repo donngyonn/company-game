@@ -1,22 +1,30 @@
 :root {
   --theme: #6c757d;
-  --bg: #0d0d1a;
-  --card: #151528;
-  --border: #2a2a50;
-  --text: #e8e8f0;
-  --dim: #777;
-  --green: #4ade80;
+  --bg: #07071a;
+  --card: #0f0f24;
+  --card2: #12122c;
+  --border: #1e1e42;
+  --border2: #2a2a58;
+  --text: #e2e2f0;
+  --dim: #64648a;
+  --green: #39d97f;
+  --cyan: #38c8e8;
+  --amber: #f59e0b;
+  --glow: rgba(108,117,125,0.3);
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 
 body {
   background: var(--bg);
+  background-image:
+    radial-gradient(ellipse at 20% 0%, rgba(56,200,232,0.04) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 100%, rgba(108,117,125,0.06) 0%, transparent 50%);
   color: var(--text);
   font-family: -apple-system, 'Hiragino Sans', 'Yu Gothic UI', sans-serif;
   max-width: 480px;
   margin: 0 auto;
-  padding-top: 164px;
+  padding-top: 172px;
   padding-bottom: 64px;
   min-height: 100vh;
 }
@@ -29,144 +37,167 @@ body {
   transform: translateX(-50%);
   width: 100%;
   max-width: 480px;
-  background: var(--card);
-  border-bottom: 2px solid var(--theme);
-  padding: 12px 16px 10px;
+  background: linear-gradient(180deg, rgba(15,15,36,0.98) 0%, rgba(9,9,26,0.99) 100%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border2);
+  padding: 10px 16px 8px;
   z-index: 200;
   transition: border-color 0.6s;
+  box-shadow: 0 4px 32px rgba(0,0,0,0.6), 0 1px 0 rgba(255,255,255,0.04) inset;
 }
 
 #header-top {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: 2px;
 }
 
 #company-stage {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
-  letter-spacing: 1.5px;
+  letter-spacing: 2px;
   color: var(--theme);
   text-transform: uppercase;
   transition: color 0.6s;
+  opacity: 0.9;
 }
 
 .week-label {
   font-size: 10px;
-  font-weight: 700;
-  color: #94a3b8;
+  font-weight: 600;
+  color: var(--dim);
   letter-spacing: 0.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+#money-display {
+  font-size: 36px;
+  font-weight: 900;
+  color: #fff;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -1px;
+  text-shadow: 0 0 20px rgba(57,217,127,0.25), 0 0 40px rgba(57,217,127,0.08);
+  transition: text-shadow 0.4s;
+}
+
+#income-display {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--green);
+  margin-top: 0px;
+  letter-spacing: 0.3px;
+  text-shadow: 0 0 8px rgba(57,217,127,0.4);
+}
+
+#header-sub {
+  display: flex;
+  gap: 16px;
+  margin-top: 3px;
+  padding-top: 3px;
+  border-top: 1px solid rgba(255,255,255,0.04);
+}
+
+#total-earned {
+  font-size: 10px;
+  color: var(--dim);
+  font-variant-numeric: tabular-nums;
+}
+
+#market-cap {
+  font-size: 10px;
+  color: var(--amber);
+  font-variant-numeric: tabular-nums;
 }
 
 .speed-wrap {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
   margin-top: 6px;
   margin-bottom: 2px;
 }
 
 .speed-btn {
-  background: #1e1e3a;
-  border: 1px solid #2a2a50;
-  border-radius: 5px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border2);
+  border-radius: 20px;
   color: var(--dim);
   font-size: 10px;
   font-weight: 700;
-  padding: 2px 7px;
+  padding: 2px 9px;
   cursor: pointer;
   flex-shrink: 0;
-  transition: background 0.2s, color 0.2s, border-color 0.2s;
-  line-height: 1.6;
+  transition: background 0.2s, color 0.2s, border-color 0.2s, box-shadow 0.2s;
+  line-height: 1.7;
+  letter-spacing: 0.5px;
 }
 
 .speed-btn.active {
   background: var(--theme);
   border-color: var(--theme);
   color: #fff;
-  transition: background 0.6s, border-color 0.6s;
+  box-shadow: 0 0 8px var(--glow);
+  transition: background 0.6s, border-color 0.6s, box-shadow 0.6s;
 }
 
 .week-bar-wrap {
-  height: 3px;
-  background: #1e1e3a;
+  height: 4px;
+  background: rgba(255,255,255,0.06);
   border-radius: 2px;
   overflow: hidden;
   align-self: center;
+  flex: 1;
 }
 
 #week-progress {
   height: 100%;
-  background: #38bdf8;
+  background: linear-gradient(90deg, var(--cyan), var(--green));
   border-radius: 2px;
   transition: width 0.4s linear;
-}
-
-#money-display {
-  font-size: 34px;
-  font-weight: 800;
-  color: #fff;
-  line-height: 1.1;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.5px;
-}
-
-#income-display {
-  font-size: 13px;
-  color: var(--green);
-  margin-top: 1px;
-}
-
-#header-sub {
-  display: flex;
-  gap: 14px;
-  margin-top: 2px;
-}
-
-#total-earned {
-  font-size: 10px;
-  color: var(--dim);
-}
-
-#market-cap {
-  font-size: 10px;
-  color: #fbbf24;
+  box-shadow: 0 0 6px rgba(56,200,232,0.5);
 }
 
 .progress-wrap {
-  height: 6px;
-  background: #222;
-  border-radius: 3px;
+  height: 3px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 2px;
   overflow: hidden;
-  margin-top: 8px;
+  margin-top: 6px;
 }
 
 #stage-progress {
   height: 100%;
   background: var(--theme);
-  border-radius: 3px;
+  border-radius: 2px;
   transition: width 0.4s, background 0.6s;
+  box-shadow: 0 0 6px var(--glow);
 }
 
 #stage-label {
   font-size: 10px;
   color: var(--dim);
   margin-top: 3px;
+  letter-spacing: 0.2px;
 }
 
 /* ---- オフィスシーン ---- */
 #office-scene {
-  background: linear-gradient(160deg, var(--card) 0%, #080816 100%);
-  padding: 20px 16px 16px;
+  background:
+    linear-gradient(180deg, rgba(15,15,36,0.6) 0%, rgba(4,4,14,0.95) 100%),
+    repeating-linear-gradient(0deg, transparent, transparent 24px, rgba(255,255,255,0.015) 24px, rgba(255,255,255,0.015) 25px),
+    repeating-linear-gradient(90deg, transparent, transparent 24px, rgba(255,255,255,0.015) 24px, rgba(255,255,255,0.015) 25px);
+  padding: 16px 16px 12px;
   text-align: center;
   border-bottom: 1px solid var(--border);
   cursor: pointer;
   user-select: none;
   transition: background 0.6s;
-  active: opacity 0.8;
 }
 
-#office-scene:active { opacity: 0.85; }
+#office-scene:active { opacity: 0.9; }
 
 #office-emoji {
   font-size: 72px;
@@ -194,29 +225,32 @@ body {
 /* ---- タブナビ ---- */
 #tab-nav {
   display: flex;
-  background: var(--card);
+  background: rgba(9,9,26,0.97);
+  backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--border);
   position: sticky;
-  top: 148px;
+  top: 156px;
   z-index: 150;
 }
 
 .tab-btn {
   flex: 1;
-  padding: 11px 4px;
+  padding: 10px 3px;
   background: none;
   border: none;
   border-bottom: 2px solid transparent;
   color: var(--dim);
-  font-size: 11px;
+  font-size: 10.5px;
   cursor: pointer;
   position: relative;
   transition: color 0.2s, border-color 0.2s;
+  letter-spacing: 0.1px;
 }
 
 .tab-btn.active {
   color: var(--theme);
   border-bottom-color: var(--theme);
+  text-shadow: 0 0 8px var(--glow);
   transition: color 0.6s, border-color 0.6s;
 }
 
@@ -242,7 +276,7 @@ body {
 
 /* ---- 部署カード（オフィス・スタンドアロン用） ---- */
 .dept-card {
-  background: var(--card);
+  background: var(--card2);
   border: 1px solid var(--border);
   border-radius: 14px;
   padding: 14px;
@@ -252,15 +286,16 @@ body {
   gap: 12px;
   transition: border-color 0.4s;
 }
-.dept-card.active { border-color: var(--theme); }
+.dept-card.active { border-color: var(--theme); box-shadow: 0 0 12px var(--glow); }
 .dept-card.locked { opacity: 0.45; }
 
 /* ---- 部署「島」コンテナ ---- */
 .dept-island {
-  border-radius: 16px;
-  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+  border: 1px solid var(--border);
   overflow: hidden;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
+  background: var(--card2);
 }
 
 .island-hdr {
@@ -1196,13 +1231,148 @@ body {
 
 /* ── 下部テキスト ── */
 #office-bottom {
-  padding: 7px 14px 8px;
-  background: rgba(0,0,0,.18);
+  padding: 6px 14px 7px;
+  background: rgba(0,0,0,.25);
   border-top: 1px solid rgba(255,255,255,.04);
 }
 #office-desc {
   font-size: 11px;
-  color: rgba(255,255,255,.48);
+  color: rgba(255,255,255,.4);
   margin-bottom: 4px;
   line-height: 1.45;
+}
+
+/* ---- 強化カード 状態スタイル ---- */
+.upgrade-active {
+  background: rgba(57,217,127,0.05);
+  border-color: rgba(57,217,127,0.25) !important;
+}
+
+.upgrade-expired {
+  border-color: rgba(248,113,113,0.25) !important;
+}
+
+.upgrade-timer {
+  font-size: 11px;
+  color: var(--green);
+  margin-top: 2px;
+  font-weight: 700;
+}
+
+.upgrade-status-badge {
+  font-size: 10px;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 20px;
+  flex-shrink: 0;
+  letter-spacing: 0.5px;
+}
+
+.upgrade-status-badge.active {
+  background: rgba(57,217,127,0.15);
+  color: var(--green);
+  border: 1px solid rgba(57,217,127,0.3);
+}
+
+/* ---- 損益計算書 P&L 行 ---- */
+.pl-row {
+  border-bottom: 1px solid var(--border);
+  padding: 10px 0;
+}
+
+.pl-row:last-child { border-bottom: none; }
+
+.pl-row-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--dim);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.pl-row-vals {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 8px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.pl-row-vals span b {
+  font-weight: 800;
+  font-size: 12px;
+}
+
+/* ---- アップグレードカード 改善 ---- */
+.upgrade-card {
+  background: var(--card2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: opacity 0.3s, border-color 0.3s;
+}
+
+/* ---- 島カード 光源アクセント ---- */
+.island-hdr {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.dept-island.island-sales   { border-top: 2px solid rgba(251,191,36,0.7); }
+.dept-island.island-finance { border-top: 2px solid rgba(52,211,153,0.7); }
+.dept-island.island-global  { border-top: 2px solid rgba(129,140,248,0.7); }
+
+/* ---- stat-item グロー ---- */
+.stat-item {
+  background: var(--card2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 11px;
+  text-align: center;
+}
+
+/* ---- モーダル 改善 ---- */
+.modal-box {
+  background: linear-gradient(180deg, #111130 0%, #0d0d28 100%);
+  border: 1px solid var(--border2);
+  border-radius: 18px;
+  padding: 28px 22px;
+  text-align: center;
+  max-width: 320px;
+  width: 100%;
+  transition: border-color 0.6s;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.04);
+}
+
+/* ---- トースト 改善 ---- */
+.toast {
+  position: fixed;
+  bottom: 76px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(15,15,36,0.97);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  padding: 10px 20px;
+  border-radius: 20px;
+  font-size: 13px;
+  z-index: 2000;
+  text-align: center;
+  max-width: 320px;
+  white-space: nowrap;
+  animation: toastAnim 3s ease-in-out forwards;
+  pointer-events: none;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
 }
