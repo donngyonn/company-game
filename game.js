@@ -211,6 +211,7 @@ let state = {
   lastExpenseWeek: 0,
   lastTaxPeriod: 0,     // 前回法人税を徴収した期
   periodEarned: 0,      // 当期累計収益（3月決算で課税）
+  periodDeductible: 0,  // 当期損金（家賃・給与）
   loans: [],
   morale: { ceo: 70, employee: 70, freelance: 70 },
   gameStarted: false,   // 事務所契約後に true
@@ -276,7 +277,7 @@ function getCostReduction() {
 function getRecruitChance() {
   const salesMult = state.deptMults['sales'] || 1;
   const hrBonus   = (state.employees['hr'] || 0) * 0.03;
-  return Math.min(0.95, (0.40 + hrBonus) * salesMult);
+  return Math.min(0.95, (0.25 + hrBonus) * salesMult);
 }
 
 function getDeptIncome(deptId) {
@@ -407,20 +408,36 @@ function upgradeOffice() {
   renderHeader();
 }
 
+function recalcMults() {
+  const currentWeek = Math.floor(state.elapsedSeconds / WEEK_SEC);
+  DEPT_DEFS.forEach(d => { state.deptMults[d.id] = 1; });
+  state.freelancerMult = 1;
+  UPGRADE_DEFS.forEach(def => {
+    const ug = state.upgrades[def.id];
+    if (!ug) return;
+    const purchasedWeek = typeof ug === 'object' ? ug.week : 0;
+    if (currentWeek >= purchasedWeek + 4) return; // 4週間で期限切れ
+    if (def.dept === 'freelancer') {
+      state.freelancerMult = (state.freelancerMult || 1) * def.mult;
+    } else {
+      state.deptMults[def.dept] = (state.deptMults[def.dept] || 1) * def.mult;
+    }
+  });
+}
+
 function buyUpgrade(upgradeId) {
-  if (state.upgrades[upgradeId]) return;
   const def = UPGRADE_DEFS.find(u => u.id === upgradeId);
   if (!def || state.money < def.cost) { showToast('資金が足りません！'); return; }
   state.money -= def.cost;
-  state.upgrades[upgradeId] = true;
+  const currentWeek = Math.floor(state.elapsedSeconds / WEEK_SEC);
+  state.upgrades[upgradeId] = { week: currentWeek };
+  state.deptCost[def.dept]  = (state.deptCost[def.dept]  || 0) + def.cost;
+  recalcMults();
   if (def.dept === 'freelancer') {
-    state.freelancerMult = (state.freelancerMult || 1) * def.mult;
-    showToast(`✅ ${def.name} 導入！FL単価 ×${def.mult}`);
+    showToast(`✅ ${def.name} 導入！FL単価 ×${def.mult}（4週間）`);
   } else {
-    state.deptMults[def.dept] = (state.deptMults[def.dept] || 1) * def.mult;
-    state.deptCost[def.dept]  = (state.deptCost[def.dept]  || 0) + def.cost;
     const deptName = DEPT_DEFS.find(d => d.id === def.dept)?.name || '';
-    showToast(`✅ ${def.name} 導入！${deptName} ×${def.mult}`);
+    showToast(`✅ ${def.name} 導入！${deptName} ×${def.mult}（4週間）`);
   }
   renderAll();
 }
@@ -633,15 +650,22 @@ function restartGame() {
 // ---- 3月決算・法人税 ----
 
 function processCorpTax() {
-  const taxable = state.periodEarned || 0;
-  if (taxable <= 0) return;
+  const earned     = state.periodEarned     || 0;
+  const deductible = state.periodDeductible || 0;
+  const taxable    = Math.max(0, earned - deductible);
+  if (taxable <= 0) { state.periodEarned = 0; state.periodDeductible = 0; return; }
   const tax = Math.floor(taxable * CORP_TAX_RATE);
   const before = state.money;
   state.money -= tax;
-  state.periodEarned = 0;
+  state.periodEarned     = 0;
+  state.periodDeductible = 0;
 
-  // 法人税モーダルを流用（expense-modal）
-  const rows = `<div class="expense-row" style="color:#f87171"><span>🏛️ 法人税（当期収益の30%）</span><span>−${yen(tax)}</span></div>`;
+  const rows = [
+    `<div class="expense-row" style="color:#94a3b8"><span>売上収益</span><span>＋${yen(earned)}</span></div>`,
+    `<div class="expense-row" style="color:#60a5fa"><span>損金控除（家賃・給与等）</span><span>−${yen(deductible)}</span></div>`,
+    `<div class="expense-row" style="color:#fbbf24"><span>課税所得</span><span>${yen(taxable)}</span></div>`,
+    `<div class="expense-row" style="color:#f87171"><span>🏛️ 法人税（課税所得の30%）</span><span>−${yen(tax)}</span></div>`,
+  ].join('');
   document.getElementById('expense-detail').innerHTML =
     `<div style="text-align:center;font-size:13px;color:#fbbf24;margin-bottom:10px">📅 3月決算 ― 法人税納付</div>` + rows;
   document.getElementById('expense-total').textContent  = `−${yen(tax)}`;
@@ -650,7 +674,7 @@ function processCorpTax() {
   document.getElementById('expense-after').style.color  = state.money < 0 ? '#f87171' : '#4ade80';
   document.getElementById('expense-modal').classList.remove('hidden');
   renderAll();
-  showToast(`🏛️ 法人税 ${yen(tax)} を納付しました（当期収益の30%）`);
+  showToast(`🏛️ 法人税 ${yen(tax)} を納付（課税所得 ${yen(taxable)} × 30%）`);
 }
 
 // ---- 銀行借入 ----
@@ -934,6 +958,12 @@ function load() {
     if (state.gameSpeed === undefined)  state.gameSpeed = 1;
     if (state.ceoSalary === undefined)  state.ceoSalary = 300000;
     if (!state.reportHistory)           state.reportHistory = [];
+    if (state.periodDeductible === undefined) state.periodDeductible = 0;
+    // 旧 upgrades boolean → 週番号変換
+    { const currentWeek = Math.floor(state.elapsedSeconds / WEEK_SEC);
+      Object.keys(state.upgrades || {}).forEach(k => {
+        if (state.upgrades[k] === true) state.upgrades[k] = { week: currentWeek };
+      }); }
     if (!state.flData) state.flData = [];
     { const preFlCount = state.freelancers || 0;
       while (state.flData.length < preFlCount) {
@@ -990,6 +1020,12 @@ function loadFromSlot(n) {
       }
       state.freelancers = state.flData.length; }
     if (state.flGrossRevenue === undefined) state.flGrossRevenue = 0;
+    if (state.periodDeductible === undefined) state.periodDeductible = 0;
+    { const currentWeek = Math.floor(state.elapsedSeconds / WEEK_SEC);
+      Object.keys(state.upgrades || {}).forEach(k => {
+        if (state.upgrades[k] === true) state.upgrades[k] = { week: currentWeek };
+      }); }
+    recalcMults();
     if (offlineSec > 30) {
       const deptIncome      = getTotalIncome() * offlineSec;
       const offlineWeeks    = Math.floor(offlineSec / WEEK_SEC);
@@ -1246,35 +1282,56 @@ function renderDepts() {
 
 function renderUpgrades() {
   const container = document.getElementById('upgrades-list');
+  const currentWeek = Math.floor(state.elapsedSeconds / WEEK_SEC);
   let html = '';
-  let count = 0;
+  let availableCount = 0;
 
   UPGRADE_DEFS.forEach(def => {
-    if (state.upgrades[def.id]) return;
     const reqMet = Object.entries(def.req).every(([id, n]) => (state.employees[id] || 0) >= n);
     if (!reqMet) return;
-    count++;
-    const canAfford = state.money >= def.cost;
-    const deptName  = def.dept === 'freelancer' ? '👨‍💻 FL単価'
-                    : (DEPT_DEFS.find(d => d.id === def.dept)?.name || '');
-    html += `<div class="upgrade-card${canAfford ? '' : ' cant-afford'}">
-      <div class="upgrade-emoji">${def.emoji}</div>
-      <div class="upgrade-info">
-        <div class="upgrade-name">${def.name}</div>
-        <div class="upgrade-effect">${deptName} ×${def.mult}</div>
-        <div class="upgrade-cost">${yen(def.cost)}</div>
-      </div>
-      <button class="buy-btn${canAfford ? '' : ' disabled'}" onclick="buyUpgrade('${def.id}')">購入</button>
-    </div>`;
+
+    const ug = state.upgrades[def.id];
+    const purchasedWeek = ug ? (typeof ug === 'object' ? ug.week : 0) : null;
+    const isActive = ug && currentWeek < purchasedWeek + 4;
+    const isExpired = ug && !isActive;
+    const weeksLeft = isActive ? (purchasedWeek + 4 - currentWeek) : 0;
+
+    const deptName = def.dept === 'freelancer' ? '👨‍💻 FL単価'
+                   : (DEPT_DEFS.find(d => d.id === def.dept)?.name || '');
+
+    if (isActive) {
+      html += `<div class="upgrade-card upgrade-active">
+        <div class="upgrade-emoji">${def.emoji}</div>
+        <div class="upgrade-info">
+          <div class="upgrade-name">${def.name}</div>
+          <div class="upgrade-effect">${deptName} ×${def.mult}</div>
+          <div class="upgrade-timer">残り ${weeksLeft}週</div>
+        </div>
+        <div class="upgrade-status-badge active">稼働中</div>
+      </div>`;
+    } else {
+      availableCount++;
+      const canAfford = state.money >= def.cost;
+      const label = isExpired ? '再購入' : '購入';
+      html += `<div class="upgrade-card${canAfford ? '' : ' cant-afford'}${isExpired ? ' upgrade-expired' : ''}">
+        <div class="upgrade-emoji">${def.emoji}</div>
+        <div class="upgrade-info">
+          <div class="upgrade-name">${def.name}</div>
+          <div class="upgrade-effect">${deptName} ×${def.mult}（4週間）</div>
+          <div class="upgrade-cost">${yen(def.cost)}</div>
+        </div>
+        <button class="buy-btn${canAfford ? '' : ' disabled'}" onclick="buyUpgrade('${def.id}')">${label}</button>
+      </div>`;
+    }
   });
 
-  if (count === 0) {
+  if (!html) {
     html = '<div class="empty-msg">部署に社員を雇うと<br>アップグレードが解放されます 🔓</div>';
   }
 
   const badge = document.getElementById('upgrade-badge');
-  badge.textContent = count > 0 ? count : '';
-  badge.style.display = count > 0 ? 'flex' : 'none';
+  badge.textContent = availableCount > 0 ? availableCount : '';
+  badge.style.display = availableCount > 0 ? 'flex' : 'none';
   container.innerHTML = html;
 }
 
@@ -1360,7 +1417,40 @@ function renderLabor() {
       <div class="expense-row" style="color:#93c5fd;font-weight:700;border-top:2px solid #2a2a50;padding-top:8px;margin-top:4px"><span>利益（${activeFL}名合算）</span><span>＋${yen(flWeeklyNet)}</span></div>
     </div>` : fl > 0 ? `<div class="labor-section"><div class="labor-section-title" style="color:#888">👨‍💻 FL${fl}名 採用済み（翌週から稼働）</div></div>` : ''}
 
-    ${plRows || flPlRow ? `
+      ${(() => {
+      const hist = state.reportHistory || [];
+      if (hist.length === 0) return '';
+      const calcPL = entries => entries.reduce((a, r) => ({
+        revenue: a.revenue + (r.deptIncome || 0) + (r.flGross || 0),
+        flCost:  a.flCost  + (r.flCost    || 0),
+        gross:   a.gross   + (r.deptIncome || 0) + (r.flIncome || 0),
+        expense: a.expense + (r.monthlyExp ? r.monthlyExp.total : 0),
+      }), { revenue: 0, flCost: 0, gross: 0, expense: 0 });
+      const plRow = (label, d) => {
+        const profit = d.gross - d.expense;
+        const pc = profit >= 0 ? '#4ade80' : '#f87171';
+        return `<div class="pl-row">
+          <div class="pl-row-label">${label}</div>
+          <div class="pl-row-vals">
+            <span>売上 <b>${yen(d.revenue)}</b></span>
+            <span style="color:#f87171">FL報酬 −${yen(d.flCost)}</span>
+            <span style="color:#60a5fa">経費 −${yen(d.expense)}</span>
+            <span style="color:${pc};font-weight:700">利益 ${profit>=0?'＋':''}${yen(profit)}</span>
+          </div>
+        </div>`;
+      };
+      const weekly  = calcPL(hist.slice(-1));
+      const monthly = calcPL(hist.slice(-4));
+      const yearly  = calcPL(hist.slice(-48));
+      return `<div class="labor-section">
+        <div class="labor-section-title">📊 損益計算書</div>
+        ${plRow('週次', weekly)}
+        ${plRow('月次', monthly)}
+        ${plRow('年次', yearly)}
+      </div>`;
+    })()}
+
+  ${plRows || flPlRow ? `
     <div class="pl-table-wrap">
       <div class="pl-header"><span>📋 部署別 損益計算書（累計）</span></div>
       <table class="pl-table">
@@ -1935,6 +2025,10 @@ function gameLoop(ts) {
           });
           state.loans = state.loans.filter(l => l.remaining > 0);
           state.money -= monthlyExp.total;
+          // 損金積算（家賃・給与・社長報酬）
+          state.periodDeductible = (state.periodDeductible || 0)
+            + (monthlyExp.rent || 0) + (monthlyExp.utilities || 0) + (monthlyExp.supplies || 0)
+            + (monthlyExp.salesperson || 0) + (monthlyExp.ceoSalary || 0);
         }
       }
 
@@ -1944,6 +2038,9 @@ function gameLoop(ts) {
         setOfficeEventFx(ev.type);
         pendingWeeklyEvent = ev;
       }
+
+      // 強化期限チェック
+      recalcMults();
 
       // モラル低下
       ['ceo','employee','freelance'].forEach(k => {
