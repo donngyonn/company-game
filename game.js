@@ -110,10 +110,13 @@ const EXEC_DEFS = [
     name: '営業部役員',
     emoji: '🤵',
     role: '営業最適化担当',
-    desc: '毎週モラールを自動改善（社員+5・FL+3・社長+3）。空き定員に応じて営業を自動採用。',
-    cost: 8000000,
-    monthlySalary: 1500000,
-    unlockAt: 5000000,
+    desc: 'モラールの自動改善・営業人数の自動最適化。各機能はON/OFF可能。',
+    cost: 1000000,
+    unlockAt: 3000000,
+    actions: [
+      { key: 'autoMorale', label: 'モラール自動最適化', defaultOn: true },
+      { key: 'autoSales',  label: '営業人数自動最適化', defaultOn: true },
+    ],
   },
   {
     id: 'exec_finance_dir',
@@ -121,10 +124,10 @@ const EXEC_DEFS = [
     emoji: '📊',
     role: '財務最適化担当',
     desc: '（近日実装）収益分析・資金効率化を担当。',
-    cost: 50000000,
-    monthlySalary: 2000000,
-    unlockAt: 100000000,
+    cost: 5000000,
+    unlockAt: 50000000,
     comingSoon: true,
+    actions: [],
   },
   {
     id: 'exec_mkt_dir',
@@ -132,12 +135,18 @@ const EXEC_DEFS = [
     emoji: '📣',
     role: 'マーケット最適化担当',
     desc: '（近日実装）市場分析・ブランド戦略を担当。',
-    cost: 80000000,
-    monthlySalary: 2000000,
-    unlockAt: 200000000,
+    cost: 5000000,
+    unlockAt: 100000000,
     comingSoon: true,
+    actions: [],
   },
 ];
+
+function getExecMonthlySalary() {
+  // 会社規模（ステージ）に応じた役員報酬
+  const tbl = [200000, 400000, 800000, 1500000, 3000000, 5000000, 8000000];
+  return tbl[Math.min(getCurrentStageIdx(), tbl.length - 1)];
+}
 
 // ---- 週次イベント定義 ----
 // category: 'personnel'=人材増減(20%), 'money'=お金増減(30%), 'multiplier'=係数変動(50%)
@@ -326,6 +335,7 @@ let state = {
   periodStaffingPlacements: 0, // 今期紹介人数（年度末リセット）
   hideWeeklyReport: false,     // 週次レポート非表示フラグ
   executives: {},              // 役員雇用状態 { exec_sales_dir: true }
+  execSettings: {},            // 役員行動設定 { exec_sales_dir: { autoMorale: true, autoSales: true } }
 };
 
 DEPT_DEFS.forEach(d => {
@@ -551,6 +561,16 @@ function hire(deptId) {
   renderUpgrades();
 }
 
+function fire(deptId) {
+  if ((state.employees[deptId] || 0) <= 0) return;
+  const def = DEPT_DEFS.find(d => d.id === deptId);
+  state.employees[deptId]--;
+  state.morale['employee'] = Math.max(10, (state.morale['employee'] || 70) - 5);
+  showToast(`👋 ${def?.name || deptId}を1名リストラ（社員モラール−5）`);
+  renderDepts();
+  renderUpgrades();
+}
+
 function upgradeOffice() {
   const cur  = state.officeLevel ?? 0;
   const next = OFFICE_LEVELS[cur + 1];
@@ -677,9 +697,8 @@ function calcMonthlyExpenses() {
   const ceoSalary = state.ceoSalary || 0;
 
   let execSalary = 0;
-  EXEC_DEFS.forEach(e => {
-    if (state.executives?.[e.id]) execSalary += e.monthlySalary;
-  });
+  const hiredExecCount = EXEC_DEFS.filter(e => state.executives?.[e.id]).length;
+  if (hiredExecCount > 0) execSalary = getExecMonthlySalary() * hiredExecCount;
 
   return {
     rent, utilities, supplies,
@@ -960,8 +979,26 @@ function hireExec(id) {
   state.money -= e.cost;
   if (!state.executives) state.executives = {};
   state.executives[id] = true;
+  if (!state.execSettings) state.execSettings = {};
+  state.execSettings[id] = {};
+  (e.actions || []).forEach(a => { state.execSettings[id][a.key] = a.defaultOn; });
   showToast(`✅ ${e.name}を採用しました！`);
   renderDepts();
+}
+
+function fireExec(id) {
+  const e = EXEC_DEFS.find(x => x.id === id);
+  if (!e || !state.executives?.[id]) return;
+  state.executives[id] = false;
+  if (state.execSettings?.[id]) delete state.execSettings[id];
+  showToast(`👋 ${e.name}を解雇しました`);
+  renderDepts();
+}
+
+function toggleExecSetting(execId, key, val) {
+  if (!state.execSettings) state.execSettings = {};
+  if (!state.execSettings[execId]) state.execSettings[execId] = {};
+  state.execSettings[execId][key] = val;
 }
 
 // ---- 銀行借入 ----
@@ -1314,6 +1351,13 @@ function load() {
     if (state.periodStaffingPlacements === undefined) state.periodStaffingPlacements = 0;
     if (state.hideWeeklyReport === undefined)         state.hideWeeklyReport = false;
     if (!state.executives)                            state.executives = {};
+    if (!state.execSettings)                          state.execSettings = {};
+    EXEC_DEFS.forEach(e => {
+      if (state.executives[e.id] && !state.execSettings[e.id]) {
+        state.execSettings[e.id] = {};
+        (e.actions || []).forEach(a => { state.execSettings[e.id][a.key] = a.defaultOn; });
+      }
+    });
     if (state.bgmMuted === undefined)                 state.bgmMuted = false;
     bgmMuted = state.bgmMuted;
     const bgmBtn = document.getElementById('bgm-btn');
@@ -1599,6 +1643,9 @@ function _buildDeptRow(id) {
   }
 
   const hireLabel = id === 'hr' ? 'MGR採用' : '採用';
+  const fireBtn = emp > 0
+    ? `<button class="fire-btn" onclick="fire('${id}')" title="1名リストラ">−</button>`
+    : '';
   return `<div class="island-row ${emp > 0 ? 'island-row-active' : ''}">
     <div class="dept-emoji">${def.emoji}</div>
     <div class="dept-info">
@@ -1606,9 +1653,12 @@ function _buildDeptRow(id) {
       <div class="dept-desc">${def.desc}</div>
       <div class="dept-income">${incomeText}</div>
     </div>
-    <button class="hire-btn${canAfford ? '' : ' disabled'}" onclick="hire('${id}')">
-      ${hireLabel}<br><small>${atCap ? '満員' : yen(hireCost)}</small>
-    </button>
+    <div class="dept-btn-group">
+      ${fireBtn}
+      <button class="hire-btn${canAfford ? '' : ' disabled'}" onclick="hire('${id}')">
+        ${hireLabel}<br><small>${atCap ? '満員' : yen(hireCost)}</small>
+      </button>
+    </div>
   </div>`;
 }
 
@@ -1704,6 +1754,7 @@ function _buildExecCard(e) {
   const hired = !!state.executives?.[e.id];
   const canUnlock = state.totalEarned >= e.unlockAt;
   const canAfford = state.money >= e.cost;
+  const salary = getExecMonthlySalary();
 
   if (e.comingSoon) {
     return `<div class="dept-row exec-card exec-soon">
@@ -1716,14 +1767,23 @@ function _buildExecCard(e) {
   }
 
   if (hired) {
+    const settings = state.execSettings?.[e.id] || {};
+    const checkboxes = (e.actions || []).map(a =>
+      `<label class="exec-setting-label">
+        <input type="checkbox" ${settings[a.key] !== false ? 'checked' : ''}
+          onchange="toggleExecSetting('${e.id}','${a.key}',this.checked)">
+        <span>${a.label}</span>
+      </label>`
+    ).join('');
     return `<div class="dept-row exec-card exec-active">
       <div class="dept-emoji">${e.emoji}</div>
       <div class="dept-info">
         <div class="dept-name">${e.name} <span style="font-size:9px;color:#4ade80;background:#0a2a10;padding:1px 5px;border-radius:8px">稼働中</span></div>
         <div class="dept-desc">${e.role}</div>
-        <div class="dept-desc" style="color:#888">月報酬 ${yen(e.monthlySalary)}</div>
+        <div class="dept-desc" style="color:#888">月報酬 ${yen(salary)}（会社規模連動）</div>
+        ${checkboxes ? `<div class="exec-settings-wrap">${checkboxes}</div>` : ''}
       </div>
-      <button class="hire-btn disabled" style="font-size:10px;padding:6px 8px">雇用済</button>
+      <button class="hire-btn disabled fire-btn" onclick="fireExec('${e.id}')" style="font-size:10px;padding:6px 8px">解雇</button>
     </div>`;
   }
 
@@ -1743,7 +1803,7 @@ function _buildExecCard(e) {
     <div class="dept-info">
       <div class="dept-name">${e.name}</div>
       <div class="dept-desc">${e.desc}</div>
-      <div class="dept-desc" style="color:#888">採用費 ${yen(e.cost)} / 月報酬 ${yen(e.monthlySalary)}</div>
+      <div class="dept-desc" style="color:#888">採用費 ${yen(e.cost)} / 月報酬 ${yen(salary)}（会社規模連動）</div>
     </div>
     <button class="hire-btn${canAfford ? '' : ' disabled'}" onclick="hireExec('${e.id}')" style="font-size:10px;padding:6px 8px">
       ${canAfford ? '採用' : '資金不足'}
@@ -2932,22 +2992,27 @@ function gameLoop(ts) {
 
       // 営業部役員 自動処理
       if (state.executives?.exec_sales_dir) {
+        const eSettings = state.execSettings?.exec_sales_dir || {};
         // モラール自動最適化
-        state.morale['ceo']      = Math.min(100, (state.morale['ceo']      || 70) + 3);
-        state.morale['employee'] = Math.min(100, (state.morale['employee'] || 70) + 5);
-        state.morale['freelance']= Math.min(100, (state.morale['freelance']|| 70) + 3);
-        weeklyLog.push({ emoji: '🤵', text: '営業部役員がモラールを最適化（社長+3、社員+5、FL+3）' });
+        if (eSettings.autoMorale !== false) {
+          state.morale['ceo']      = Math.min(100, (state.morale['ceo']      || 70) + 3);
+          state.morale['employee'] = Math.min(100, (state.morale['employee'] || 70) + 5);
+          state.morale['freelance']= Math.min(100, (state.morale['freelance']|| 70) + 3);
+          weeklyLog.push({ emoji: '🤵', text: '営業部役員がモラールを最適化（社長+3、社員+5、FL+3）' });
+        }
         // 営業人数自動最適化（定員の40%を目標）
-        const cap = getCurrentCapacity();
-        const targetSales = Math.max(1, Math.floor(cap * 0.40));
-        const curSales = state.employees['sales'] || 0;
-        if (curSales < targetSales && getEmployeeCount() < cap) {
-          const hireCost = getHireCost('sales');
-          if (state.money >= hireCost * 3) {
-            state.money -= hireCost;
-            state.employees['sales'] = curSales + 1;
-            state.deptCost['sales'] = (state.deptCost['sales'] || 0) + hireCost;
-            weeklyLog.push({ emoji: '👔', text: `営業部役員が営業1名を自動採用（計${state.employees['sales']}名）` });
+        if (eSettings.autoSales !== false) {
+          const cap = getCurrentCapacity();
+          const targetSales = Math.max(1, Math.floor(cap * 0.40));
+          const curSales = state.employees['sales'] || 0;
+          if (curSales < targetSales && getEmployeeCount() < cap) {
+            const hireCost = getHireCost('sales');
+            if (state.money >= hireCost * 3) {
+              state.money -= hireCost;
+              state.employees['sales'] = curSales + 1;
+              state.deptCost['sales'] = (state.deptCost['sales'] || 0) + hireCost;
+              weeklyLog.push({ emoji: '👔', text: `営業部役員が営業1名を自動採用（計${state.employees['sales']}名）` });
+            }
           }
         }
       }
