@@ -917,125 +917,146 @@ function renderHeader() {
   }
 }
 
-function renderDepts() {
-  const container = document.getElementById('depts-list');
-  let html = '';
+// ---- 部署描画ヘルパー ----
 
-  // ---- 事務所情報カード ----
-  const curLvl  = state.officeLevel ?? 0;
-  const offlvl  = OFFICE_LEVELS[curLvl];
-  const total   = getTotalPeople();
-  const cap     = getCurrentCapacity();
+function _buildOfficeCard() {
+  const curLvl = state.officeLevel ?? 0;
+  const offlvl = OFFICE_LEVELS[curLvl];
+  const total  = getTotalPeople();
+  const cap    = getCurrentCapacity();
   const nextLvl = OFFICE_LEVELS[curLvl + 1];
 
   if (curLvl === 0) {
-    // 事務所なし → 借りるボタンを大きく表示
     const firstOffice = OFFICE_LEVELS[1];
     const canAfford = state.money >= firstOffice.upgradeCost;
-    html += `<div class="dept-card" style="border-color:#fbbf24;border-width:2px">
+    return `<div class="dept-card" style="border-color:#fbbf24;border-width:2px;margin-bottom:14px">
       <div class="dept-emoji">🏢</div>
       <div class="dept-info">
         <div class="dept-name" style="color:#fbbf24">事務所を借りる</div>
         <div class="dept-desc">まず事務所を契約して営業を雇えるようにしよう。資本金 ¥10,000,000 を活用して。</div>
-        <div class="dept-income" style="color:#fbbf24">→ ${firstOffice.name}（${firstOffice.capacity}名収容）¥${fmt(firstOffice.upgradeCost)}</div>
+        <div class="dept-income" style="color:#fbbf24">→ ${firstOffice.name}（${firstOffice.capacity}名収容）</div>
       </div>
       <button class="hire-btn${canAfford ? '' : ' disabled'}" onclick="upgradeOffice()">
         契約<br><small>${yen(firstOffice.upgradeCost)}</small>
       </button>
     </div>`;
-  } else {
-    const capPct   = cap > 0 ? Math.min(100, total / cap * 100) : 0;
-    const capColor = capPct >= 90 ? '#f87171' : capPct >= 70 ? '#fbbf24' : '#4ade80';
-    const upgradeBtn = nextLvl
-      ? `<button class="hire-btn${state.money >= nextLvl.upgradeCost ? '' : ' disabled'}" onclick="upgradeOffice()">
-          移転<br><small>${yen(nextLvl.upgradeCost)}</small>
-         </button>`
-      : `<div style="font-size:11px;color:#4ade80;text-align:center">最大</div>`;
+  }
 
-    html += `<div class="dept-card active" style="border-color:${capColor}">
-      <div class="dept-emoji">🏢</div>
-      <div class="dept-info">
-        <div class="dept-name">${offlvl.name} <span class="emp-count">${total}/${cap}名</span></div>
-        <div class="dept-desc">${nextLvl ? `次: ${nextLvl.name} (${nextLvl.capacity}名収容) → ${yen(nextLvl.upgradeCost)}` : '最大規模の事務所'}</div>
-        <div class="dept-income">
-          <div style="background:#2a2a50;border-radius:4px;height:6px;overflow:hidden;margin-top:4px">
-            <div style="height:100%;width:${capPct}%;background:${capColor};border-radius:4px"></div>
-          </div>
+  const capPct   = cap > 0 ? Math.min(100, total / cap * 100) : 0;
+  const capColor = capPct >= 90 ? '#f87171' : capPct >= 70 ? '#fbbf24' : '#4ade80';
+  const upgradeBtn = nextLvl
+    ? `<button class="hire-btn${state.money >= nextLvl.upgradeCost ? '' : ' disabled'}" onclick="upgradeOffice()">
+        移転<br><small>${yen(nextLvl.upgradeCost)}</small>
+       </button>`
+    : `<div style="font-size:11px;color:#4ade80;text-align:center">最大</div>`;
+
+  return `<div class="dept-card active" style="border-color:${capColor};margin-bottom:14px">
+    <div class="dept-emoji">🏢</div>
+    <div class="dept-info">
+      <div class="dept-name">${offlvl.name} <span class="emp-count">${total}/${cap}名</span></div>
+      <div class="dept-desc">${nextLvl ? `次: ${nextLvl.name}（${nextLvl.capacity}名）→ ${yen(nextLvl.upgradeCost)}` : '最大規模の事務所'}</div>
+      <div class="dept-income">
+        <div style="background:#2a2a50;border-radius:4px;height:5px;overflow:hidden;margin-top:5px">
+          <div style="height:100%;width:${capPct}%;background:${capColor};border-radius:4px;transition:width 0.6s"></div>
         </div>
       </div>
-      ${upgradeBtn}
+    </div>
+    ${upgradeBtn}
+  </div>`;
+}
+
+function _buildFLCard() {
+  const fl           = state.freelancers || 0;
+  const flIncome     = getFreelancerBaseIncome();
+  const flGlobal     = flIncome * getGlobalMultiplier();
+  const salesCount   = state.employees['sales'] || 0;
+  const recruitChance = getRecruitChance();
+
+  return `<div class="island-row ${fl > 0 ? 'island-row-active' : ''}">
+    <div class="dept-emoji">👨‍💻</div>
+    <div class="dept-info">
+      <div class="dept-name" style="color:#93c5fd">フリーランスエンジニア <span class="emp-count" style="background:#3b5bdb">${fl}名</span></div>
+      <div class="dept-desc">売上¥60万/月・利益¥10万/月（FL報酬¥50万/月）</div>
+      <div class="dept-income">${yen(flGlobal)}/秒</div>
+      ${salesCount > 0
+        ? `<div class="dept-margin"><span class="ml" style="color:#a78bfa">採用確率 ${(recruitChance*100).toFixed(1)}%/週 × 営業${salesCount}名</span></div>`
+        : `<div class="dept-margin"><span class="ml" style="color:#555">営業を雇うと毎週採用活動</span></div>`}
+    </div>
+  </div>`;
+}
+
+function _buildDeptRow(id) {
+  const def      = DEPT_DEFS.find(d => d.id === id);
+  if (!def) return '';
+  const emp      = state.employees[id] || 0;
+  const unlocked = state.totalEarned >= def.unlockAt || emp > 0;
+
+  if (!unlocked) {
+    const farFuture = def.unlockAt > state.totalEarned * 25 && state.totalEarned > 0;
+    return `<div class="island-row island-row-locked">
+      <div class="dept-emoji" style="font-size:24px;opacity:0.4">🔒</div>
+      <div class="dept-info">
+        <div class="dept-name" style="opacity:0.5">${def.name}</div>
+        <div class="dept-unlock">${farFuture ? '…まだ先の話' : `累計売上 ${yen(def.unlockAt)} で解放`}</div>
+      </div>
     </div>`;
   }
 
-  // ---- フリーランスエンジニア現員カード ----
-  const fl = state.freelancers || 0;
-  const flIncome    = getFreelancerBaseIncome();
-  const flGlobal    = flIncome * getGlobalMultiplier();
-  const salesCount  = state.employees['sales'] || 0;
-  const recruitChance = getRecruitChance();
+  const hireCost  = getHireCost(id);
+  const atCap     = getTotalPeople() >= getCurrentCapacity();
+  const canAfford = state.money >= hireCost && !atCap;
 
-  html += `<div class="dept-card ${fl > 0 ? 'active' : ''}" style="border-color:#60a5fa">
-    <div class="dept-emoji">👨‍💻</div>
+  let incomeText = '';
+  if (def.special === 'multiplier') {
+    incomeText = `全体収益 ×${(1 + def.specialValue * emp).toFixed(2)}`;
+  } else if (def.special === 'costReduction') {
+    const r = (1 - getCostReduction()) * 100;
+    incomeText = `採用コスト −${Math.min(r, 90).toFixed(0)}%　FL採用確率 ＋${(emp*3).toFixed(0)}%`;
+  } else if (id === 'sales') {
+    incomeText = `採用確率 ${(getRecruitChance()*100).toFixed(1)}%/週/人　月次固定費 ${yen(Math.ceil(def.monthlySalary*(1+def.insuranceRate)*emp))}/月`;
+  } else {
+    const inc = getDeptIncome(id);
+    incomeText = `${yen(inc)}/秒　(${yen(def.incomePerSec*(state.deptMults[id]||1))}/秒/人)`;
+  }
+
+  return `<div class="island-row ${emp > 0 ? 'island-row-active' : ''}">
+    <div class="dept-emoji">${def.emoji}</div>
     <div class="dept-info">
-      <div class="dept-name" style="color:#60a5fa">フリーランスエンジニア <span class="emp-count">${fl}名</span></div>
-      <div class="dept-desc">売上¥600,000/月・会社利益¥100,000/月（FL報酬¥500,000/月）</div>
-      <div class="dept-income">
-        収益: ${yen(flGlobal)}/秒（${yen(flIncome)}/秒 × 倍率）
-      </div>
-      ${salesCount > 0 ? `<div class="dept-margin">
-        <span class="ml" style="color:#a78bfa">採用確率 ${(recruitChance*100).toFixed(1)}%/週/営業 × ${salesCount}名</span>
-      </div>` : '<div class="dept-margin"><span class="ml" style="color:#666">営業部を雇うと毎週採用活動</span></div>'}
+      <div class="dept-name">${def.name} <span class="emp-count">${emp}人</span></div>
+      <div class="dept-desc">${def.desc}</div>
+      <div class="dept-income">${incomeText}</div>
     </div>
+    <button class="hire-btn${canAfford ? '' : ' disabled'}" onclick="hire('${id}')">
+      採用<br><small>${atCap ? '満員' : yen(hireCost)}</small>
+    </button>
+  </div>`;
+}
+
+function renderDepts() {
+  const container = document.getElementById('depts-list');
+
+  let html = _buildOfficeCard();
+
+  // 島1: 営業部（営業 + FL + 人事）
+  html += `<div class="dept-island island-sales">
+    <div class="island-hdr"><span class="island-icon">💼</span><span>営業部</span></div>
+    ${_buildDeptRow('sales')}
+    ${_buildFLCard()}
+    ${_buildDeptRow('hr')}
   </div>`;
 
-  // ---- 部署カード ----
-  DEPT_DEFS.forEach(def => {
-    const emp      = state.employees[def.id] || 0;
-    const unlocked = state.totalEarned >= def.unlockAt || emp > 0;
+  // 島2: 財務部（財務 + 戦略）
+  html += `<div class="dept-island island-finance">
+    <div class="island-hdr"><span class="island-icon">💹</span><span>財務部</span></div>
+    ${_buildDeptRow('finance')}
+    ${_buildDeptRow('strategy')}
+  </div>`;
 
-    if (!unlocked && def.unlockAt > state.totalEarned * 20 && state.totalEarned > 0) return;
-    if (!unlocked && def.unlockAt > 0 && state.totalEarned === 0) return;
-
-    if (!unlocked) {
-      html += `<div class="dept-card locked">
-        <div class="dept-emoji">🔒</div>
-        <div class="dept-info">
-          <div class="dept-name">${def.name}</div>
-          <div class="dept-unlock">累計売上 ${yen(def.unlockAt)} で解放</div>
-        </div>
-      </div>`;
-      return;
-    }
-
-    const hireCost = getHireCost(def.id);
-    const atCap    = getTotalPeople() >= getCurrentCapacity();
-    const canAfford = state.money >= hireCost && !atCap;
-
-    let incomeText = '';
-    if (def.special === 'multiplier') {
-      incomeText = `全体収益 ×${(1 + def.specialValue * emp).toFixed(2)}`;
-    } else if (def.special === 'costReduction') {
-      const r = (1 - getCostReduction()) * 100;
-      incomeText = `採用コスト −${Math.min(r, 90).toFixed(0)}%　FL採用確率 ＋${(emp * 3).toFixed(0)}%`;
-    } else if (def.id === 'sales') {
-      incomeText = `週採用確率 ${(getRecruitChance()*100).toFixed(1)}%/人　（月次固定費 ${yen(Math.ceil(def.monthlySalary * (1 + def.insuranceRate) * emp))}/月）`;
-    } else {
-      const inc = getDeptIncome(def.id);
-      incomeText = `${yen(inc)}/秒　(${yen(def.incomePerSec * (state.deptMults[def.id]||1))}/秒/人)`;
-    }
-
-    html += `<div class="dept-card ${emp > 0 ? 'active' : ''}">
-      <div class="dept-emoji">${def.emoji}</div>
-      <div class="dept-info">
-        <div class="dept-name">${def.name} <span class="emp-count">${emp}人</span></div>
-        <div class="dept-desc">${def.desc}</div>
-        <div class="dept-income">${incomeText}</div>
-      </div>
-      <button class="hire-btn${canAfford ? '' : ' disabled'}" onclick="hire('${def.id}')">
-        採用<br><small>${atCap ? '満員' : yen(hireCost)}</small>
-      </button>
-    </div>`;
-  });
+  // 島3: グローバル部
+  html += `<div class="dept-island island-global">
+    <div class="island-hdr"><span class="island-icon">🌐</span><span>グローバル部</span></div>
+    ${_buildDeptRow('global')}
+  </div>`;
 
   container.innerHTML = html;
 }

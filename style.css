@@ -212,7 +212,7 @@ body {
 .tab-content { padding: 12px 12px 24px; }
 .tab-content.hidden { display: none; }
 
-/* ---- 部署カード ---- */
+/* ---- 部署カード（オフィス・スタンドアロン用） ---- */
 .dept-card {
   background: var(--card);
   border: 1px solid var(--border);
@@ -224,15 +224,60 @@ body {
   gap: 12px;
   transition: border-color 0.4s;
 }
-
 .dept-card.active { border-color: var(--theme); }
 .dept-card.locked { opacity: 0.45; }
 
-.dept-emoji { font-size: 36px; flex-shrink: 0; width: 48px; text-align: center; }
+/* ---- 部署「島」コンテナ ---- */
+.dept-island {
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,0.08);
+  overflow: hidden;
+  margin-bottom: 14px;
+}
 
-.dept-info { flex: 1; min-width: 0; }
+.island-hdr {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+.island-icon { font-size: 16px; }
 
-.dept-name { font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+/* 島ごとのアクセントカラー */
+.island-sales   { border-top: 3px solid #fbbf24; background: rgba(251,191,36,0.04); }
+.island-sales   .island-hdr { color: #fbbf24; border-bottom-color: rgba(251,191,36,0.15); }
+.island-finance { border-top: 3px solid #34d399; background: rgba(52,211,153,0.04); }
+.island-finance .island-hdr { color: #34d399; border-bottom-color: rgba(52,211,153,0.15); }
+.island-global  { border-top: 3px solid #818cf8; background: rgba(129,140,248,0.04); }
+.island-global  .island-hdr { color: #818cf8; border-bottom-color: rgba(129,140,248,0.15); }
+
+/* ---- 島内の行（dept-card の代替） ---- */
+.island-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  transition: background 0.3s;
+}
+.island-row:last-child { border-bottom: none; }
+.island-row-active { background: rgba(255,255,255,0.025); }
+.island-row-locked { opacity: 0.42; }
+
+/* 島行内のアクティブライン（左accent） */
+.island-sales   .island-row-active { border-left: 3px solid rgba(251,191,36,0.5); padding-left: 11px; }
+.island-finance .island-row-active { border-left: 3px solid rgba(52,211,153,0.5); padding-left: 11px; }
+.island-global  .island-row-active { border-left: 3px solid rgba(129,140,248,0.5); padding-left: 11px; }
+
+/* ---- 共通の内部パーツ ---- */
+.dept-emoji { font-size: 34px; flex-shrink: 0; width: 46px; text-align: center; }
+.dept-info  { flex: 1; min-width: 0; }
+.dept-name  { font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
 
 .emp-count {
   font-size: 11px;
@@ -245,7 +290,7 @@ body {
   flex-shrink: 0;
 }
 
-.dept-desc { font-size: 11px; color: var(--dim); margin-top: 3px; }
+.dept-desc   { font-size: 11px; color: var(--dim); margin-top: 3px; }
 .dept-income { font-size: 12px; color: var(--green); margin-top: 4px; }
 
 .dept-margin {
@@ -254,14 +299,9 @@ body {
   gap: 6px;
   margin-top: 6px;
   padding-top: 6px;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid rgba(255,255,255,0.06);
 }
-
-.ml {
-  font-size: 11px;
-  color: var(--dim);
-  white-space: nowrap;
-}
+.ml { font-size: 11px; color: var(--dim); white-space: nowrap; }
 .dept-unlock { font-size: 11px; color: var(--dim); margin-top: 2px; }
 
 .hire-btn {
