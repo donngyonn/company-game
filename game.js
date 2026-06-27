@@ -92,39 +92,85 @@ const DEPT_DEFS = [
 ];
 
 // ---- 週次イベント定義 ----
+// category: 'personnel'=人材増減(20%), 'money'=お金増減(30%), 'multiplier'=係数変動(50%)
+function _evWeeklyBase() {
+  return Math.max(500000, getFlWeeklyIncome() + getTotalIncome() * WEEK_SEC);
+}
+
 const WEEK_EVENTS = [
+  // ---- good / money ----
   {
-    type: 'good', emoji: '📢', title: '大手SIerから大型案件受注！',
+    type: 'good', category: 'money', emoji: '📢', title: '大手SIerから大型案件受注！',
     desc: '年間契約の大型プロジェクトが成立。臨時売上が一括入金。',
-    effect: s => { const b = getTotalIncome() * 300; s.money += b; s.totalEarned += b; return `臨時収益 ＋${yen(b)}`; },
+    effect: s => { const b = Math.floor(_evWeeklyBase() * 3); s.money += b; s.totalEarned += b; return `臨時収益 ＋${yen(b)}`; },
   },
   {
-    type: 'good', emoji: '🏆', title: 'ITサービス企業アワード受賞！',
+    type: 'good', category: 'money', emoji: '💡', title: 'DX案件で引き合いが急増！',
+    desc: 'クライアントのDX推進需要が爆発。臨時売上が発生。',
+    effect: s => { const b = Math.floor(_evWeeklyBase() * 5); s.money += b; s.totalEarned += b; return `臨時収益 ＋${yen(b)}`; },
+  },
+  {
+    type: 'good', category: 'money', emoji: '🎓', title: 'IT人材育成補助金を獲得！',
+    desc: '国の助成金が採択され、研修費が大幅に補助されました。',
+    effect: s => { const b = Math.floor(_evWeeklyBase() * 2); s.money += b; s.totalEarned += b; return `補助金 ＋${yen(b)}`; },
+  },
+  // ---- good / multiplier ----
+  {
+    type: 'good', category: 'multiplier', emoji: '🏆', title: 'ITサービス企業アワード受賞！',
     desc: '業界誌に特集掲載。クライアントからの問い合わせが急増！',
     effect: s => { s.eventBoost = { mult: 2.0, expiresAt: s.elapsedSeconds + WEEK_SEC * 2 }; return '収益×2.0（2週間）'; },
   },
   {
-    type: 'good', emoji: '🤝', title: '大手コンサルと業務提携！',
+    type: 'good', category: 'multiplier', emoji: '🤝', title: '大手コンサルと業務提携！',
     desc: '高単価プロジェクトへのアクセスを確保。収益が継続的にUP。',
     effect: s => { s.eventBoost = { mult: 1.5, expiresAt: s.elapsedSeconds + WEEK_SEC * 3 }; return '収益×1.5（3週間）'; },
   },
   {
-    type: 'good', emoji: '📈', title: 'エンジニア単価が市場上昇！',
+    type: 'good', category: 'multiplier', emoji: '📈', title: 'エンジニア単価が市場上昇！',
     desc: 'IT人材不足が深刻化。業界全体でエンジニア単価がUP。',
     effect: s => { s.eventBoost = { mult: 1.3, expiresAt: s.elapsedSeconds + WEEK_SEC * 4 }; return '収益×1.3（4週間）'; },
   },
+  // ---- good / personnel ----
   {
-    type: 'good', emoji: '💡', title: 'DX案件で引き合いが急増！',
-    desc: 'クライアントのDX推進需要が爆発。臨時売上が発生。',
-    effect: s => { const b = getTotalIncome() * 500; s.money += b; s.totalEarned += b; return `臨時収益 ＋${yen(b)}`; },
+    type: 'good', category: 'personnel', emoji: '🧑‍💻', title: '優秀なFLエンジニアが自社を選択！',
+    desc: '口コミで評判が広まり、優秀なフリーランスが直接問い合わせてきた。',
+    effect: s => {
+      const currentWeek = Math.floor(s.elapsedSeconds / WEEK_SEC);
+      s.flData.push({ gross: 700000 + Math.floor(Math.random() * 300001), profitRate: 0.12 + Math.random() * 0.08, hiredWeek: currentWeek });
+      s.freelancers = s.flData.length;
+      return `フリーランス1名が無償参加（計${s.freelancers}名）`;
+    },
+  },
+  // ---- bad / money ----
+  {
+    type: 'bad', category: 'money', emoji: '💥', title: '取引先クライアントが倒産！',
+    desc: '主要取引先が業績不振で倒産。売掛金が全額回収不能に。',
+    effect: s => { const loss = Math.floor(s.money * 0.25); s.money = Math.max(0, s.money - loss); return `−${yen(loss)}の損失`; },
   },
   {
-    type: 'good', emoji: '🎓', title: 'IT人材育成補助金を獲得！',
-    desc: '国の助成金が採択され、研修費が大幅に補助されました。',
-    effect: s => { const b = getTotalIncome() * 200; s.money += b; s.totalEarned += b; return `補助金 ＋${yen(b)}`; },
+    type: 'bad', category: 'money', emoji: '⚠️', title: '労務コンプライアンス違反が発覚！',
+    desc: '労務管理の不備が露呈。是正対応と弁護士費用が発生。',
+    effect: s => { const loss = Math.floor(s.money * 0.15); s.money = Math.max(0, s.money - loss); return `−${yen(loss)}の対応費`; },
   },
   {
-    type: 'bad', emoji: '😱', title: 'フリーランスが競合に引き抜かれた！',
+    type: 'bad', category: 'money', emoji: '🔥', title: 'サーバー障害で業務が停止！',
+    desc: 'システム障害が発生し、24時間業務が停止。緊急対応費用が発生。',
+    effect: s => { const loss = Math.floor(s.money * 0.10); s.money = Math.max(0, s.money - loss); return `−${yen(loss)}の損害`; },
+  },
+  // ---- bad / multiplier ----
+  {
+    type: 'bad', category: 'multiplier', emoji: '📉', title: 'クライアントがIT予算を凍結！',
+    desc: '景気悪化でIT投資が全社的に凍結。収益が大幅に落ち込む。',
+    effect: s => { s.eventBoost = { mult: 0.7, expiresAt: s.elapsedSeconds + WEEK_SEC * 2 }; return '収益×0.7（2週間）'; },
+  },
+  {
+    type: 'bad', category: 'multiplier', emoji: '😤', title: '案件トラブルでクレーム多発！',
+    desc: '常駐エンジニアのトラブルが重なり、クライアントとの関係が悪化。',
+    effect: s => { s.eventBoost = { mult: 0.8, expiresAt: s.elapsedSeconds + WEEK_SEC * 3 }; return '収益×0.8（3週間）'; },
+  },
+  // ---- bad / personnel ----
+  {
+    type: 'bad', category: 'personnel', emoji: '😱', title: 'フリーランスが競合に引き抜かれた！',
     desc: '高待遇オファーにより稼働中のエンジニアが突然退場した。',
     effect: s => {
       const flFavor = (s.morale && s.morale.freelance) || 70;
@@ -135,32 +181,23 @@ const WEEK_EVENTS = [
       return loss > 0 ? `フリーランス ${loss}名が離脱` : 'FL引き抜き未遂（被害なし）';
     },
   },
-  {
-    type: 'bad', emoji: '💥', title: '取引先クライアントが倒産！',
-    desc: '主要取引先が業績不振で倒産。売掛金が全額回収不能に。',
-    effect: s => { const loss = Math.floor(s.money * 0.25); s.money = Math.max(0, s.money - loss); return `−${yen(loss)}の損失`; },
-  },
-  {
-    type: 'bad', emoji: '⚠️', title: '労務コンプライアンス違反が発覚！',
-    desc: '労務管理の不備が露呈。是正対応と弁護士費用が発生。',
-    effect: s => { const loss = Math.floor(s.money * 0.15); s.money = Math.max(0, s.money - loss); return `−${yen(loss)}の対応費`; },
-  },
-  {
-    type: 'bad', emoji: '📉', title: 'クライアントがIT予算を凍結！',
-    desc: '景気悪化でIT投資が全社的に凍結。収益が大幅に落ち込む。',
-    effect: s => { s.eventBoost = { mult: 0.7, expiresAt: s.elapsedSeconds + WEEK_SEC * 2 }; return '収益×0.7（2週間）'; },
-  },
-  {
-    type: 'bad', emoji: '🔥', title: 'サーバー障害で業務が停止！',
-    desc: 'システム障害が発生し、24時間業務が停止。緊急対応費用が発生。',
-    effect: s => { const loss = Math.floor(s.money * 0.10); s.money = Math.max(0, s.money - loss); return `−${yen(loss)}の損害`; },
-  },
-  {
-    type: 'bad', emoji: '😤', title: '案件トラブルでクレーム多発！',
-    desc: '常駐エンジニアのトラブルが重なり、クライアントとの関係が悪化。',
-    effect: s => { s.eventBoost = { mult: 0.8, expiresAt: s.elapsedSeconds + WEEK_SEC * 3 }; return '収益×0.8（3週間）'; },
-  },
 ];
+
+function pickWeeklyEvent() {
+  const catRand = Math.random();
+  let category;
+  if (catRand < 0.20)      category = 'personnel';
+  else if (catRand < 0.50) category = 'money';
+  else                     category = 'multiplier';
+
+  const type = Math.random() < 0.5 ? 'good' : 'bad';
+  const pool = WEEK_EVENTS.filter(e => e.category === category && e.type === type);
+  if (pool.length === 0) {
+    const fallback = WEEK_EVENTS.filter(e => e.type === type);
+    return fallback[Math.floor(Math.random() * fallback.length)] || WEEK_EVENTS[0];
+  }
+  return pool[Math.floor(Math.random() * pool.length)];
+}
 
 // ---- アップグレード定義 ----
 // dept: 'sales'     → deptMults['sales'] に乗算（採用確率に反映）
@@ -551,6 +588,8 @@ function closeExpenseModal() {
 let pendingWeeklyEvent = null;
 let weeklyModalShowing = false;
 let reportViewIndex = 0;
+let weeklyAutoCloseTimer = null;
+const WEEKLY_MODAL_AUTO_CLOSE_SEC = 5;
 
 function _renderWeeklyModalContent(idx) {
   const r = state.reportHistory[idx];
@@ -590,7 +629,10 @@ function _renderWeeklyModalContent(idx) {
     html += `<div class="weekly-section-title" style="color:${evColor}">${evLabel}</div>`;
     html += `<div class="weekly-event-row" style="border-color:${evColor}22;background:${evColor}08">
       <span class="weekly-event-emoji">${r.event.emoji}</span>
-      <span class="weekly-event-title" style="color:${evColor}">${r.event.title}</span>
+      <div style="display:flex;flex-direction:column;gap:2px">
+        <span class="weekly-event-title" style="color:${evColor}">${r.event.title}</span>
+        ${r.event.result ? `<span style="font-size:11px;color:${evColor};opacity:0.85">→ ${r.event.result}</span>` : ''}
+      </div>
     </div>`;
   }
 
@@ -619,10 +661,17 @@ function showWeeklyModal(weekNum, deptIncome, flWeeklyIncome, flGross, flCost, m
   const weekInMonth = ((weekNum - 1) % MONTH_WEEKS) + 1;
   const flCount     = state.freelancers || 0;
 
+  // イベント効果を即時適用し結果をスナップショット
+  let evSnap = null;
+  if (pendingWeeklyEvent) {
+    const ev = pendingWeeklyEvent;
+    pendingWeeklyEvent = null;
+    const resultText = ev.effect(state);
+    setOfficeEventFx(ev.type);
+    evSnap = { type: ev.type, emoji: ev.emoji, title: ev.title, result: resultText };
+  }
+
   if (!state.reportHistory) state.reportHistory = [];
-  const evSnap = pendingWeeklyEvent
-    ? { type: pendingWeeklyEvent.type, emoji: pendingWeeklyEvent.emoji, title: pendingWeeklyEvent.title }
-    : null;
   state.reportHistory.push({
     weekNum, period, monthNum, weekInMonth,
     deptIncome, flIncome: flWeeklyIncome, flCount, flGross, flCost,
@@ -635,22 +684,28 @@ function showWeeklyModal(weekNum, deptIncome, flWeeklyIncome, flGross, flCost, m
   _renderWeeklyModalContent(reportViewIndex);
   weeklyModalShowing = true;
   document.getElementById('weekly-modal').classList.remove('hidden');
+
+  // 5秒カウントダウンバー起動
+  const bar = document.getElementById('weekly-auto-close-bar');
+  if (bar) {
+    bar.style.transition = 'none';
+    bar.style.width = '100%';
+    void bar.offsetWidth;
+    bar.style.transition = `width ${WEEKLY_MODAL_AUTO_CLOSE_SEC}s linear`;
+    bar.style.width = '0%';
+  }
+  clearTimeout(weeklyAutoCloseTimer);
+  weeklyAutoCloseTimer = setTimeout(() => closeWeeklyModal(), WEEKLY_MODAL_AUTO_CLOSE_SEC * 1000);
 }
 
 function closeWeeklyModal() {
+  clearTimeout(weeklyAutoCloseTimer);
+  weeklyAutoCloseTimer = null;
   weeklyModalShowing = false;
   document.getElementById('weekly-modal').classList.add('hidden');
   renderAll();
   if (state.money < 0 && !state.bankrupt) {
     triggerBankruptcy();
-    return;
-  }
-  if (pendingWeeklyEvent) {
-    const ev = pendingWeeklyEvent;
-    pendingWeeklyEvent = null;
-    const resultText = ev.effect(state);
-    showEventModal(ev, resultText);
-    renderAll();
   }
 }
 
@@ -2095,11 +2150,8 @@ function gameLoop(ts) {
         }
       }
 
-      // 週次イベント（毎週100%発生・週次モーダルを閉じた後に適用）
-      {
-        const ev = WEEK_EVENTS[Math.floor(Math.random() * WEEK_EVENTS.length)];
-        pendingWeeklyEvent = ev;
-      }
+      // 週次イベント（毎週100%発生・週次モーダル内で即時適用）
+      pendingWeeklyEvent = pickWeeklyEvent();
 
       // 強化期限チェック
       recalcMults();
