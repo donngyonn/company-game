@@ -970,23 +970,44 @@ function renderBank() {
 // ---- 交流タブ（精神状況） ----
 
 const EXCHANGE_ACTIONS = [
-  // ---- 社長 ----
-  { id: 'ex_ceo_round',   group: 'ceo', name: '☕ 社長懇談会',           desc: '社長が社員と直接対話。社長・社員の好感度UP',       cost: () => Math.max(1000000,  getTotalIncome() * 300),   targets: ['ceo','employee'],            gain: 7,  color: '#a78bfa' },
-  { id: 'ex_client',      group: 'ceo', name: '🥂 クライアント接待',     desc: '得意先を接待し商談を深める。社長の好感度が大幅UP',  cost: () => Math.max(3000000,  getTotalIncome() * 800),   targets: ['ceo'],                       gain: 12, color: '#fbbf24' },
-  { id: 'ex_ceo_golf',    group: 'ceo', name: '⛳ ゴルフ接待',           desc: 'ゴルフで人脈強化。社長がリフレッシュ。',           cost: () => Math.max(500000,   getTotalIncome() * 150),   targets: ['ceo'],                       gain: 10, color: '#86efac' },
-  { id: 'ex_ceo_media',   group: 'ceo', name: '📺 メディア取材対応',     desc: '経済誌に掲載。自社PRと社長の達成感がUP。',         cost: () => Math.max(2000000,  getTotalIncome() * 600),   targets: ['ceo'],                       gain: 18, color: '#f97316' },
-  { id: 'ex_ceo_onsen',   group: 'ceo', name: '♨️ 経営合宿（温泉地）',   desc: '温泉地で経営の振り返り。社長のモラールが大幅回復。', cost: () => Math.max(800000,   getTotalIncome() * 200),   targets: ['ceo'],                       gain: 15, color: '#7dd3fc' },
-  { id: 'ex_ceo_mentor',  group: 'ceo', name: '🎙️ 経営メンター面談',     desc: '著名な経営者から助言。社長の士気が高まる。',        cost: () => Math.max(1500000,  getTotalIncome() * 400),   targets: ['ceo'],                       gain: 12, color: '#c084fc' },
-  // ---- 社員 ----
-  { id: 'ex_seminar',     group: 'employee', name: '📚 研修・セミナー開催',        desc: '社員のスキルアップと充実感を高める',         cost: () => Math.max(2000000,  getTotalIncome() * 500),   targets: ['employee'],                  gain: 8,  color: '#60a5fa' },
-  { id: 'ex_bonus',       group: 'employee', name: '💴 特別ボーナス支給',          desc: '社員・FLへの臨時ボーナスで大幅改善',        cost: () => Math.max(20000000, getTotalIncome() * 4000),  targets: ['employee','freelance'],      gain: 15, color: '#ec4899' },
-  // ---- 全体 ----
-  { id: 'ex_party',       group: 'all',      name: '🍻 社内交流会',               desc: '社員・FLの好感度を上げる懇親会',            cost: () => Math.max(500000,   getTotalIncome() * 200),   targets: ['employee','freelance'],      gain: 5,  color: '#4ade80' },
-  { id: 'ex_retreat',     group: 'all',      name: '🏔️ 合宿・チームビルディング', desc: '全員参加の泊まり込み合宿。全好感度UP',      cost: () => Math.max(10000000, getTotalIncome() * 2000),  targets: ['ceo','employee','freelance'],gain: 10, color: '#f97316' },
-  // ---- FL ----
-  { id: 'ex_fl_lunch',    group: 'fl', name: '🍱 FL懇親ランチ',         desc: 'FLと昼食をともにする。FL好感度UP',       cost: () => Math.max(50000,   getTotalIncome() * 30),   targets: ['freelance'], gain: 6,  color: '#93c5fd' },
-  { id: 'ex_fl_visit',    group: 'fl', name: '🏢 FL常駐先への差し入れ', desc: '常駐先へ差し入れ訪問。FL好感度が大幅UP', cost: () => Math.max(150000,  getTotalIncome() * 80),   targets: ['freelance'], gain: 10, color: '#7dd3fc' },
-  { id: 'ex_fl_event',    group: 'fl', name: '🎉 FL専用交流イベント',   desc: 'FL限定の感謝イベント。離脱率が激減',     cost: () => Math.max(500000,  getTotalIncome() * 300),  targets: ['freelance'], gain: 18, color: '#a78bfa' },
+  // ---- 社長（固定費用・gain比例） ----
+  { id: 'ex_ceo_golf',   group: 'ceo', name: '⛳ ゴルフ接待',         desc: 'ゴルフで人脈強化。社長がリフレッシュ。',            cost: () => Math.max(30000,  getTotalIncome() * 30),  targets: ['ceo'],            gain: 5,  color: '#86efac' },
+  { id: 'ex_ceo_round',  group: 'ceo', name: '☕ 社長懇談会',         desc: '社長が社員と直接対話。社長・社員の好感度UP',        cost: () => Math.max(60000,  getTotalIncome() * 60),  targets: ['ceo','employee'], gain: 8,  color: '#a78bfa' },
+  { id: 'ex_ceo_onsen',  group: 'ceo', name: '♨️ 経営合宿（温泉地）', desc: '温泉地で経営の振り返り。社長のモラールが大幅回復。',  cost: () => Math.max(100000, getTotalIncome() * 100), targets: ['ceo'],            gain: 12, color: '#7dd3fc' },
+  { id: 'ex_ceo_mentor', group: 'ceo', name: '🎙️ 経営メンター面談',   desc: '著名な経営者から助言。社長の士気が高まる。',         cost: () => Math.max(150000, getTotalIncome() * 150), targets: ['ceo'],            gain: 16, color: '#c084fc' },
+  { id: 'ex_client',     group: 'ceo', name: '🥂 クライアント接待',   desc: '得意先を接待し商談を深める。社長の好感度が大幅UP',   cost: () => Math.max(200000, getTotalIncome() * 200), targets: ['ceo'],            gain: 20, color: '#fbbf24' },
+  { id: 'ex_ceo_media',  group: 'ceo', name: '📺 メディア取材対応',   desc: '経済誌に掲載。自社PRと社長の達成感がUP。',          cost: () => Math.max(300000, getTotalIncome() * 300), targets: ['ceo'],            gain: 25, color: '#f97316' },
+  // ---- 社員（社員1人あたりの費用） ----
+  { id: 'ex_seminar', group: 'employee', name: '📚 研修・セミナー開催', desc: '社員のスキルアップと充実感を高める',
+    perHead: () => Math.max(1, getEmployeeCount()),
+    cost: () => Math.max(3000,  getTotalIncome() * 3)  * Math.max(1, getEmployeeCount()),
+    targets: ['employee'], gain: 8, color: '#60a5fa' },
+  { id: 'ex_bonus', group: 'employee', name: '💴 特別ボーナス支給', desc: '社員・FLへの臨時ボーナスで大幅改善',
+    perHead: () => Math.max(1, getEmployeeCount() + (state.freelancers||0)),
+    cost: () => Math.max(15000, getTotalIncome() * 15) * Math.max(1, getEmployeeCount() + (state.freelancers||0)),
+    targets: ['employee','freelance'], gain: 20, color: '#ec4899' },
+  // ---- 全体（社員+FL 1人あたりの費用） ----
+  { id: 'ex_party', group: 'all', name: '🍻 社内交流会', desc: '社員・FLの好感度を上げる懇親会',
+    perHead: () => Math.max(1, getEmployeeCount() + (state.freelancers||0)),
+    cost: () => Math.max(1000,  getTotalIncome() * 1)  * Math.max(1, getEmployeeCount() + (state.freelancers||0)),
+    targets: ['employee','freelance'], gain: 5, color: '#4ade80' },
+  { id: 'ex_retreat', group: 'all', name: '🏔️ 合宿・チームビルディング', desc: '全員参加の泊まり込み合宿。全好感度UP',
+    perHead: () => Math.max(1, getEmployeeCount() + (state.freelancers||0)),
+    cost: () => Math.max(8000,  getTotalIncome() * 8)  * Math.max(1, getEmployeeCount() + (state.freelancers||0)),
+    targets: ['ceo','employee','freelance'], gain: 12, color: '#f97316' },
+  // ---- FL（FL1人あたりの費用） ----
+  { id: 'ex_fl_lunch', group: 'fl', name: '🍱 FL懇親ランチ', desc: 'FLと昼食をともにする。FL好感度UP',
+    perHead: () => Math.max(1, state.freelancers||0),
+    cost: () => Math.max(500,  getTotalIncome() * 0.5) * Math.max(1, state.freelancers||0),
+    targets: ['freelance'], gain: 6,  color: '#93c5fd' },
+  { id: 'ex_fl_visit', group: 'fl', name: '🏢 FL常駐先への差し入れ', desc: '常駐先へ差し入れ訪問。FL好感度が大幅UP',
+    perHead: () => Math.max(1, state.freelancers||0),
+    cost: () => Math.max(2000, getTotalIncome() * 2)   * Math.max(1, state.freelancers||0),
+    targets: ['freelance'], gain: 12, color: '#7dd3fc' },
+  { id: 'ex_fl_event', group: 'fl', name: '🎉 FL専用交流イベント', desc: 'FL限定の感謝イベント。離脱率が激減',
+    perHead: () => Math.max(1, state.freelancers||0),
+    cost: () => Math.max(8000, getTotalIncome() * 8)   * Math.max(1, state.freelancers||0),
+    targets: ['freelance'], gain: 22, color: '#a78bfa' },
 ];
 
 function doExchangeAction(actionId) {
@@ -1044,16 +1065,28 @@ function renderExchange() {
   const makeBtn = a => {
     const isFL = a.group === 'fl';
     const cost = a.cost();
+    const effectiveGain = Math.round(a.gain * salaryMult);
     const ok   = state.money >= cost && (!isFL || state.freelancers > 0);
     const disabledReason = isFL && state.freelancers === 0 ? 'FL在籍なし' : ok ? '' : '資金不足';
+    let costHtml;
+    if (disabledReason) {
+      costHtml = `<span style="color:#666">${disabledReason}</span>`;
+    } else if (a.perHead) {
+      const headCount = a.perHead();
+      const unitCost = headCount > 0 ? Math.round(cost / headCount) : cost;
+      const unit = a.group === 'fl' ? '/FL' : '/人';
+      costHtml = `<span style="color:#fbbf24">${yen(unitCost)}${unit}</span><br><span style="font-size:10px;color:#888">計 ${yen(cost)}</span>`;
+    } else {
+      costHtml = `<span style="color:#fbbf24">${yen(cost)}</span>`;
+    }
     return `<button class="exchange-btn" onclick="doExchangeAction('${a.id}')" ${ok ? '' : 'disabled'}>
       <div class="exchange-btn-left">
         <span class="exchange-btn-name">${a.name}</span>
         <span class="exchange-btn-desc">${a.desc}</span>
       </div>
       <div class="exchange-btn-right">
-        <span class="exchange-btn-cost" style="color:${ok?'#fbbf24':'#666'}">${disabledReason || yen(cost)}</span>
-        <span class="exchange-btn-effect" style="color:${a.color}">好感度+${a.gain}</span>
+        <div class="exchange-btn-cost">${costHtml}</div>
+        <span class="exchange-btn-effect" style="color:${a.color}">好感度+${effectiveGain}</span>
       </div>
     </button>`;
   };
