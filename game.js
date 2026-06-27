@@ -103,6 +103,42 @@ const DEPT_DEFS = [
   },
 ];
 
+// ---- 経営企画部 役員定義 ----
+const EXEC_DEFS = [
+  {
+    id: 'exec_sales_dir',
+    name: '営業部役員',
+    emoji: '🤵',
+    role: '営業最適化担当',
+    desc: '毎週モラールを自動改善（社員+5・FL+3・社長+3）。空き定員に応じて営業を自動採用。',
+    cost: 8000000,
+    monthlySalary: 1500000,
+    unlockAt: 5000000,
+  },
+  {
+    id: 'exec_finance_dir',
+    name: '財務部役員',
+    emoji: '📊',
+    role: '財務最適化担当',
+    desc: '（近日実装）収益分析・資金効率化を担当。',
+    cost: 50000000,
+    monthlySalary: 2000000,
+    unlockAt: 100000000,
+    comingSoon: true,
+  },
+  {
+    id: 'exec_mkt_dir',
+    name: 'マーケット部役員',
+    emoji: '📣',
+    role: 'マーケット最適化担当',
+    desc: '（近日実装）市場分析・ブランド戦略を担当。',
+    cost: 80000000,
+    monthlySalary: 2000000,
+    unlockAt: 200000000,
+    comingSoon: true,
+  },
+];
+
 // ---- 週次イベント定義 ----
 // category: 'personnel'=人材増減(20%), 'money'=お金増減(30%), 'multiplier'=係数変動(50%)
 function _evWeeklyBase() {
@@ -289,6 +325,7 @@ let state = {
   staffingOpened: true, // 人材紹介事業部開設フラグ（常時解放中）
   periodStaffingPlacements: 0, // 今期紹介人数（年度末リセット）
   hideWeeklyReport: false,     // 週次レポート非表示フラグ
+  executives: {},              // 役員雇用状態 { exec_sales_dir: true }
 };
 
 DEPT_DEFS.forEach(d => {
@@ -604,10 +641,15 @@ function calcMonthlyExpenses() {
   const loanPay   = state.loans.reduce((a, l) => a + Math.min(l.remaining, l.monthlyPayment), 0);
   const ceoSalary = state.ceoSalary || 0;
 
+  let execSalary = 0;
+  EXEC_DEFS.forEach(e => {
+    if (state.executives?.[e.id]) execSalary += e.monthlySalary;
+  });
+
   return {
     rent, utilities, supplies,
-    salesperson, staffingSalary, marketingSalary, hrSalary, loanPay, ceoSalary,
-    total: rent + utilities + supplies + salesperson + staffingSalary + marketingSalary + hrSalary + loanPay + ceoSalary,
+    salesperson, staffingSalary, marketingSalary, hrSalary, loanPay, ceoSalary, execSalary,
+    total: rent + utilities + supplies + salesperson + staffingSalary + marketingSalary + hrSalary + loanPay + ceoSalary + execSalary,
   };
 }
 
@@ -621,6 +663,7 @@ function showExpenseModal(exp, before) {
   if (exp.staffingSalary > 0)  rows += `<div class="expense-row"><span>🤝 紹介営業 人件費＋社保</span><span>−${yen(exp.staffingSalary)}</span></div>`;
   if (exp.marketingSalary > 0) rows += `<div class="expense-row"><span>📣 マーケター 人件費＋社保</span><span>−${yen(exp.marketingSalary)}</span></div>`;
   if (exp.ceoSalary > 0)       rows += `<div class="expense-row"><span>🤵 社長報酬</span><span>−${yen(exp.ceoSalary)}</span></div>`;
+  if (exp.execSalary > 0)      rows += `<div class="expense-row"><span>🤵 役員報酬</span><span>−${yen(exp.execSalary)}</span></div>`;
   if (exp.loanPay > 0)         rows += `<div class="expense-row" style="color:#f87171"><span>🏦 ローン返済</span><span>−${yen(exp.loanPay)}</span></div>`;
 
   const after = before - exp.total;
@@ -678,6 +721,7 @@ function _renderWeeklyModalContent(idx) {
     if (mExp.supplies > 0)       html += `<div class="expense-row"><span>📦 備品・消耗品</span><span>−${yen(mExp.supplies)}</span></div>`;
     if (mExp.salesperson > 0)    html += `<div class="expense-row"><span>👔 SES営業 人件費</span><span>−${yen(mExp.salesperson)}</span></div>`;
     if (mExp.hrSalary > 0)       html += `<div class="expense-row"><span>🎓 マネージャー 人件費</span><span>−${yen(mExp.hrSalary)}</span></div>`;
+    if (mExp.execSalary > 0)     html += `<div class="expense-row"><span>🤵 役員報酬</span><span>−${yen(mExp.execSalary)}</span></div>`;
     if (mExp.staffingSalary > 0) html += `<div class="expense-row"><span>🤝 紹介営業 人件費</span><span>−${yen(mExp.staffingSalary)}</span></div>`;
     if (mExp.marketingSalary > 0)html += `<div class="expense-row"><span>📣 マーケター 人件費</span><span>−${yen(mExp.marketingSalary)}</span></div>`;
     if (mExp.ceoSalary > 0)      html += `<div class="expense-row"><span>🤵 社長報酬</span><span>−${yen(mExp.ceoSalary)}</span></div>`;
@@ -872,6 +916,17 @@ function openStaffingDivision() {
   state.staffingOpened = true;
   renderDepts();
   showToast('🤝 人材紹介事業部を開設しました！');
+}
+
+function hireExec(id) {
+  const e = EXEC_DEFS.find(x => x.id === id);
+  if (!e || e.comingSoon || state.executives?.[id]) return;
+  if (state.money < e.cost) { showToast('💸 資金が足りません！'); return; }
+  state.money -= e.cost;
+  if (!state.executives) state.executives = {};
+  state.executives[id] = true;
+  showToast(`✅ ${e.name}を採用しました！`);
+  renderDepts();
 }
 
 // ---- 銀行借入 ----
@@ -1223,6 +1278,7 @@ function load() {
     if (state.staffingOpened === undefined)           state.staffingOpened = true;
     if (state.periodStaffingPlacements === undefined) state.periodStaffingPlacements = 0;
     if (state.hideWeeklyReport === undefined)         state.hideWeeklyReport = false;
+    if (!state.executives)                            state.executives = {};
     if (state.bgmMuted === undefined)                 state.bgmMuted = false;
     bgmMuted = state.bgmMuted;
     const bgmBtn = document.getElementById('bgm-btn');
@@ -1524,12 +1580,11 @@ function renderDepts() {
 
   let html = _buildOfficeCard();
 
-  // 島1: SES事業部（営業 + FL + 人材育成）
+  // 島1: SES事業部（営業 + FL）
   html += `<div class="dept-island island-sales">
     <div class="island-hdr"><span class="island-icon">💼</span><span>SES事業部</span></div>
     ${_buildDeptRow('sales')}
     ${_buildFLCard()}
-    ${_buildDeptRow('hr')}
   </div>`;
 
   // 島2: 人材紹介事業部
@@ -1570,7 +1625,64 @@ function renderDepts() {
     ${_buildDeptRow('global')}
   </div>`;
 
+  // 島6: 経営企画部（役員）
+  html += `<div class="dept-island island-exec">
+    <div class="island-hdr"><span class="island-icon">🏛️</span><span>経営企画部</span></div>
+    ${EXEC_DEFS.map(e => _buildExecCard(e)).join('')}
+  </div>`;
+
   container.innerHTML = html;
+}
+
+function _buildExecCard(e) {
+  const hired = !!state.executives?.[e.id];
+  const canUnlock = state.totalEarned >= e.unlockAt;
+  const canAfford = state.money >= e.cost;
+
+  if (e.comingSoon) {
+    return `<div class="dept-row exec-card exec-soon">
+      <div class="dept-emoji">${e.emoji}</div>
+      <div class="dept-info">
+        <div class="dept-name">${e.name} <span style="font-size:9px;color:#555;background:#1a1a2e;padding:1px 5px;border-radius:8px">SOON</span></div>
+        <div class="dept-desc">${e.desc}</div>
+      </div>
+    </div>`;
+  }
+
+  if (hired) {
+    return `<div class="dept-row exec-card exec-active">
+      <div class="dept-emoji">${e.emoji}</div>
+      <div class="dept-info">
+        <div class="dept-name">${e.name} <span style="font-size:9px;color:#4ade80;background:#0a2a10;padding:1px 5px;border-radius:8px">稼働中</span></div>
+        <div class="dept-desc">${e.role}</div>
+        <div class="dept-desc" style="color:#888">月報酬 ${yen(e.monthlySalary)}</div>
+      </div>
+      <button class="hire-btn disabled" style="font-size:10px;padding:6px 8px">雇用済</button>
+    </div>`;
+  }
+
+  if (!canUnlock) {
+    return `<div class="dept-row exec-card exec-locked">
+      <div class="dept-emoji" style="opacity:0.4">${e.emoji}</div>
+      <div class="dept-info">
+        <div class="dept-name" style="color:#555">${e.name}</div>
+        <div class="dept-desc" style="color:#444">累計売上 ${yen(e.unlockAt)} で解放</div>
+      </div>
+      <button class="hire-btn disabled" style="font-size:10px;padding:6px 8px">🔒</button>
+    </div>`;
+  }
+
+  return `<div class="dept-row exec-card">
+    <div class="dept-emoji">${e.emoji}</div>
+    <div class="dept-info">
+      <div class="dept-name">${e.name}</div>
+      <div class="dept-desc">${e.desc}</div>
+      <div class="dept-desc" style="color:#888">採用費 ${yen(e.cost)} / 月報酬 ${yen(e.monthlySalary)}</div>
+    </div>
+    <button class="hire-btn${canAfford ? '' : ' disabled'}" onclick="hireExec('${e.id}')" style="font-size:10px;padding:6px 8px">
+      ${canAfford ? '採用' : '資金不足'}
+    </button>
+  </div>`;
 }
 
 function renderUpgrades() {
@@ -1798,6 +1910,48 @@ const OCV_SCREEN = ['#58a8ff','#58ffa0','#ff9028','#d858ff','#58f0f8','#ff5888']
 
 let ocvCtx = null, ocvTime = 0, ocvAnimId = null;
 
+// ---- 女性OLキャラ（Misaki）つぶやきシステム ----
+let _olMutterText = '';
+let _olMutterNextSwap = 0;
+
+function _getOLMutterText() {
+  const fl    = state.freelancers || 0;
+  const money = state.money;
+  const sales = state.employees['sales'] || 0;
+  const m     = state.morale || { ceo:70, employee:70, freelance:70 };
+  const mor   = Math.round((m.ceo + m.employee + m.freelance) / 3);
+  const stage = getCurrentStageIdx();
+  const weekly = getDisplayWeeklyIncome();
+
+  if (!state.gameStarted) {
+    const s = ['どんな事務所にしようかな…', '資本金1000万！頑張ります！', '早く始めたいな…✨'];
+    return s[Math.floor(ocvTime * 0.1) % s.length];
+  }
+
+  const pool = [];
+  if (money < 300000)         pool.push('やばい…お金が…💦', 'どうしよう…倒産しちゃう！', '早く収益が欲しい…');
+  else if (money > 1e9)       pool.push(`${yen(money)}！すごい！`, '資金が豊富で安心です♪');
+
+  if (mor < 30)               pool.push('みんな…疲れてる😰', '交流会を開かないと！', '空気が重いな…');
+  else if (mor < 50)          pool.push('少し元気がないかな', 'モラール上げないと…');
+  else if (mor > 88)          pool.push('最高の雰囲気！✨', 'みんないきいきしてる！', 'この調子！');
+
+  if (fl === 0 && sales > 0)  pool.push('FLがまだいない…', 'エンジニアを確保して！', '採用が待ち遠しい');
+  else if (fl > 30)           pool.push(`FL${fl}名！頼もしい✨`, 'チームが大きくなった！');
+  else if (fl > 10)           pool.push(`FL${fl}名在籍中`, 'エンジニア陣に感謝！');
+
+  if (stage >= 5)             pool.push('上場目前！夢みたい…！', 'ここまで来れるなんて！');
+  else if (stage >= 3)        pool.push('大きな会社になったなぁ', '成長スピードがすごい！');
+
+  if (state.executives?.exec_sales_dir) pool.push('役員さんが助かります！', '組織が整ってきた！');
+
+  pool.push(
+    `週次収益${yen(weekly)}`, '今日も頑張ります！', '受注を増やそう！',
+    '経営って楽しい♪', `営業${sales}人で挑戦中！`, 'チームで頑張れる！',
+  );
+  return pool[Math.floor(ocvTime * 0.07 + pool.length * 0.3) % pool.length];
+}
+
 // Deterministic pseudo-random (no flickering)
 function prand(n) {
   n = ((n ^ 61) ^ (n >>> 16)) >>> 0;
@@ -1838,6 +1992,15 @@ function ocvDraw() {
   } else {
     ocvPeople(ctx, count, mor);
   }
+  // 女性OL Misaki（右端固定）
+  const olX = OCV_W - 26, olFY = OCV_H - 2;
+  if (ocvTime - _olMutterNextSwap > 4.5 + Math.random() * 2) {
+    _olMutterText = _getOLMutterText();
+    _olMutterNextSwap = ocvTime;
+  }
+  if (!_olMutterText) _olMutterText = _getOLMutterText();
+  ocvOLBubble(ctx, olX, olFY, _olMutterText);
+  ocvOL(ctx, olX, olFY);
   ocvOverlay(ctx, mor, count);
 }
 
@@ -2160,6 +2323,271 @@ function ocvPerson(ctx, cx, footY, idx, mor, sc) {
   ctx.fillRect(shX+shW, handY, aW, Math.max(1,Math.round(s*0.6)));
 }
 
+function ocvOL(ctx, cx, fy) {
+  const t = ocvTime;
+  const SKIN  = '#f0c8a0';
+  const HAIR  = '#180808';
+  const SUIT  = '#1e2d5c';
+  const BLOUSE= '#f4f4ee';
+  const LIP   = '#d04860';
+  const BLUSH = 'rgba(240,100,100,0.26)';
+  const SKHIGH= 'rgba(255,200,160,0.5)';
+
+  const br = Math.sin(t * 1.1) * 0.55; // breathing
+
+  // --- BODY ---
+  const bW = 14, bH = 19;
+  const bX = cx - bW / 2, bY = fy - bH + br;
+
+  // Shadow under feet
+  ctx.fillStyle = 'rgba(0,0,0,0.18)';
+  ctx.beginPath();
+  ctx.ellipse(cx, fy + 1, 7, 2, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Legs / skirt bottom
+  ctx.fillStyle = '#13204a';
+  ctx.fillRect(cx - 3.5, bY + bH - 4, 3, 6 - br * 0.3);
+  ctx.fillRect(cx + 0.5, bY + bH - 4, 3, 6 - br * 0.3);
+  // Shoes
+  ctx.fillStyle = '#1a1010';
+  ctx.beginPath();
+  ctx.ellipse(cx - 2, fy + 1, 3.5, 1.8, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(cx + 2, fy + 1, 3.5, 1.8, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Jacket body
+  ctx.fillStyle = SUIT;
+  ctx.beginPath();
+  if (ctx.roundRect) {
+    ctx.roundRect(bX, bY, bW, bH - 3, [3, 3, 0, 0]);
+  } else {
+    ctx.rect(bX, bY, bW, bH - 3);
+  }
+  ctx.fill();
+
+  // Jacket lapels (V shape in blouse)
+  ctx.fillStyle = BLOUSE;
+  ctx.beginPath();
+  ctx.moveTo(cx - 2.5, bY + 0.5);
+  ctx.lineTo(cx, bY + 6);
+  ctx.lineTo(cx + 2.5, bY + 0.5);
+  ctx.closePath();
+  ctx.fill();
+
+  // Skirt (slightly different shade)
+  ctx.fillStyle = '#182050';
+  ctx.fillRect(bX, bY + bH - 5, bW, 6);
+
+  // Jacket seam lines
+  ctx.strokeStyle = 'rgba(255,255,255,0.09)'; ctx.lineWidth = 0.5;
+  ctx.beginPath();
+  ctx.moveTo(cx - 3, bY + 1); ctx.lineTo(cx - 6, bY + bH - 5);
+  ctx.moveTo(cx + 3, bY + 1); ctx.lineTo(cx + 6, bY + bH - 5);
+  ctx.stroke();
+
+  // --- ARMS ---
+  const aSwing = Math.sin(t * 2.0 + 0.7) * 1.3;
+  ctx.fillStyle = SUIT;
+  ctx.fillRect(bX - 3, bY + 2, 3.5, 10 + aSwing);
+  ctx.fillRect(bX + bW - 0.5, bY + 2, 3.5, 10 - aSwing);
+  // Cuffs (blouse visible)
+  ctx.fillStyle = BLOUSE;
+  ctx.fillRect(bX - 3, bY + 10 + aSwing, 3.5, 2);
+  ctx.fillRect(bX + bW - 0.5, bY + 10 - aSwing, 3.5, 2);
+  // Hands
+  ctx.fillStyle = SKIN;
+  ctx.beginPath();
+  ctx.ellipse(bX - 1.5, bY + 13 + aSwing, 2, 1.6, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(bX + bW + 1.5, bY + 13 - aSwing, 2, 1.6, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // --- HEAD ---
+  const hW = 12, hH = 14;
+  const hCY = bY - hH * 0.42;
+
+  // Hair back (long, below face)
+  ctx.fillStyle = HAIR;
+  ctx.beginPath();
+  ctx.ellipse(cx, hCY + 1, hW / 2 + 2, hH / 2 + 2.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // Side hair strands (long)
+  ctx.fillRect(cx - hW / 2 - 2.5, hCY - 1, 3, hH + 4);
+  ctx.fillRect(cx + hW / 2 - 0.5, hCY - 1, 3, hH + 4);
+
+  // Face skin
+  ctx.fillStyle = SKIN;
+  ctx.beginPath();
+  ctx.ellipse(cx, hCY + 1, hW / 2, hH / 2, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Face highlight (subtle shading)
+  ctx.fillStyle = SKHIGH;
+  ctx.beginPath();
+  ctx.ellipse(cx - 1.5, hCY - 1, hW / 2 * 0.55, hH / 2 * 0.5, -0.3, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Hair top and bangs
+  ctx.fillStyle = HAIR;
+  // Top hair dome
+  ctx.beginPath();
+  ctx.ellipse(cx, hCY - hH * 0.3, hW / 2 + 1, hH / 2 * 0.65, 0, Math.PI, 0, false);
+  ctx.fill();
+  // Bangs (前髪) — left side
+  ctx.beginPath();
+  ctx.moveTo(cx - hW / 2 - 0.5, hCY - hH * 0.38);
+  ctx.bezierCurveTo(cx - hW / 2 + 1, hCY - hH * 0.1, cx - 3, hCY + 0.5, cx - 1, hCY - hH * 0.25);
+  ctx.bezierCurveTo(cx - hW / 2, hCY - hH * 0.38, cx - hW / 2 - 0.5, hCY - hH * 0.38, cx - hW / 2 - 0.5, hCY - hH * 0.38);
+  ctx.fill();
+  // Bangs right side
+  ctx.beginPath();
+  ctx.moveTo(cx + hW / 2 + 0.5, hCY - hH * 0.38);
+  ctx.bezierCurveTo(cx + hW / 2 - 1, hCY - hH * 0.1, cx + 3, hCY + 0.5, cx + 1, hCY - hH * 0.25);
+  ctx.bezierCurveTo(cx + hW / 2, hCY - hH * 0.38, cx + hW / 2 + 0.5, hCY - hH * 0.38, cx + hW / 2 + 0.5, hCY - hH * 0.38);
+  ctx.fill();
+  // Center part highlight
+  ctx.fillStyle = 'rgba(80,20,20,0.5)';
+  ctx.beginPath();
+  ctx.ellipse(cx, hCY - hH * 0.42, 2, 3, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // --- EYES ---
+  const blink = Math.sin(t * 0.28 + 2.3) > 0.92;
+  const eyeY  = hCY - 0.5;
+  const eLX   = cx - hW * 0.22;
+  const eRX   = cx + hW * 0.22;
+  const mor   = Math.round(((state.morale?.ceo || 70) + (state.morale?.employee || 70) + (state.morale?.freelance || 70)) / 3);
+
+  if (!blink) {
+    // Eye whites
+    ctx.fillStyle = '#fafaff';
+    ctx.beginPath(); ctx.ellipse(eLX, eyeY, 2.4, 2.0, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(eRX, eyeY, 2.4, 2.0, 0, 0, Math.PI * 2); ctx.fill();
+    // Pupils
+    ctx.fillStyle = '#14060c';
+    ctx.beginPath(); ctx.ellipse(eLX, eyeY + 0.3, 1.6, 1.85, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(eRX, eyeY + 0.3, 1.6, 1.85, 0, 0, Math.PI * 2); ctx.fill();
+    // Iris color (warm brown)
+    ctx.fillStyle = 'rgba(110,55,15,0.65)';
+    ctx.beginPath(); ctx.ellipse(eLX, eyeY + 0.35, 1.05, 1.15, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(eRX, eyeY + 0.35, 1.05, 1.15, 0, 0, Math.PI * 2); ctx.fill();
+    // Shine (large + small)
+    ctx.fillStyle = 'rgba(255,255,255,0.92)';
+    ctx.fillRect(eLX - 0.5, eyeY - 1.0, 1.2, 1.2);
+    ctx.fillRect(eRX - 0.5, eyeY - 1.0, 1.2, 1.2);
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.fillRect(eLX + 0.7, eyeY + 0.3, 0.7, 0.7);
+    ctx.fillRect(eRX + 0.7, eyeY + 0.3, 0.7, 0.7);
+    // Upper eyelash curve
+    ctx.strokeStyle = '#14060c'; ctx.lineWidth = 1.1;
+    ctx.beginPath(); ctx.arc(eLX, eyeY, 2.4, Math.PI * 1.05, Math.PI * 1.95, false); ctx.stroke();
+    ctx.beginPath(); ctx.arc(eRX, eyeY, 2.4, Math.PI * 1.05, Math.PI * 1.95, false); ctx.stroke();
+    // Lower lash (subtle)
+    ctx.strokeStyle = 'rgba(40,10,20,0.4)'; ctx.lineWidth = 0.6;
+    ctx.beginPath(); ctx.arc(eLX, eyeY, 2.0, 0, Math.PI, false); ctx.stroke();
+    ctx.beginPath(); ctx.arc(eRX, eyeY, 2.0, 0, Math.PI, false); ctx.stroke();
+  } else {
+    // Closed eyes (happy-close arc)
+    ctx.strokeStyle = '#14060c'; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.arc(eLX, eyeY + 0.8, 2.2, Math.PI * 1.05, Math.PI * 1.95, false); ctx.stroke();
+    ctx.beginPath(); ctx.arc(eRX, eyeY + 0.8, 2.2, Math.PI * 1.05, Math.PI * 1.95, false); ctx.stroke();
+    // Small lash tips
+    ctx.strokeStyle = '#14060c'; ctx.lineWidth = 0.8;
+    ctx.beginPath(); ctx.moveTo(eLX - 2.5, eyeY - 0.5); ctx.lineTo(eLX - 3.5, eyeY - 1.5); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(eRX + 2.5, eyeY - 0.5); ctx.lineTo(eRX + 3.5, eyeY - 1.5); ctx.stroke();
+  }
+
+  // Eyebrows (soft natural arch)
+  ctx.strokeStyle = '#2a0c10'; ctx.lineWidth = 1.2; ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(eLX - 3.0, eyeY - 3.8);
+  ctx.quadraticCurveTo(eLX - 0.3, eyeY - 5.0, eLX + 3.0, eyeY - 3.5);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(eRX - 3.0, eyeY - 3.5);
+  ctx.quadraticCurveTo(eRX + 0.3, eyeY - 5.0, eRX + 3.0, eyeY - 3.8);
+  ctx.stroke();
+  ctx.lineCap = 'butt';
+
+  // Nose (tiny, two nostril hints)
+  ctx.fillStyle = 'rgba(185,95,75,0.32)';
+  ctx.beginPath(); ctx.ellipse(cx - 1.1, eyeY + 4.8, 0.8, 0.5, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(cx + 1.1, eyeY + 4.8, 0.8, 0.5, 0, 0, Math.PI * 2); ctx.fill();
+
+  // Mouth
+  const mY3 = eyeY + 8.0;
+  ctx.strokeStyle = LIP; ctx.lineWidth = 1.2; ctx.lineCap = 'round';
+  ctx.beginPath();
+  if (mor > 70) {
+    ctx.arc(cx, mY3 - 0.8, 2.4, 0.1, Math.PI - 0.1, false);
+  } else if (mor < 40) {
+    ctx.arc(cx, mY3 + 1.2, 2.2, Math.PI + 0.2, -0.2, false);
+  } else {
+    ctx.arc(cx, mY3 - 0.2, 1.9, 0.15, Math.PI - 0.15, false);
+  }
+  ctx.stroke();
+  ctx.lineCap = 'butt';
+  // Lower lip fill
+  ctx.fillStyle = LIP;
+  ctx.beginPath();
+  ctx.ellipse(cx, mY3 + (mor > 70 ? 0.6 : 0.9), 1.7, 0.65, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Blush (soft circles on cheeks)
+  ctx.fillStyle = BLUSH;
+  ctx.beginPath(); ctx.ellipse(eLX - 0.8, eyeY + 3.8, 3.4, 1.6, 0.1, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(eRX + 0.8, eyeY + 3.8, 3.4, 1.6, -0.1, 0, Math.PI * 2); ctx.fill();
+}
+
+function ocvOLBubble(ctx, cx, fy, text) {
+  if (!text) return;
+  ctx.save();
+  ctx.font = 'bold 6.5px sans-serif';
+  const tw = ctx.measureText(text).width;
+  const pad = 4, bh = 12;
+  const bw = tw + pad * 2;
+  const bx = Math.max(2, cx - bw - 6);
+  const by = fy - 54;
+
+  // Bubble shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.22)';
+  if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(bx + 1, by + 1, bw, bh, 4); ctx.fill(); }
+
+  // Bubble body
+  ctx.fillStyle = 'rgba(255,252,255,0.95)';
+  ctx.strokeStyle = 'rgba(200,80,120,0.55)';
+  ctx.lineWidth = 0.9;
+  ctx.beginPath();
+  if (ctx.roundRect) { ctx.roundRect(bx, by, bw, bh, 4); } else { ctx.rect(bx, by, bw, bh); }
+  ctx.fill(); ctx.stroke();
+
+  // Tail (pointing to character mouth area)
+  ctx.fillStyle = 'rgba(255,252,255,0.95)';
+  ctx.beginPath();
+  ctx.moveTo(bx + bw - 5, by + bh);
+  ctx.lineTo(bx + bw + 2, by + bh + 5);
+  ctx.lineTo(bx + bw - 10, by + bh);
+  ctx.closePath();
+  ctx.fill();
+  // Tail border (left edge only)
+  ctx.strokeStyle = 'rgba(200,80,120,0.3)';
+  ctx.lineWidth = 0.7;
+  ctx.beginPath();
+  ctx.moveTo(bx + bw - 10, by + bh);
+  ctx.lineTo(bx + bw + 2, by + bh + 5);
+  ctx.stroke();
+
+  // Text
+  ctx.fillStyle = '#200818';
+  ctx.textAlign = 'left';
+  ctx.fillText(text, bx + pad, by + bh - 3);
+  ctx.restore();
+}
+
 function ocvOverlay(ctx, mor, count) {
   if (mor < 30) {
     const a=(30-mor)/30;
@@ -2370,7 +2798,7 @@ function gameLoop(ts) {
             + (monthlyExp.rent || 0) + (monthlyExp.utilities || 0) + (monthlyExp.supplies || 0)
             + (monthlyExp.salesperson || 0) + (monthlyExp.hrSalary || 0)
             + (monthlyExp.staffingSalary || 0) + (monthlyExp.marketingSalary || 0)
-            + (monthlyExp.ceoSalary || 0);
+            + (monthlyExp.ceoSalary || 0) + (monthlyExp.execSalary || 0);
         }
       }
 
@@ -2435,26 +2863,26 @@ function gameLoop(ts) {
         }
       }
 
-      // マネージャー自動処理（人材育成部）
-      const mgrCount = state.employees['hr'] || 0;
-      if (mgrCount > 0) {
-        const salesCap = mgrCount * 10;
+      // 営業部役員 自動処理
+      if (state.executives?.exec_sales_dir) {
+        // モラール自動最適化
+        state.morale['ceo']      = Math.min(100, (state.morale['ceo']      || 70) + 3);
+        state.morale['employee'] = Math.min(100, (state.morale['employee'] || 70) + 5);
+        state.morale['freelance']= Math.min(100, (state.morale['freelance']|| 70) + 3);
+        weeklyLog.push({ emoji: '🤵', text: '営業部役員がモラールを最適化（社長+3、社員+5、FL+3）' });
+        // 営業人数自動最適化（定員の40%を目標）
+        const cap = getCurrentCapacity();
+        const targetSales = Math.max(1, Math.floor(cap * 0.40));
         const curSales = state.employees['sales'] || 0;
-        let autoHiredSales = false;
-        if (curSales < salesCap && getEmployeeCount() < getCurrentCapacity()) {
-          const hireCostSales = getHireCost('sales');
-          if (state.money >= hireCostSales) {
-            state.money -= hireCostSales;
-            state.employees['sales'] = (state.employees['sales'] || 0) + 1;
-            state.deptCost['sales'] = (state.deptCost['sales'] || 0) + hireCostSales;
-            autoHiredSales = true;
+        if (curSales < targetSales && getEmployeeCount() < cap) {
+          const hireCost = getHireCost('sales');
+          if (state.money >= hireCost * 3) {
+            state.money -= hireCost;
+            state.employees['sales'] = curSales + 1;
+            state.deptCost['sales'] = (state.deptCost['sales'] || 0) + hireCost;
+            weeklyLog.push({ emoji: '👔', text: `営業部役員が営業1名を自動採用（計${state.employees['sales']}名）` });
           }
         }
-        if (autoHiredSales) weeklyLog.push({ emoji: '👔', text: `マネージャーが営業1名を自動採用（−${yen(getHireCost('sales'))}）` });
-        const morBoost = Math.min(4, mgrCount);
-        state.morale['employee'] = Math.min(100, (state.morale['employee'] || 70) + morBoost);
-        state.morale['freelance'] = Math.min(100, (state.morale['freelance'] || 70) + Math.max(1, Math.floor(morBoost / 2)));
-        weeklyLog.push({ emoji: '🎉', text: `自動交流会を実施（社員+${morBoost}、FL+${Math.max(1, Math.floor(morBoost / 2))}）` });
       }
 
       // 人材紹介事業部 週次成約処理
