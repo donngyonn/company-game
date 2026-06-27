@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0d0d1a">
+  <title>廃墟再生株式会社</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ヘッダー（固定） -->
+  <header id="header">
+    <div id="header-top">
+      <div id="company-stage">🏚️ 廃墟</div>
+      <div id="week-label" class="week-label">第1年 第1週</div>
+    </div>
+    <div id="money-display">¥0</div>
+    <div id="income-display">¥0/秒</div>
+    <div id="header-sub">
+      <span id="total-earned">累計売上 ¥0</span>
+      <span id="market-cap">時価総額 ¥0</span>
+    </div>
+    <!-- 週の進捗バー -->
+    <div class="week-bar-wrap">
+      <div id="week-progress" style="width:0%"></div>
+    </div>
+    <!-- ステージ進捗バー -->
+    <div class="progress-wrap">
+      <div id="stage-progress" style="width:0%"></div>
+    </div>
+    <div id="stage-label">次: 🧑‍💻 個人事業レベル まで ¥300万</div>
+  </header>
+
+  <!-- オフィスシーン（タップで社長が稼ぐ） -->
+  <div id="office-scene" onclick="tap(event)">
+    <span id="office-emoji">🏚️</span>
+    <div id="office-desc">ほこりまみれの廃ビル。窓は割れ、電気も通っていない。</div>
+    <div class="tap-hint">👆 タップして社長が直接稼ぐ</div>
+  </div>
+
+  <!-- タブナビ -->
+  <nav id="tab-nav">
+    <button class="tab-btn active" onclick="switchTab('depts', this)">🏢 部署</button>
+    <button class="tab-btn" onclick="switchTab('upgrades', this)">
+      ⬆️ 強化
+      <span id="upgrade-badge" class="badge" style="display:none"></span>
+    </button>
+    <button class="tab-btn" onclick="switchTab('slots', this)">💾 セーブ</button>
+    <button class="tab-btn" onclick="switchTab('stats', this)">📊 実績</button>
+    <button class="tab-btn" id="bank-tab-btn" disabled onclick="switchTab('bank', this)">🔒 銀行</button>
+    <button class="tab-btn" onclick="switchTab('exchange', this)">🤝 交流</button>
+  </nav>
+
+  <!-- 部署タブ -->
+  <section id="tab-depts" class="tab-content">
+    <div id="depts-list"></div>
+  </section>
+
+  <!-- 強化タブ -->
+  <section id="tab-upgrades" class="tab-content hidden">
+    <div id="upgrades-list"></div>
+  </section>
+
+  <!-- セーブタブ -->
+  <section id="tab-slots" class="tab-content hidden">
+    <div class="slots-header">
+      <p class="slots-desc">3スロットまで手動でセーブできます。<br>ゲームは5秒ごとに自動でも保存されます。</p>
+    </div>
+    <div id="slots-list"></div>
+  </section>
+
+  <!-- 実績タブ -->
+  <section id="tab-stats" class="tab-content hidden">
+    <div id="stats-content"></div>
+  </section>
+
+  <!-- 銀行タブ -->
+  <section id="tab-bank" class="tab-content hidden">
+    <div id="bank-content"></div>
+  </section>
+
+  <!-- 交流タブ -->
+  <section id="tab-exchange" class="tab-content hidden">
+    <div id="exchange-content"></div>
+  </section>
+
+  <!-- 放置収益モーダル -->
+  <div id="offline-modal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <div class="modal-title">🏠 お帰りなさい！</div>
+      <p><strong id="offline-time"></strong> の間、社員が頑張ってくれました！</p>
+      <div class="modal-earn" id="offline-income"></div>
+      <button class="modal-btn" onclick="closeOfflineModal()">受け取る！</button>
+    </div>
+  </div>
+
+  <!-- 上場モーダル -->
+  <div id="ipo-modal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <div class="modal-title">🎉 上場承認！</div>
+      <p>東証プライム上場が承認されました！</p>
+      <p style="margin-top:6px;font-size:12px;color:#888">第 <strong id="ipo-count"></strong> 回上場</p>
+      <div class="ipo-finance-box">
+        <div class="ipo-row"><span>📈 年間売上高</span><span id="ipo-annual-rev">―</span></div>
+        <div class="ipo-row"><span>🏢 推定時価総額</span><span id="ipo-market-cap">―</span></div>
+        <div class="ipo-row ipo-highlight"><span>💰 公募調達予定額</span><span id="ipo-funds" style="color:#4ade80;font-weight:800">―</span></div>
+      </div>
+      <p style="margin-top:10px;font-size:12px">調達資金を手に＋<strong style="color:#fbbf24">収益×<span id="ipo-mult"></span>の株主ボーナス</strong><br>で第二創業スタート！</p>
+      <button class="modal-btn" onclick="doPrestige()">🚀 上場する！資金を調達する</button>
+    </div>
+  </div>
+
+  <!-- 月次経費モーダル -->
+  <div id="expense-modal" class="modal-overlay hidden">
+    <div class="modal-box expense-modal-box">
+      <div class="modal-title">🏢 月次経費 引き落とし</div>
+      <div id="expense-detail"></div>
+      <div class="expense-total-row">合計: <span id="expense-total">¥0</span></div>
+      <div class="expense-balance">
+        <div>支払前: <span id="expense-before">¥0</span></div>
+        <div>支払後: <span id="expense-after">¥0</span></div>
+      </div>
+      <button class="modal-btn" onclick="closeExpenseModal()">OK</button>
+    </div>
+  </div>
+
+  <!-- 週次イベントモーダル -->
+  <div id="event-modal" class="modal-overlay hidden">
+    <div class="modal-box event-modal-box">
+      <div id="event-type-label" class="event-type-label">📰 ニュース</div>
+      <div id="event-emoji-big" class="event-emoji-big">📢</div>
+      <div id="event-title" class="event-title"></div>
+      <div id="event-desc" class="event-desc"></div>
+      <div id="event-result" class="event-result"></div>
+      <button class="modal-btn" onclick="closeEventModal()">OK</button>
+    </div>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
