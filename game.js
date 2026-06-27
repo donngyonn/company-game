@@ -1218,7 +1218,7 @@ function ocvDraw() {
   const th    = OCV_THEMES[Math.min(lvl, OCV_THEMES.length-1)];
   ctx.clearRect(0, 0, OCV_W, OCV_H);
   ocvBG(ctx, th, lvl, mor);
-  ocvPeople(ctx, count, mor);
+  ocvPeople(ctx, mor);
   ocvOverlay(ctx, mor, count);
 }
 
@@ -1242,8 +1242,8 @@ function ocvBG(ctx, th, lvl, mor) {
       ctx.fillStyle=`rgba(180,210,255,0.04)`;              ctx.fillRect(lx-10,0,90,10);
     }
   }
-  // Windows
-  ocvWindows(ctx, th, lvl, mor, lvl>=4?3:2);
+  // Windows — always 3, aligned with 3 dept islands
+  ocvWindows(ctx, th, lvl, mor, 3);
   // Nameplate
   if (lvl >= 3) {
     ctx.fillStyle='rgba(70,52,15,0.55)'; ctx.fillRect(OCV_W/2-55,OCV_HORIZON-18,110,14);
@@ -1262,9 +1262,11 @@ function ocvBG(ctx, th, lvl, mor) {
 
 function ocvWindows(ctx, th, lvl, mor, n) {
   const wW=n===3?80:100, wH=44, wY=7;
-  const tot=n*wW+(n-1)*18, sx=(OCV_W-tot)/2;
+  // n=3: gap=35 so windows center at 65,180,295 → over each dept island
+  const wgap = n===3 ? 35 : 18;
+  const tot=n*wW+(n-1)*wgap, sx=(OCV_W-tot)/2;
   for (let wi=0;wi<n;wi++) {
-    const wx=sx+wi*(wW+18);
+    const wx=sx+wi*(wW+wgap);
     const sg=ctx.createLinearGradient(wx,wY,wx,wY+wH);
     if (mor<30) { sg.addColorStop(0,'#090909'); sg.addColorStop(1,'#141010'); }
     else        { sg.addColorStop(0,th.sky);    sg.addColorStop(1,lhex(th.sky,0.12)); }
@@ -1337,24 +1339,104 @@ function ocvSky(ctx, wx, wy, ww, wh, lvl, wi) {
   }
 }
 
-function ocvPeople(ctx, count, mor) {
+// ---- 島レイアウト定数 ----
+const OCV_IW  = 110;  // 島の幅
+const OCV_IG  = 5;    // 島間ギャップ
+const OCV_ISX = (OCV_W - (3*OCV_IW + 2*OCV_IG)) / 2; // 開始X = 10
+
+function ocvPeople(ctx, mor) {
+  // 各島の人数（部署タブと同じ分類）
+  const n0 = (state.employees['sales']||0) + (state.freelancers||0) + (state.employees['hr']||0);
+  const n1 = (state.employees['finance']||0) + (state.employees['strategy']||0);
+  const n2 = state.employees['global']||0;
+
+  const isls = [
+    { x: OCV_ISX,               cnt: n0, label: '営業部',     col: '#fbbf24' },
+    { x: OCV_ISX + OCV_IW+OCV_IG, cnt: n1, label: '財務部',     col: '#34d399' },
+    { x: OCV_ISX + 2*(OCV_IW+OCV_IG), cnt: n2, label: 'グローバル部', col: '#818cf8' },
+  ];
+
+  isls.forEach((isl, ii) => ocvIsland(ctx, isl.x, isl.cnt, isl.label, isl.col, mor, ii));
+}
+
+function ocvIsland(ctx, ix, count, label, col, mor, ii) {
+  const iw = OCV_IW;
+
+  // 島フロア色（微妙に区分）
+  ctx.fillStyle = `rgba(255,255,255,${0.015 + ii*0.008})`;
+  ctx.fillRect(ix, OCV_HORIZON+2, iw, OCV_H - OCV_HORIZON - 2);
+
+  // 島間の縦セパレーター
+  if (ii > 0) {
+    ctx.fillStyle = 'rgba(255,255,255,0.06)';
+    ctx.fillRect(ix - OCV_IG, OCV_HORIZON + 16, OCV_IG, OCV_H - OCV_HORIZON - 16);
+  }
+
+  // 島ヘッダーバー
+  ctx.fillStyle = 'rgba(0,0,0,0.50)';
+  ctx.fillRect(ix, OCV_HORIZON, iw, 16);
+  // ヘッダーアクセントライン（上端）
+  ctx.fillStyle = col;
+  ctx.globalAlpha = 0.55;
+  ctx.fillRect(ix, OCV_HORIZON, iw, 2);
+  ctx.globalAlpha = 1;
+  // ラベル文字
+  ctx.fillStyle = col;
+  ctx.globalAlpha = 0.9;
+  ctx.font = 'bold 7px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(label, ix + iw/2, OCV_HORIZON + 11);
+  ctx.globalAlpha = 1;
+  ctx.textAlign = 'left';
+  // ヘッダー下線
+  ctx.fillStyle = 'rgba(255,255,255,0.05)';
+  ctx.fillRect(ix, OCV_HORIZON + 16, iw, 1);
+
   if (count === 0) {
-    ctx.fillStyle='rgba(255,255,255,0.16)'; ctx.font='10px sans-serif'; ctx.textAlign='center';
-    ctx.fillText('まだ誰もいない...', OCV_W/2, 112); ctx.textAlign='left'; return;
+    // 空席表示
+    ctx.fillStyle = 'rgba(255,255,255,0.09)';
+    ctx.font = '7px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('空席', ix + iw/2, OCV_H - 10);
+    ctx.textAlign = 'left';
+    return;
   }
-  const vis=Math.min(count,10), dW=54, dG=6;
-  const back=Math.min(vis,5), front=Math.max(0,vis-5);
-  if (back > 0) {
-    const tot=back*(dW+dG)-dG, sx=(OCV_W-tot)/2;
-    for (let i=0;i<back;i++) ocvDesk(ctx, sx+i*(dW+dG), 98, dW, i, mor, 0.76);
+
+  // デスク配置: 1行2席 × 2行 = 最大4席表示
+  const maxVis = 4;
+  const vis    = Math.min(count, maxVis);
+  const deskW  = 48;
+  const deskG  = 4;
+  const margin = (iw - 2*deskW - deskG) / 2; // = 5px
+
+  const backCnt  = Math.min(vis, 2);
+  const frontCnt = Math.max(0, vis - 2);
+
+  // 奥の行
+  if (backCnt === 1) {
+    ocvDesk(ctx, ix + (iw - deskW) / 2, 116, deskW, ii*10, mor, 0.78);
+  } else if (backCnt === 2) {
+    ocvDesk(ctx, ix + margin,                116, deskW, ii*10,   mor, 0.78);
+    ocvDesk(ctx, ix + margin + deskW + deskG, 116, deskW, ii*10+1, mor, 0.78);
   }
-  if (front > 0) {
-    const tot=front*(dW+dG)-dG, sx=(OCV_W-tot)/2;
-    for (let i=0;i<front;i++) ocvDesk(ctx, sx+i*(dW+dG), 140, dW, i+5, mor, 1.0);
+
+  // 手前の行
+  if (frontCnt === 1) {
+    ocvDesk(ctx, ix + (iw - deskW) / 2, 149, deskW, ii*10+2, mor, 1.0);
+  } else if (frontCnt === 2) {
+    ocvDesk(ctx, ix + margin,                149, deskW, ii*10+2, mor, 1.0);
+    ocvDesk(ctx, ix + margin + deskW + deskG, 149, deskW, ii*10+3, mor, 1.0);
   }
-  if (count > 10) {
-    ctx.fillStyle='rgba(255,255,255,0.42)'; ctx.font='bold 9px sans-serif'; ctx.textAlign='right';
-    ctx.fillText(`+${count-10}名`, OCV_W-5, OCV_H-4); ctx.textAlign='left';
+
+  // オーバーフローバッジ
+  if (count > maxVis) {
+    ctx.fillStyle = col;
+    ctx.globalAlpha = 0.6;
+    ctx.font = 'bold 8px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(`+${count - maxVis}名`, ix + iw/2, OCV_H - 2);
+    ctx.globalAlpha = 1;
+    ctx.textAlign = 'left';
   }
 }
 
