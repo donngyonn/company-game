@@ -158,26 +158,25 @@ const WEEK_EVENTS = [
 // dept: 'freelancer'→ state.freelancerMult に乗算（FL単価に反映）
 const UPGRADE_DEFS = [
   // 営業部：採用確率UP
-  { id: 'u_crm',      name: '案件管理システム導入',    emoji: '🗂️', cost: 5000000,     dept: 'sales',      mult: 1.5, req: { sales: 1 } },
-  { id: 'u_network',  name: '人材エージェント連携',    emoji: '🤝', cost: 80000000,    dept: 'sales',      mult: 1.5, req: { sales: 5 } },
-  { id: 'u_brand',    name: 'SESブランド確立',         emoji: '🏆', cost: 800000000,   dept: 'sales',      mult: 2,   req: { sales: 15 } },
-  { id: 'u_vision',   name: 'ビジョン採用戦略',        emoji: '🚩', cost: 8000000000,  dept: 'sales',      mult: 2,   req: { sales: 30 } },
+  { id: 'u_crm',      name: '案件管理システム導入',    emoji: '🗂️', cost: 2000000,      dept: 'sales',      mult: 1.25, req: { sales: 1 } },
+  { id: 'u_network',  name: '人材エージェント連携',    emoji: '🤝', cost: 35000000,     dept: 'sales',      mult: 1.25, req: { sales: 5 } },
+  { id: 'u_brand',    name: 'SESブランド確立',         emoji: '🏆', cost: 350000000,    dept: 'sales',      mult: 1.25, req: { sales: 15 } },
+  { id: 'u_vision',   name: 'ビジョン採用戦略',        emoji: '🚩', cost: 3500000000,   dept: 'sales',      mult: 1.25, req: { sales: 30 } },
   // フリーランス単価UP
-  { id: 'u_skill',    name: '単価交渉マニュアル整備',  emoji: '📋', cost: 8000000,     dept: 'freelancer', mult: 1.5, req: { sales: 1 } },
-  { id: 'u_niche',    name: 'ニッチ技術特化戦略',      emoji: '🔬', cost: 100000000,   dept: 'freelancer', mult: 1.5, req: { sales: 5 } },
-  { id: 'u_prime',    name: 'プライム案件専任体制',    emoji: '🥇', cost: 1000000000,  dept: 'freelancer', mult: 2,   req: { sales: 10 } },
-  { id: 'u_aidev',    name: 'AI・クラウド専門化',      emoji: '🤖', cost: 10000000000, dept: 'freelancer', mult: 2,   req: { sales: 20 } },
+  { id: 'u_skill',    name: '単価交渉マニュアル整備',  emoji: '📋', cost: 3000000,      dept: 'freelancer', mult: 1.25, req: { sales: 1 } },
+  { id: 'u_niche',    name: 'ニッチ技術特化戦略',      emoji: '🔬', cost: 45000000,     dept: 'freelancer', mult: 1.25, req: { sales: 5 } },
+  { id: 'u_prime',    name: 'プライム案件専任体制',    emoji: '🥇', cost: 450000000,    dept: 'freelancer', mult: 1.25, req: { sales: 10 } },
+  { id: 'u_aidev',    name: 'AI・クラウド専門化',      emoji: '🤖', cost: 4500000000,   dept: 'freelancer', mult: 1.25, req: { sales: 20 } },
   // 管理部門
-  { id: 'u_training', name: '体系的研修プログラム',    emoji: '📚', cost: 500000000,   dept: 'hr',         mult: 2,   req: { hr: 1 } },
-  { id: 'u_accounting',name:'単価交渉強化マニュアル',  emoji: '💹', cost: 8000000000,  dept: 'finance',    mult: 2,   req: { finance: 1 } },
-  { id: 'u_mba',      name: '中長期SES戦略策定',       emoji: '🗺️', cost: 80000000000, dept: 'strategy',   mult: 2,   req: { strategy: 1 } },
-  { id: 'u_english',  name: '英語対応スキルシート整備', emoji: '🗣️', cost: 500000000000, dept: 'global',   mult: 2,   req: { global: 1 } },
+  { id: 'u_training', name: '体系的研修プログラム',    emoji: '📚', cost: 200000000,    dept: 'hr',         mult: 1.25, req: { hr: 1 } },
+  { id: 'u_accounting',name:'単価交渉強化マニュアル',  emoji: '💹', cost: 3500000000,   dept: 'finance',    mult: 1.25, req: { finance: 1 } },
+  { id: 'u_mba',      name: '中長期SES戦略策定',       emoji: '🗺️', cost: 35000000000,  dept: 'strategy',   mult: 1.25, req: { strategy: 1 } },
+  { id: 'u_english',  name: '英語対応スキルシート整備', emoji: '🗣️', cost: 200000000000, dept: 'global',    mult: 1.25, req: { global: 1 } },
 ];
 
 // ---- 会社ステージ ----
 const STAGE_DEFS = [
-  { threshold: 0,            name: '廃墟SES',      emoji: '🏚️', color: '#6c757d', desc: 'エンジニア0人・案件0件。ボロオフィスで途方に暮れている。' },
-  { threshold: 3000000,      name: '個人事業',     emoji: '🧑‍💻', color: '#8B7355', desc: '社長自らが客先に常駐中。「社長＝全戦力」のSES。' },
+  { threshold: 0,            name: '個人事業',     emoji: '🧑‍💻', color: '#8B7355', desc: '社長自らが客先に常駐中。「社長＝全戦力」のSES。' },
   { threshold: 30000000,     name: '零細SES',      emoji: '🏢', color: '#2E8B57', desc: 'FL数名でなんとか回している。案件は口コミのみ。' },
   { threshold: 300000000,    name: '中小SES',      emoji: '🏬', color: '#2166AC', desc: '案件が安定してきた。協力会社との取引も始まった。' },
   { threshold: 3000000000,   name: '成長SES',      emoji: '🏭', color: '#762A83', desc: '「御社のFL、また来月もお願いします！」が増えてきた。' },
@@ -218,7 +217,7 @@ let state = {
   bankrupt: false,
   weeklyIncomeAccum: 0, // 週中の部署収益累積
   gameSpeed: 1,         // 倍速（1x / 2x / 4x）
-  ceoSalary: 500000,    // 社長月次報酬
+  ceoSalary: 300000,    // 社長月次報酬
   reportHistory: [],    // 週次レポート履歴（最大52件）
 };
 
@@ -286,20 +285,32 @@ function getDeptIncome(deptId) {
   return def.incomePerSec * (state.employees[deptId] || 0) * (state.deptMults[deptId] || 1);
 }
 
+function getEmpMoraleMult() {
+  const empMorale = (state.morale && state.morale.employee) || 70;
+  return Math.max(0.5, 1 + (empMorale - 70) * 0.005);
+}
+
+function getCeoSalaryMoraleMult() {
+  const salary = state.ceoSalary || 300000;
+  return Math.min(2.0, 1 + Math.max(0, salary - 300000) / 1500000);
+}
+
 function getFlWeeklyGross() {
   if (!state.flData || state.flData.length === 0) return 0;
   const currentWeek = Math.floor(state.elapsedSeconds / WEEK_SEC);
+  const mult = getEmpMoraleMult() * (state.freelancerMult || 1);
   return state.flData
     .filter(fl => (fl.hiredWeek ?? 0) < currentWeek)
-    .reduce((sum, fl) => sum + Math.floor(fl.gross / 4), 0);
+    .reduce((sum, fl) => sum + Math.floor(fl.gross / 4 * mult), 0);
 }
 
 function getFlWeeklyIncome() {
   if (!state.flData || state.flData.length === 0) return 0;
   const currentWeek = Math.floor(state.elapsedSeconds / WEEK_SEC);
+  const mult = getEmpMoraleMult() * (state.freelancerMult || 1);
   return state.flData
     .filter(fl => (fl.hiredWeek ?? 0) < currentWeek)
-    .reduce((sum, fl) => sum + Math.floor(fl.gross / 4 * fl.profitRate), 0);
+    .reduce((sum, fl) => sum + Math.floor(fl.gross / 4 * fl.profitRate * mult), 0);
 }
 
 function getFlWeeklyCost() {
@@ -751,22 +762,10 @@ function doExchangeAction(actionId) {
   if (state.money < cost) { showToast('💸 資金が不足しています'); return; }
   if (action.flOnly && state.freelancers === 0) { showToast('👨‍💻 FL在籍なし'); return; }
   state.money -= cost;
-  action.targets.forEach(t => { state.morale[t] = Math.min(100, (state.morale[t] || 70) + action.gain); });
-  // FL対象アクション: 各FLの利益率を確率的に改善
-  if (action.targets.includes('freelance') && state.flData && state.flData.length > 0) {
-    let improved = 0;
-    state.flData.forEach(fl => {
-      if (Math.random() < 0.3) {
-        fl.profitRate = Math.min(0.30, fl.profitRate + 0.005 + Math.random() * 0.01);
-        improved++;
-      }
-    });
-    showToast(improved > 0
-      ? `${action.name}を実施！好感度+${action.gain} / FL${improved}名の利益率が改善`
-      : `${action.name}を実施！好感度+${action.gain}`);
-  } else {
-    showToast(`${action.name}を実施！好感度+${action.gain}`);
-  }
+  const salaryMult = getCeoSalaryMoraleMult();
+  const effectiveGain = Math.round(action.gain * salaryMult);
+  action.targets.forEach(t => { state.morale[t] = Math.min(100, (state.morale[t] || 70) + effectiveGain); });
+  showToast(`${action.name}を実施！好感度+${effectiveGain}${salaryMult > 1 ? `（給料ボーナス×${salaryMult.toFixed(2)}）` : ''}`);
   renderAll();
 }
 
@@ -780,8 +779,11 @@ function renderExchange() {
   const avg = (m.ceo + m.employee + m.freelance) / 3;
   const eff = ((avg - 50) * 0.01 * 100).toFixed(0);
 
-  const flFavor = m.freelance || 70;
-  const departChance = Math.max(0.05, Math.min(0.80, 0.40 - (flFavor - 70) * 0.006));
+  const flFavor    = m.freelance || 70;
+  const empMorale  = m.employee || 70;
+  const departChance  = Math.max(0.05, Math.min(0.80, 0.40 - (flFavor - 70) * 0.006));
+  const empFlMult     = getEmpMoraleMult();
+  const salaryMult    = getCeoSalaryMoraleMult();
 
   const rows = [
     { key: 'ceo',       label: '👔 社長' },
@@ -790,8 +792,12 @@ function renderExchange() {
   ].map(({ key, label }) => {
     const v = m[key] || 70;
     const extra = key === 'freelance'
-      ? `<span style="font-size:10px;color:#93c5fd;margin-left:4px">引き抜き離脱率 ${(departChance*100).toFixed(0)}% / アクションで利益率改善</span>`
-      : '';
+      ? `<span style="font-size:10px;color:#93c5fd;margin-left:4px">引き抜き離脱率 ${(departChance*100).toFixed(0)}%</span>`
+      : key === 'employee'
+        ? `<span style="font-size:10px;color:#86efac;margin-left:4px">FL収益×${empFlMult.toFixed(2)}</span>`
+        : key === 'ceo' && salaryMult > 1
+          ? `<span style="font-size:10px;color:#fde68a;margin-left:4px">好感度効果×${salaryMult.toFixed(2)}</span>`
+          : '';
     return `<div class="morale-row">
       <span class="morale-label">${label}</span>
       <div class="morale-bar-wrap"><div class="morale-bar" style="width:${v}%;background:${mc(v)}"></div></div>
@@ -926,7 +932,7 @@ function load() {
     });
     if (!state.weeklyIncomeAccum) state.weeklyIncomeAccum = 0;
     if (state.gameSpeed === undefined)  state.gameSpeed = 1;
-    if (state.ceoSalary === undefined)  state.ceoSalary = 500000;
+    if (state.ceoSalary === undefined)  state.ceoSalary = 300000;
     if (!state.reportHistory)           state.reportHistory = [];
     if (!state.flData) state.flData = [];
     { const preFlCount = state.freelancers || 0;
