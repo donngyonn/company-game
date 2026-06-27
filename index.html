@@ -36,9 +36,34 @@
 
   <!-- オフィスシーン（タップで社長が稼ぐ） -->
   <div id="office-scene" onclick="tap(event)">
-    <span id="office-emoji">🏚️</span>
-    <div id="office-desc">ほこりまみれの廃ビル。窓は割れ、電気も通っていない。</div>
-    <div class="tap-hint">👆 タップして社長が直接稼ぐ</div>
+    <div id="office-visual">
+      <!-- 窓レイヤー -->
+      <div id="ov-bg">
+        <div class="ov-window"><div class="ov-window-inner">⛈️</div></div>
+        <div class="ov-window"><div class="ov-window-inner">⛈️</div></div>
+      </div>
+      <!-- 装飾レイヤー（植物・看板） -->
+      <div id="ov-deco">
+        <span id="ov-plant-l"></span>
+        <span id="ov-plate"></span>
+        <span id="ov-plant-r"></span>
+      </div>
+      <!-- 人物レイヤー -->
+      <div id="ov-people"></div>
+      <!-- 雰囲気パーティクル -->
+      <div id="ov-atmo"></div>
+      <!-- イベントフラッシュ -->
+      <div id="ov-fx"></div>
+      <!-- HUD -->
+      <div id="ov-hud">
+        <span id="ov-office-name">事務所なし</span>
+        <span id="ov-people-count">👥 0/0</span>
+      </div>
+    </div>
+    <div id="office-bottom">
+      <div id="office-desc">資本金 ¥10,000,000。事務所を借りてSES会社を始めよう！</div>
+      <div class="tap-hint">👆 タップして社長が直接稼ぐ</div>
+    </div>
   </div>
 
   <!-- タブナビ -->

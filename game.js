@@ -705,6 +705,7 @@ function triggerWeeklyEvent() {
 }
 
 function showEventModal(ev, resultText) {
+  setOfficeEventFx(ev.type);
   const label = document.getElementById('event-type-label');
   label.textContent = ev.type === 'good' ? '📰 グッドニュース！' : '📰 バッドニュース…';
   label.style.color = ev.type === 'good' ? '#4ade80' : '#f87171';
@@ -892,9 +893,8 @@ function renderHeader() {
   document.getElementById('company-stage').textContent  = stage.emoji + ' ' + stage.name;
   document.getElementById('total-earned').textContent   = '累計売上 ' + yen(state.totalEarned);
   document.getElementById('market-cap').textContent     = '時価総額 ' + yen(marketCap);
-  document.getElementById('office-emoji').textContent   = stage.emoji;
-  document.getElementById('office-desc').textContent    = stage.desc;
   document.documentElement.style.setProperty('--theme', stage.color);
+  renderOfficeScene();
 
   // 期/月/週 表示
   const gt = getGameTime();
@@ -1142,8 +1142,132 @@ function renderStats() {
   `;
 }
 
+// ---- オフィスビジュアル ----
+
+const OFFICE_DECO = [
+  { plants: '',   plate: '' },
+  { plants: '🌱', plate: '📋' },
+  { plants: '🪴', plate: '📋' },
+  { plants: '🌿', plate: '🏷️' },
+  { plants: '🌳', plate: '📊' },
+  { plants: '🌲', plate: '🏆' },
+  { plants: '🌴', plate: '🏆' },
+];
+const OFFICE_WINDOW_ICONS = ['⛈️','🌙','☁️','🌤️','🌇','🌆','🌃'];
+
+let _officeRenderKey = '';
+let _officeEventTimer = null;
+
+function setOfficeEventFx(type) {
+  const fx = document.getElementById('ov-fx');
+  if (!fx) return;
+  fx.className = '';
+  void fx.offsetWidth; // reflow to restart animation
+  fx.className = `fx-${type}`;
+  clearTimeout(_officeEventTimer);
+  _officeEventTimer = setTimeout(() => {
+    const el = document.getElementById('ov-fx');
+    if (el) el.className = '';
+  }, 2200);
+}
+
+function renderOfficeScene() {
+  const visual = document.getElementById('office-visual');
+  if (!visual) return;
+
+  const lvl    = state.officeLevel ?? 0;
+  const morale = (state.morale.ceo + state.morale.employee + state.morale.freelance) / 3;
+  const total  = getTotalPeople();
+  const cap    = getCurrentCapacity();
+  const mCls   = morale < 30 ? 'atmo-depressed'
+               : morale < 50 ? 'atmo-tired'
+               : morale > 85 ? 'atmo-amazing'
+               : morale > 70 ? 'atmo-energetic' : '';
+
+  // Skip if nothing visible changed
+  const key = `${lvl}-${mCls}-${total}-${cap}`;
+  if (key === _officeRenderKey) return;
+  _officeRenderKey = key;
+
+  visual.className = `office-lv${lvl} ${mCls}`.trim();
+
+  // HUD
+  const nameEl  = document.getElementById('ov-office-name');
+  const countEl = document.getElementById('ov-people-count');
+  if (nameEl)  nameEl.textContent  = OFFICE_LEVELS[lvl]?.name || '―';
+  if (countEl) countEl.textContent = `👥 ${total}/${cap}`;
+
+  // 窓の空
+  const winIcon = morale < 30 ? '🌧️' : (OFFICE_WINDOW_ICONS[lvl] || '☁️');
+  document.querySelectorAll('.ov-window-inner').forEach(w => { w.textContent = winIcon; });
+
+  // 装飾
+  const deco = OFFICE_DECO[Math.min(lvl, OFFICE_DECO.length - 1)];
+  const pL = document.getElementById('ov-plant-l');
+  const pR = document.getElementById('ov-plant-r');
+  const pl = document.getElementById('ov-plate');
+  if (pL) pL.textContent = deco.plants;
+  if (pR) pR.textContent = lvl >= 3 ? deco.plants : '';
+  if (pl) pl.textContent = deco.plate;
+
+  // 雰囲気パーティクル
+  const atmo = document.getElementById('ov-atmo');
+  if (atmo) {
+    if (morale < 30) {
+      atmo.innerHTML = '<span class="atmo-rain">💧</span><span class="atmo-rain r2">💧</span><span class="atmo-rain r3">💧</span>';
+    } else if (morale > 85) {
+      atmo.innerHTML = '<span class="atmo-spark s1">✨</span><span class="atmo-spark s2">⭐</span><span class="atmo-note n1">🎵</span><span class="atmo-note n2">🎶</span>';
+    } else if (morale > 70) {
+      atmo.innerHTML = '<span class="atmo-spark s3">💫</span>';
+    } else {
+      atmo.innerHTML = '';
+    }
+  }
+
+  // 人物
+  renderOfficePeople(total, morale);
+
+  // 説明テキスト
+  const descEl = document.getElementById('office-desc');
+  if (descEl) {
+    if (!state.gameStarted) {
+      descEl.textContent = '資本金 ¥10,000,000。事務所を借りてSES会社を始めよう！';
+    } else if (morale < 30) {
+      descEl.textContent = '😔 重苦しい空気…誰も目を合わせない。交流会が必要かも。';
+    } else if (morale < 50) {
+      descEl.textContent = '😑 疲弊した空気が漂っている。士気を上げる施策を検討しよう。';
+    } else if (morale > 85) {
+      descEl.textContent = '🤩 最高の職場！全員がいきいきと輝いている！';
+    } else if (morale > 70) {
+      descEl.textContent = '😊 活気に満ちたオフィス。チームの成長が感じられる。';
+    } else {
+      descEl.textContent = STAGE_DEFS[getCurrentStageIdx()].desc;
+    }
+  }
+}
+
+function renderOfficePeople(count, morale) {
+  const container = document.getElementById('ov-people');
+  if (!container) return;
+
+  if (count === 0) {
+    container.innerHTML = `<div class="office-nobody">まだ誰もいない…<br>営業を雇うとFLエンジニアが集まってくる</div>`;
+    return;
+  }
+
+  const face = morale < 30 ? '😔' : morale < 50 ? '😑' : morale > 85 ? '🤩' : morale > 70 ? '😊' : '🙂';
+  const visible = Math.min(count, 10);
+  let html = '';
+  for (let i = 0; i < visible; i++) {
+    const delay = ((i * 0.37) % 1.5).toFixed(2);
+    html += `<div class="op-unit" style="animation-delay:${delay}s"><span class="op-face">${face}</span><span class="op-desk">💻</span></div>`;
+  }
+  if (count > 10) html += `<div class="op-extra">+${count - 10}名</div>`;
+  container.innerHTML = html;
+}
+
 function renderAll() {
-  renderHeader();
+  renderHeader();   // renderHeader が renderOfficeScene を呼ぶ
   renderDepts();
   renderUpgrades();
   renderStats();
