@@ -183,43 +183,106 @@ body {
   letter-spacing: 0.2px;
 }
 
-/* ---- オフィスシーン ---- */
+/* ---- ヒーローダッシュボード ---- */
 #office-scene {
-  background:
-    linear-gradient(180deg, rgba(15,15,36,0.6) 0%, rgba(4,4,14,0.95) 100%),
-    repeating-linear-gradient(0deg, transparent, transparent 24px, rgba(255,255,255,0.015) 24px, rgba(255,255,255,0.015) 25px),
-    repeating-linear-gradient(90deg, transparent, transparent 24px, rgba(255,255,255,0.015) 24px, rgba(255,255,255,0.015) 25px);
-  padding: 16px 16px 12px;
-  text-align: center;
+  background: linear-gradient(160deg, rgba(8,8,28,0.99) 0%, rgba(4,4,16,1) 100%);
+  padding: 12px 14px 10px;
   border-bottom: 1px solid var(--border);
-  cursor: pointer;
-  user-select: none;
-  transition: background 0.6s;
+  position: relative;
+  overflow: hidden;
 }
 
-#office-scene:active { opacity: 0.9; }
-
-#office-emoji {
-  font-size: 72px;
-  display: block;
-  filter: drop-shadow(0 0 24px var(--theme));
-  transition: filter 0.6s;
-  margin-bottom: 8px;
+#office-scene::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 3px,
+    rgba(255,255,255,0.006) 3px,
+    rgba(255,255,255,0.006) 4px
+  );
+  pointer-events: none;
 }
+
+#office-scene::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background:
+    radial-gradient(ellipse at 5% 50%, rgba(56,200,232,0.07) 0%, transparent 55%),
+    radial-gradient(ellipse at 95% 50%, rgba(108,117,125,0.09) 0%, transparent 55%);
+  pointer-events: none;
+}
+
+#hero-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 7px;
+  position: relative;
+  z-index: 2;
+}
+
+.hero-stat {
+  background: rgba(255,255,255,0.025);
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  padding: 8px 6px 7px;
+  position: relative;
+  overflow: hidden;
+  text-align: center;
+}
+
+.hero-stat::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 20%; right: 20%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(56,200,232,0.4), transparent);
+}
+
+.hs-label {
+  font-size: 8px;
+  color: var(--dim);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.hs-val {
+  font-size: 15px;
+  font-weight: 900;
+  color: #fff;
+  margin-top: 3px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.3px;
+}
+
+.hs-val.green { color: var(--green); text-shadow: 0 0 10px rgba(57,217,127,0.4); }
+.hs-val.amber { color: var(--amber); text-shadow: 0 0 10px rgba(245,158,11,0.4); }
+.hs-val.cyan  { color: var(--cyan);  text-shadow: 0 0 10px rgba(56,200,232,0.4); }
+.hs-val.red   { color: #f87171;      text-shadow: 0 0 10px rgba(248,113,113,0.4); }
 
 #office-desc {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--dim);
-  line-height: 1.6;
-  max-width: 280px;
-  margin: 0 auto 8px;
+  line-height: 1.5;
+  text-align: center;
+  margin-top: 9px;
+  position: relative;
+  z-index: 2;
+  padding: 5px 10px;
+  background: rgba(255,255,255,0.02);
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.04);
 }
 
-.tap-hint {
-  font-size: 11px;
-  color: var(--theme);
-  opacity: 0.7;
-  transition: color 0.6s;
+.speed-btn.paused {
+  background: #f87171;
+  border-color: #f87171;
+  color: #fff;
+  box-shadow: 0 0 10px rgba(248,113,113,0.4);
 }
 
 /* ---- タブナビ ---- */
