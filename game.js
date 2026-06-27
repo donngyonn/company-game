@@ -288,6 +288,7 @@ let state = {
   reportHistory: [],    // 週次レポート履歴（最大52件）
   staffingOpened: true, // 人材紹介事業部開設フラグ（常時解放中）
   periodStaffingPlacements: 0, // 今期紹介人数（年度末リセット）
+  hideWeeklyReport: false,     // 週次レポート非表示フラグ
 };
 
 DEPT_DEFS.forEach(d => {
@@ -642,6 +643,7 @@ function closeExpenseModal() {
 
 let pendingWeeklyEvent = null;
 let weeklyModalShowing = false;
+let weeklyModalIsMonthly = false;
 let reportViewIndex = 0;
 let weeklyAutoCloseTimer = null;
 const WEEKLY_MODAL_AUTO_CLOSE_SEC = 5;
@@ -732,6 +734,7 @@ function showWeeklyModal(weekNum, deptIncome, flWeeklyIncome, flGross, flCost, m
   const period      = Math.floor((weekNum - 1) / YEAR_WEEKS) + 1;
   const monthNum    = Math.floor(((weekNum - 1) % YEAR_WEEKS) / MONTH_WEEKS) + 1;
   const weekInMonth = ((weekNum - 1) % MONTH_WEEKS) + 1;
+  const isMonthly   = weekInMonth === MONTH_WEEKS;
   const flCount     = state.freelancers || 0;
 
   // イベント効果を即時適用し結果をスナップショット
@@ -756,22 +759,38 @@ function showWeeklyModal(weekNum, deptIncome, flWeeklyIncome, flGross, flCost, m
   });
   if (state.reportHistory.length > 52) state.reportHistory.shift();
 
+  // 週次レポートが非表示かつ月次でない場合はモーダルを出さない
+  if (state.hideWeeklyReport && !isMonthly) {
+    renderAll();
+    if (state.money < 0 && !state.bankrupt) triggerBankruptcy();
+    return;
+  }
+
+  weeklyModalIsMonthly = isMonthly;
+  const titleEl = document.getElementById('weekly-modal-title');
+  if (titleEl) titleEl.textContent = isMonthly ? '📊 月次レポート' : '📅 週次レポート';
+
   reportViewIndex = state.reportHistory.length - 1;
   _renderWeeklyModalContent(reportViewIndex);
   weeklyModalShowing = true;
   document.getElementById('weekly-modal').classList.remove('hidden');
 
-  // 5秒カウントダウンバー起動
+  // 月次は自動クローズなし、週次は5秒カウントダウン
   const bar = document.getElementById('weekly-auto-close-bar');
-  if (bar) {
-    bar.style.transition = 'none';
-    bar.style.width = '100%';
-    void bar.offsetWidth;
-    bar.style.transition = `width ${WEEKLY_MODAL_AUTO_CLOSE_SEC}s linear`;
-    bar.style.width = '0%';
-  }
   clearTimeout(weeklyAutoCloseTimer);
-  weeklyAutoCloseTimer = setTimeout(() => closeWeeklyModal(), WEEKLY_MODAL_AUTO_CLOSE_SEC * 1000);
+  weeklyAutoCloseTimer = null;
+  if (!isMonthly) {
+    if (bar) {
+      bar.style.transition = 'none';
+      bar.style.width = '100%';
+      void bar.offsetWidth;
+      bar.style.transition = `width ${WEEKLY_MODAL_AUTO_CLOSE_SEC}s linear`;
+      bar.style.width = '0%';
+    }
+    weeklyAutoCloseTimer = setTimeout(() => closeWeeklyModal(), WEEKLY_MODAL_AUTO_CLOSE_SEC * 1000);
+  } else {
+    if (bar) { bar.style.transition = 'none'; bar.style.width = '0%'; }
+  }
 }
 
 function closeWeeklyModal() {
@@ -783,6 +802,15 @@ function closeWeeklyModal() {
   if (state.money < 0 && !state.bankrupt) {
     triggerBankruptcy();
   }
+}
+
+function weeklyModalOverlayClick() {
+  if (weeklyModalIsMonthly) return; // 月次は閉じられない
+  closeWeeklyModal();
+}
+
+function toggleWeeklyReport(hide) {
+  state.hideWeeklyReport = hide;
 }
 
 function triggerBankruptcy() {
@@ -1167,6 +1195,9 @@ function load() {
     if (state.flGrossRevenue === undefined)           state.flGrossRevenue = 0;
     if (state.staffingOpened === undefined)           state.staffingOpened = true;
     if (state.periodStaffingPlacements === undefined) state.periodStaffingPlacements = 0;
+    if (state.hideWeeklyReport === undefined)         state.hideWeeklyReport = false;
+    const chk = document.getElementById('hide-weekly-report');
+    if (chk) chk.checked = !!state.hideWeeklyReport;
     if (offlineSec > 30) {
       const deptIncome     = getTotalIncome() * offlineSec;
       const offlineWeeks   = Math.floor(offlineSec / WEEK_SEC);
