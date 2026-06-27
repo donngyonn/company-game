@@ -1166,7 +1166,7 @@ function renderExchange() {
 
   const flFavor    = m.freelance || 90;
   const empMorale  = m.employee || 90;
-  const departChance  = Math.min(0.60, 0.15 + (100 - flFavor) * 0.005);
+  const departChance  = Math.min(0.55, 0.05 + (100 - flFavor) * 0.005);
   const empFlMult     = getEmpMoraleMult();
   const salaryMult    = getCeoSalaryMoraleMult();
 
@@ -2988,7 +2988,7 @@ function gameLoop(ts) {
       let lostFL = 0;
       if (state.flData.length > 0) {
         const flFavor  = state.morale.freelance || 90;
-        const quitRate = Math.min(0.60, 0.15 + (100 - flFavor) * 0.005);
+        const quitRate = Math.min(0.55, 0.05 + (100 - flFavor) * 0.005);
         for (let i = state.flData.length - 1; i >= 0; i--) {
           if (Math.random() < quitRate) { state.flData.splice(i, 1); lostFL++; }
         }
