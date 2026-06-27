@@ -48,9 +48,9 @@ const DEPT_DEFS = [
     id: 'hr',
     name: '人材育成部',
     emoji: '🎓',
-    desc: 'スキルUP支援でFL採用確率＋3%/人。採用コスト削減も（−3%/人）',
+    desc: '1マネージャー＝10名の営業を管理。毎週自動採用＋交流会を自動化。採用コスト削減（−3%/人）・FL採用確率＋3%/人。',
     incomePerSec: 0, marginRate: null, salaryLabel: null, monthlySalary: null,
-    baseCost: 200000000, costMult: 1.20, unlockAt: 300000000,
+    baseCost: 50000000, costMult: 1.20, unlockAt: 100000000,
     special: 'costReduction', specialValue: 0.03,
   },
   {
@@ -959,6 +959,7 @@ function load() {
     if (state.ceoSalary === undefined)  state.ceoSalary = 300000;
     if (!state.reportHistory)           state.reportHistory = [];
     if (state.periodDeductible === undefined) state.periodDeductible = 0;
+    if (state.isPaused === undefined)   state.isPaused = false;
     // 旧 upgrades boolean → 週番号変換
     { const currentWeek = Math.floor(state.elapsedSeconds / WEEK_SEC);
       Object.keys(state.upgrades || {}).forEach(k => {
@@ -1021,6 +1022,7 @@ function loadFromSlot(n) {
       state.freelancers = state.flData.length; }
     if (state.flGrossRevenue === undefined) state.flGrossRevenue = 0;
     if (state.periodDeductible === undefined) state.periodDeductible = 0;
+    if (state.isPaused === undefined) state.isPaused = false;
     { const currentWeek = Math.floor(state.elapsedSeconds / WEEK_SEC);
       Object.keys(state.upgrades || {}).forEach(k => {
         if (state.upgrades[k] === true) state.upgrades[k] = { week: currentWeek };
@@ -1230,7 +1232,9 @@ function _buildDeptRow(id) {
     incomeText = `全体収益 ×${(1 + def.specialValue * emp).toFixed(2)}`;
   } else if (def.special === 'costReduction') {
     const r = (1 - getCostReduction()) * 100;
-    incomeText = `採用コスト −${Math.min(r, 90).toFixed(0)}%　FL採用確率 ＋${(emp*3).toFixed(0)}%`;
+    const salesCap = emp * 10;
+    const curSales = state.employees['sales'] || 0;
+    incomeText = `営業上限 ${salesCap}名（現在${curSales}名）　採用コスト −${Math.min(r, 90).toFixed(0)}%　FL採用確率 ＋${(emp*3).toFixed(0)}%`;
   } else if (id === 'sales') {
     incomeText = `採用確率 ${(getRecruitChance()*100).toFixed(1)}%/週/人　月次固定費 ${yen(Math.ceil(def.monthlySalary*(1+def.insuranceRate)*emp))}/月`;
   } else {
@@ -1238,6 +1242,7 @@ function _buildDeptRow(id) {
     incomeText = `${yen(inc)}/秒　(${yen(def.incomePerSec*(state.deptMults[id]||1))}/秒/人)`;
   }
 
+  const hireLabel = id === 'hr' ? 'MGR採用' : '採用';
   return `<div class="island-row ${emp > 0 ? 'island-row-active' : ''}">
     <div class="dept-emoji">${def.emoji}</div>
     <div class="dept-info">
@@ -1246,7 +1251,7 @@ function _buildDeptRow(id) {
       <div class="dept-income">${incomeText}</div>
     </div>
     <button class="hire-btn${canAfford ? '' : ' disabled'}" onclick="hire('${id}')">
-      採用<br><small>${atCap ? '満員' : yen(hireCost)}</small>
+      ${hireLabel}<br><small>${atCap ? '満員' : yen(hireCost)}</small>
     </button>
   </div>`;
 }
@@ -1256,9 +1261,9 @@ function renderDepts() {
 
   let html = _buildOfficeCard();
 
-  // 島1: 営業部（営業 + FL + 人事）
+  // 島1: SES事業部（営業 + FL + 人材育成）
   html += `<div class="dept-island island-sales">
-    <div class="island-hdr"><span class="island-icon">💼</span><span>営業部</span></div>
+    <div class="island-hdr"><span class="island-icon">💼</span><span>SES事業部</span></div>
     ${_buildDeptRow('sales')}
     ${_buildFLCard()}
     ${_buildDeptRow('hr')}
@@ -1882,10 +1887,23 @@ function setOfficeEventFx(type) {
 }
 
 function renderOfficeScene() {
+  const m = state.morale || { ceo:70, employee:70, freelance:70 };
+  const mor = Math.round((m.ceo + m.employee + m.freelance) / 3);
+
+  const wEl = document.getElementById('hs-weekly');
+  const fEl = document.getElementById('hs-fl');
+  const sEl = document.getElementById('hs-sales');
+  const mEl = document.getElementById('hs-morale');
+  if (wEl) wEl.textContent = yen(getDisplayWeeklyIncome());
+  if (fEl) fEl.textContent = (state.freelancers || 0) + '名';
+  if (sEl) sEl.textContent = (state.employees['sales'] || 0) + '人';
+  if (mEl) {
+    mEl.textContent = mor;
+    mEl.className = 'hs-val ' + (mor >= 80 ? 'green' : mor >= 55 ? 'amber' : 'red');
+  }
+
   const descEl = document.getElementById('office-desc');
   if (!descEl) return;
-  const m = state.morale || { ceo:70, employee:70, freelance:70 };
-  const mor = (m.ceo + m.employee + m.freelance) / 3;
   if (!state.gameStarted)  descEl.textContent = '資本金 ¥10,000,000。事務所を借りてSES会社を始めよう！';
   else if (mor < 30)       descEl.textContent = '😔 重苦しい空気…誰も目を合わせない。交流会が必要かも。';
   else if (mor < 50)       descEl.textContent = '😑 疲弊した空気が漂っている。士気を上げる施策を検討しよう。';
@@ -1948,12 +1966,27 @@ let lastUpgradeCheck = 0;
 
 function setGameSpeed(s) {
   state.gameSpeed = s;
+  if (state.isPaused) {
+    state.isPaused = false;
+    const pb = document.getElementById('pause-btn');
+    if (pb) { pb.textContent = '⏸'; pb.classList.remove('paused'); }
+  }
   document.querySelectorAll('.speed-btn').forEach(b => {
     b.classList.toggle('active', Number(b.dataset.speed) === s);
   });
 }
 
+function togglePause() {
+  state.isPaused = !state.isPaused;
+  const btn = document.getElementById('pause-btn');
+  if (btn) {
+    btn.textContent = state.isPaused ? '▶' : '⏸';
+    btn.classList.toggle('paused', state.isPaused);
+  }
+}
+
 function isGamePaused() {
+  if (state.isPaused) return true;
   return ['weekly-modal', 'event-modal', 'expense-modal', 'ipo-modal'].some(id => {
     const el = document.getElementById(id);
     return el && !el.classList.contains('hidden');
@@ -2063,6 +2096,27 @@ function gameLoop(ts) {
       }
       if (newFL > 0) showToast(`👨‍💻 フリーランス ${newFL}名が採用されました！`);
 
+      // マネージャー自動処理（人材育成部）
+      const mgrCount = state.employees['hr'] || 0;
+      if (mgrCount > 0) {
+        // 営業自動採用（マネージャー×10まで）
+        const salesCap = mgrCount * 10;
+        const curSales = state.employees['sales'] || 0;
+        if (curSales < salesCap && getEmployeeCount() < getCurrentCapacity()) {
+          const hireCostSales = getHireCost('sales');
+          if (state.money >= hireCostSales) {
+            state.money -= hireCostSales;
+            state.employees['sales'] = (state.employees['sales'] || 0) + 1;
+            state.deptCost['sales'] = (state.deptCost['sales'] || 0) + hireCostSales;
+            showToast('👔 マネージャーが営業を1名自動採用！');
+          }
+        }
+        // 交流会自動実施（無料の士気ブースト）
+        const morBoost = Math.min(4, mgrCount);
+        state.morale['employee'] = Math.min(100, (state.morale['employee'] || 70) + morBoost);
+        state.morale['freelance'] = Math.min(100, (state.morale['freelance'] || 70) + Math.max(1, Math.floor(morBoost / 2)));
+      }
+
       // 週次サマリーモーダル表示
       showWeeklyModal(currentWeekNum, state.weeklyIncomeAccum || 0, flWeeklyIncome, flWeeklyGross, flWeeklyCost, monthlyExp, beforeMoney);
       state.weeklyIncomeAccum = 0;
@@ -2094,7 +2148,10 @@ setInterval(save, 5000);
 window.addEventListener('DOMContentLoaded', () => {
   load();
   setGameSpeed(state.gameSpeed || 1);
+  if (state.isPaused) {
+    const pb = document.getElementById('pause-btn');
+    if (pb) { pb.textContent = '▶'; pb.classList.add('paused'); }
+  }
   renderAll();
-  initOCV();
   requestAnimationFrame(gameLoop);
 });
