@@ -1142,128 +1142,359 @@ function renderStats() {
   `;
 }
 
-// ---- オフィスビジュアル ----
+// ---- オフィスキャンバス（ドット絵描画エンジン） ----
 
-const OFFICE_DECO = [
-  { plants: '',   plate: '' },
-  { plants: '🌱', plate: '📋' },
-  { plants: '🪴', plate: '📋' },
-  { plants: '🌿', plate: '🏷️' },
-  { plants: '🌳', plate: '📊' },
-  { plants: '🌲', plate: '🏆' },
-  { plants: '🌴', plate: '🏆' },
+const OCV_W = 360, OCV_H = 160, OCV_HORIZON = 60;
+
+const OCV_THEMES = [
+  { wall:'#1c0808', floor:'#130404', sky:'#090606', winFr:'#3a1414' },
+  { wall:'#0e0e30', floor:'#070718', sky:'#0a1030', winFr:'#282858' },
+  { wall:'#0a1225', floor:'#060b16', sky:'#081535', winFr:'#162856' },
+  { wall:'#080f22', floor:'#04080f', sky:'#081855', winFr:'#142858' },
+  { wall:'#06081c', floor:'#03040e', sky:'#080895', winFr:'#101888' },
+  { wall:'#030510', floor:'#020208', sky:'#050668', winFr:'#080c70' },
+  { wall:'#020208', floor:'#010104', sky:'#030555', winFr:'#050960' },
 ];
-const OFFICE_WINDOW_ICONS = ['⛈️','🌙','☁️','🌤️','🌇','🌆','🌃'];
+const OCV_SHIRT  = ['#3868d0','#cc4040','#40a856','#c87828','#8838cc','#28a0c8','#cc28a0'];
+const OCV_HAIR   = ['#280e04','#481808','#080808','#480800','#382804','#c89828'];
+const OCV_SKIN   = ['#eec070','#c09850','#987040','#d8a858'];
+const OCV_SCREEN = ['#58a8ff','#58ffa0','#ff9028','#d858ff','#58f0f8','#ff5888'];
 
-let _officeRenderKey = '';
-let _officeEventTimer = null;
+let ocvCtx = null, ocvTime = 0, ocvAnimId = null;
 
+// Deterministic pseudo-random (no flickering)
+function prand(n) {
+  n = ((n ^ 61) ^ (n >>> 16)) >>> 0;
+  n = (n + (n << 3)) >>> 0;
+  n = (n ^ (n >>> 4)) >>> 0;
+  n = Math.imul(n, 0x27d4eb2d) >>> 0;
+  n = (n ^ (n >>> 15)) >>> 0;
+  return n / 0xffffffff;
+}
+
+function lhex(hex, a) {
+  const r=parseInt(hex.slice(1,3),16), g=parseInt(hex.slice(3,5),16), b=parseInt(hex.slice(5,7),16);
+  return `rgb(${Math.min(255,Math.round(r+a*255))},${Math.min(255,Math.round(g+a*255))},${Math.min(255,Math.round(b+a*255))})`;
+}
+
+function initOCV() {
+  const cv = document.getElementById('office-canvas');
+  if (!cv) return;
+  cv.width = OCV_W; cv.height = OCV_H;
+  ocvCtx = cv.getContext('2d');
+  ocvCtx.imageSmoothingEnabled = false;
+  if (ocvAnimId) cancelAnimationFrame(ocvAnimId);
+  (function loop() { ocvTime += 0.016; ocvDraw(); ocvAnimId = requestAnimationFrame(loop); })();
+}
+
+function ocvDraw() {
+  if (!ocvCtx) return;
+  const ctx   = ocvCtx;
+  const lvl   = state.officeLevel ?? 0;
+  const m     = state.morale || { ceo:70, employee:70, freelance:70 };
+  const mor   = (m.ceo + m.employee + m.freelance) / 3;
+  const count = getTotalPeople();
+  const th    = OCV_THEMES[Math.min(lvl, OCV_THEMES.length-1)];
+  ctx.clearRect(0, 0, OCV_W, OCV_H);
+  ocvBG(ctx, th, lvl, mor);
+  ocvPeople(ctx, count, mor);
+  ocvOverlay(ctx, mor, count);
+}
+
+function ocvBG(ctx, th, lvl, mor) {
+  // Wall
+  let g = ctx.createLinearGradient(0,0,0,OCV_HORIZON);
+  g.addColorStop(0, lhex(th.wall,0.07)); g.addColorStop(1, th.wall);
+  ctx.fillStyle=g; ctx.fillRect(0,0,OCV_W,OCV_HORIZON);
+  // Floor
+  g = ctx.createLinearGradient(0,OCV_HORIZON,0,OCV_H);
+  g.addColorStop(0, lhex(th.floor,0.10)); g.addColorStop(1, th.floor);
+  ctx.fillStyle=g; ctx.fillRect(0,OCV_HORIZON,OCV_W,OCV_H-OCV_HORIZON);
+  // Baseboard
+  ctx.fillStyle = lhex(th.floor,0.16); ctx.fillRect(0,OCV_HORIZON,OCV_W,2);
+  // Ceiling lights
+  if (lvl >= 2) {
+    const n = Math.min(3, Math.floor(lvl/2));
+    for (let i=0;i<n;i++) {
+      const lx = OCV_W*(i+0.5)/n - 35;
+      ctx.fillStyle=`rgba(180,210,255,${0.10+lvl*0.018})`; ctx.fillRect(lx,0,70,2);
+      ctx.fillStyle=`rgba(180,210,255,0.04)`;              ctx.fillRect(lx-10,0,90,10);
+    }
+  }
+  // Windows
+  ocvWindows(ctx, th, lvl, mor, lvl>=4?3:2);
+  // Nameplate
+  if (lvl >= 3) {
+    ctx.fillStyle='rgba(70,52,15,0.55)'; ctx.fillRect(OCV_W/2-55,OCV_HORIZON-18,110,14);
+    ctx.strokeStyle='rgba(160,120,35,0.5)'; ctx.lineWidth=1;
+    ctx.strokeRect(OCV_W/2-55,OCV_HORIZON-18,110,14);
+    ctx.fillStyle='rgba(255,205,90,0.7)'; ctx.font='7px monospace'; ctx.textAlign='center';
+    ctx.fillText('廃墟再生株式会社', OCV_W/2, OCV_HORIZON-7); ctx.textAlign='left';
+  }
+  // Perspective floor lines
+  ctx.strokeStyle='rgba(255,255,255,0.025)'; ctx.lineWidth=1;
+  for (let fi=1;fi<=4;fi++) {
+    const fy=OCV_HORIZON+(OCV_H-OCV_HORIZON)*fi/5;
+    ctx.beginPath(); ctx.moveTo(0,fy); ctx.lineTo(OCV_W,fy); ctx.stroke();
+  }
+}
+
+function ocvWindows(ctx, th, lvl, mor, n) {
+  const wW=n===3?80:100, wH=44, wY=7;
+  const tot=n*wW+(n-1)*18, sx=(OCV_W-tot)/2;
+  for (let wi=0;wi<n;wi++) {
+    const wx=sx+wi*(wW+18);
+    const sg=ctx.createLinearGradient(wx,wY,wx,wY+wH);
+    if (mor<30) { sg.addColorStop(0,'#090909'); sg.addColorStop(1,'#141010'); }
+    else        { sg.addColorStop(0,th.sky);    sg.addColorStop(1,lhex(th.sky,0.12)); }
+    ctx.fillStyle=sg; ctx.fillRect(wx,wY,wW,wH);
+    if (mor<30) ocvRain(ctx,wx,wY,wW,wH,wi);
+    else        ocvSky(ctx,wx,wY,wW,wH,lvl,wi);
+    // Frame
+    ctx.strokeStyle=lhex(th.winFr,0.30); ctx.lineWidth=2; ctx.strokeRect(wx,wY,wW,wH);
+    ctx.strokeStyle=lhex(th.winFr,0.18); ctx.lineWidth=1;
+    ctx.beginPath();
+    ctx.moveTo(wx+wW/2,wY); ctx.lineTo(wx+wW/2,wY+wH);
+    ctx.moveTo(wx,wY+wH/2); ctx.lineTo(wx+wW,wY+wH/2); ctx.stroke();
+    // Inner shadow
+    ctx.fillStyle='rgba(0,0,0,0.12)';
+    ctx.fillRect(wx+2,wY+2,wW-4,2); ctx.fillRect(wx+2,wY+2,2,wH-4);
+  }
+}
+
+function ocvRain(ctx, wx, wy, ww, wh, wi) {
+  ctx.strokeStyle='rgba(70,120,200,0.4)'; ctx.lineWidth=0.8;
+  for (let r=0;r<10;r++) {
+    const oy=(ocvTime*65+r*13.7+wi*9)%(wh+8), rx=wx+(r*7.3+wi*23)%ww;
+    ctx.beginPath(); ctx.moveTo(rx,wy+oy-8); ctx.lineTo(rx-1.2,wy+oy-8+7); ctx.stroke();
+  }
+}
+
+function ocvSky(ctx, wx, wy, ww, wh, lvl, wi) {
+  if (lvl <= 1) {
+    // Night: moon + stars
+    ctx.fillStyle='rgba(220,225,175,0.8)';
+    ctx.beginPath(); ctx.arc(wx+ww-14,wy+12,6,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='rgba(220,225,175,0.22)';
+    ctx.beginPath(); ctx.arc(wx+ww-10,wy+10,6,0,Math.PI*2); ctx.fill();
+    for (let s=0;s<9;s++) {
+      const sx=wx+prand(wi*20+s)*(ww-4)+2, sy=wy+prand(wi*20+s+50)*(wh*0.55)+2;
+      ctx.fillStyle=`rgba(255,255,220,${(0.55+Math.sin(ocvTime*1.5+s)*0.3)*0.7})`; ctx.fillRect(sx,sy,1,1);
+    }
+  } else if (lvl <= 3) {
+    // Day: clouds + sun
+    for (let c=0;c<2;c++) {
+      const cx=wx+((ocvTime*(6+c*2)+wi*45+c*55)%(ww+40))-20, cy=wy+wh*0.28+c*9;
+      ctx.fillStyle='rgba(195,210,230,0.18)';
+      ctx.beginPath(); ctx.ellipse(cx,cy,13,6,0,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(cx+10,cy-3,9,5,0,0,Math.PI*2); ctx.fill();
+    }
+    if (wi===0 && lvl>=2) {
+      const sr=ctx.createRadialGradient(wx+10,wy+11,0,wx+10,wy+11,14);
+      sr.addColorStop(0,'rgba(255,215,75,0.38)'); sr.addColorStop(1,'rgba(255,215,75,0)');
+      ctx.fillStyle=sr; ctx.fillRect(wx,wy,30,26);
+    }
+  } else {
+    // City skyline
+    const bdata=[[0.02,0.11,0.55],[0.15,0.09,0.78],[0.26,0.12,0.42],
+                 [0.40,0.10,0.68],[0.52,0.12,0.58],[0.66,0.09,0.82],[0.77,0.14,0.48]];
+    const tick=Math.floor(ocvTime*0.04);
+    bdata.forEach(([bx,bw,bh],bi) => {
+      const X=wx+bx*ww, W=bw*ww, H=bh*wh, Y=wy+wh-H;
+      const bg=ctx.createLinearGradient(X,Y,X+W,Y);
+      bg.addColorStop(0,'rgba(18,28,58,0.72)'); bg.addColorStop(1,'rgba(12,20,45,0.72)');
+      ctx.fillStyle=bg; ctx.fillRect(X,Y,W,H);
+      const rows=Math.floor(H/5), cols=Math.floor(W/5);
+      for (let r=0;r<rows;r++) for (let c=0;c<cols;c++) {
+        if (prand(bi*1000+r*50+c+tick*100)>0.48) {
+          ctx.fillStyle='rgba(255,215,95,0.52)'; ctx.fillRect(X+c*5+1,Y+r*5+1,2,2);
+        }
+      }
+    });
+    ctx.fillStyle=`rgba(${lvl>=5?'60,80,255':'40,65,180'},0.1)`;
+    ctx.fillRect(wx,wy+wh*0.85,ww,wh*0.15);
+  }
+}
+
+function ocvPeople(ctx, count, mor) {
+  if (count === 0) {
+    ctx.fillStyle='rgba(255,255,255,0.16)'; ctx.font='10px sans-serif'; ctx.textAlign='center';
+    ctx.fillText('まだ誰もいない...', OCV_W/2, 112); ctx.textAlign='left'; return;
+  }
+  const vis=Math.min(count,10), dW=54, dG=6;
+  const back=Math.min(vis,5), front=Math.max(0,vis-5);
+  if (back > 0) {
+    const tot=back*(dW+dG)-dG, sx=(OCV_W-tot)/2;
+    for (let i=0;i<back;i++) ocvDesk(ctx, sx+i*(dW+dG), 98, dW, i, mor, 0.76);
+  }
+  if (front > 0) {
+    const tot=front*(dW+dG)-dG, sx=(OCV_W-tot)/2;
+    for (let i=0;i<front;i++) ocvDesk(ctx, sx+i*(dW+dG), 140, dW, i+5, mor, 1.0);
+  }
+  if (count > 10) {
+    ctx.fillStyle='rgba(255,255,255,0.42)'; ctx.font='bold 9px sans-serif'; ctx.textAlign='right';
+    ctx.fillText(`+${count-10}名`, OCV_W-5, OCV_H-4); ctx.textAlign='left';
+  }
+}
+
+function ocvDesk(ctx, x, baseY, w, idx, mor, sc) {
+  const dH=Math.round(8*sc), dD=Math.round(4*sc);
+  const mW=Math.round(18*sc), mH=Math.round(13*sc);
+  const scr=OCV_SCREEN[idx%OCV_SCREEN.length];
+
+  // Desk surface
+  ctx.fillStyle='#5c3c18'; ctx.fillRect(x, baseY-dH, w, dH);
+  ctx.fillStyle='#7a5428'; ctx.fillRect(x, baseY-dH, w, 1);
+  ctx.fillStyle='rgba(0,0,0,0.22)'; ctx.fillRect(x, baseY-dH+1, w, 2);
+  ctx.fillStyle='#3c2808'; ctx.fillRect(x, baseY, w, dD);
+  // Legs
+  const lw=Math.max(2,Math.round(3*sc));
+  ctx.fillStyle='#2e1e06';
+  ctx.fillRect(x+2, baseY+dD, lw, Math.max(2,Math.round(5*sc)));
+  ctx.fillRect(x+w-2-lw, baseY+dD, lw, Math.max(2,Math.round(5*sc)));
+
+  // Monitor body
+  const mX=Math.round(x+(w-mW)/2), mY=baseY-dH-mH-1;
+  ctx.fillStyle='#18182a'; ctx.fillRect(mX,mY,mW,mH);
+  // Screen gradient
+  const mg=ctx.createLinearGradient(mX,mY,mX,mY+mH);
+  mg.addColorStop(0,scr+'cc'); mg.addColorStop(1,scr+'44');
+  ctx.fillStyle=mg; ctx.fillRect(mX+1,mY+1,mW-2,mH-3);
+  // Code lines on screen
+  for (let l=0;l<3;l++) {
+    ctx.fillStyle='rgba(255,255,255,0.45)';
+    ctx.fillRect(mX+2, mY+2+l*Math.round(3.5*sc), Math.round((4+prand(idx*10+l)*8)*sc), 1);
+  }
+  // Screen glow halo
+  ctx.globalAlpha=0.07; ctx.fillStyle=scr; ctx.fillRect(mX-3,mY-3,mW+6,mH+6); ctx.globalAlpha=1;
+  // Monitor stand
+  ctx.fillStyle='#18182a';
+  const sw=Math.max(2,Math.round(2*sc));
+  ctx.fillRect(mX+mW/2-sw/2, mY+mH, sw, Math.max(2,Math.round(3*sc)));
+  ctx.fillRect(mX+mW/2-Math.round(4*sc), mY+mH+Math.round(3*sc), Math.round(8*sc), 2);
+
+  // Keyboard
+  if (sc > 0.65) {
+    const kW=Math.round(mW*0.88), kH=Math.max(2,Math.round(3*sc));
+    const kX=mX+Math.round((mW-kW)/2);
+    ctx.fillStyle='#222232'; ctx.fillRect(kX, baseY-dH+2, kW, kH);
+    ctx.fillStyle='rgba(255,255,255,0.10)'; ctx.fillRect(kX+1, baseY-dH+3, kW-2, 1);
+  }
+  if (sc > 0.75) {
+    ctx.fillStyle='#2a2a3a'; ctx.fillRect(mX+mW+3, baseY-dH+2, Math.round(4*sc), Math.round(6*sc));
+  }
+
+  // Person
+  ocvPerson(ctx, x+w/2, baseY-dH-1, idx, mor, sc);
+}
+
+function ocvPerson(ctx, cx, footY, idx, mor, sc) {
+  const s=Math.max(1, sc*2.1), t=ocvTime;
+  const hc=OCV_HAIR[idx%OCV_HAIR.length];
+  const sc2=OCV_SHIRT[idx%OCV_SHIRT.length];
+  const sk=OCV_SKIN[idx%OCV_SKIN.length];
+
+  // Head
+  const hW=Math.round(s*5.5), hH=Math.round(s*5.5);
+  const hX=Math.round(cx-hW/2), hY=Math.round(footY-hH-s*3.2);
+
+  // Hair
+  ctx.fillStyle=hc;
+  ctx.fillRect(hX, hY, hW, Math.round(s));
+  ctx.fillRect(hX, hY+Math.round(s), Math.round(s), Math.round(s));
+  ctx.fillRect(hX+hW-Math.round(s), hY+Math.round(s), Math.round(s), Math.round(s));
+  ctx.fillRect(hX, hY+Math.round(s*2), Math.round(s*0.5), Math.round(s));
+
+  // Face skin
+  ctx.fillStyle=sk; ctx.fillRect(hX+Math.round(s), hY+Math.round(s), hW-Math.round(s*2), hH);
+
+  // Eyes + blink
+  const blink=Math.sin(t*0.28+idx*2.4)>0.93;
+  const eyeY=hY+Math.round(s*2.3), eyeW=Math.max(1,Math.round(s*0.75));
+  ctx.fillStyle='#1a0808';
+  if (!blink) {
+    ctx.fillRect(hX+Math.round(s*1.1), eyeY, eyeW, eyeW);
+    ctx.fillRect(hX+hW-Math.round(s*1.9), eyeY, eyeW, eyeW);
+    ctx.fillStyle='rgba(255,255,255,0.5)';
+    ctx.fillRect(hX+Math.round(s*1.1)+1, eyeY, 1, 1);
+    ctx.fillRect(hX+hW-Math.round(s*1.9)+1, eyeY, 1, 1);
+  } else {
+    ctx.fillRect(hX+Math.round(s*1.1), eyeY+Math.round(s*0.4), eyeW, 1);
+    ctx.fillRect(hX+hW-Math.round(s*1.9), eyeY+Math.round(s*0.4), eyeW, 1);
+  }
+
+  // Mouth / expression
+  const mY2=hY+hH-Math.round(s*0.6);
+  ctx.fillStyle='#882020';
+  if (mor < 30) {
+    ctx.fillRect(hX+Math.round(s*1.2), mY2, Math.round(s*0.6), Math.round(s*0.4));
+    ctx.fillRect(hX+hW-Math.round(s*1.8), mY2, Math.round(s*0.6), Math.round(s*0.4));
+  } else if (mor > 70) {
+    ctx.fillStyle='#cc2020';
+    ctx.fillRect(hX+Math.round(s*1.0), mY2, hW-Math.round(s*2.0), Math.round(s*0.4));
+  } else {
+    ctx.fillRect(hX+Math.round(s*1.2), mY2, hW-Math.round(s*2.4), Math.round(s*0.4));
+  }
+
+  // Shoulders/torso
+  const shW=Math.round(hW+s*2.5), shH=Math.round(s*3.2);
+  const shX=Math.round(cx-shW/2), shY=Math.round(footY-shH);
+  ctx.fillStyle=sc2; ctx.fillRect(shX, shY, shW, shH);
+  ctx.fillStyle=lhex(sc2,0.12); ctx.fillRect(shX, shY, shW, Math.round(s*0.5));
+
+  // Arms: typing animation
+  const anim=Math.sin(t*5.5+idx*1.4)*s*0.7;
+  const aW=Math.max(1,Math.round(s)), aH=Math.max(1,Math.round(s*2+anim));
+  ctx.fillStyle=sc2;
+  ctx.fillRect(shX-aW, shY+Math.round(s*0.5), aW, aH);
+  ctx.fillRect(shX+shW, shY+Math.round(s*0.5), aW, aH);
+  // Hands
+  ctx.fillStyle=sk;
+  const handY=shY+Math.round(s*0.5)+aH;
+  ctx.fillRect(shX-aW, handY, aW, Math.max(1,Math.round(s*0.6)));
+  ctx.fillRect(shX+shW, handY, aW, Math.max(1,Math.round(s*0.6)));
+}
+
+function ocvOverlay(ctx, mor, count) {
+  if (mor < 30) {
+    const a=(30-mor)/30;
+    ctx.fillStyle=`rgba(8,0,0,${a*0.38})`; ctx.fillRect(0,0,OCV_W,OCV_H);
+    ctx.fillStyle=`rgba(60,60,60,${a*0.15})`; ctx.fillRect(0,0,OCV_W,OCV_H);
+  } else if (mor > 80) {
+    const a=(mor-80)/20*0.055;
+    ctx.fillStyle=`rgba(255,195,70,${a})`; ctx.fillRect(0,0,OCV_W,OCV_H);
+  }
+  // HUD chip
+  const cap=getCurrentCapacity(), full=count>=cap&&cap>0;
+  ctx.fillStyle='rgba(0,0,0,0.48)'; ctx.fillRect(4,4,108,17);
+  const nm=(OFFICE_LEVELS[Math.min(state.officeLevel??0,OFFICE_LEVELS.length-1)]||{}).name||'';
+  ctx.fillStyle='rgba(200,200,200,0.55)'; ctx.font='6.5px monospace';
+  ctx.fillText(nm.slice(0,10), 7, 12);
+  ctx.fillStyle=full?'rgba(248,100,100,0.8)':'rgba(80,215,100,0.72)';
+  ctx.fillText(`\u{1F465} ${count}/${cap}`, 7, 19);
+}
+
+let _ocvEventTimer = null;
 function setOfficeEventFx(type) {
   const fx = document.getElementById('ov-fx');
   if (!fx) return;
-  fx.className = '';
-  void fx.offsetWidth; // reflow to restart animation
+  fx.className = ''; void fx.offsetWidth;
   fx.className = `fx-${type}`;
-  clearTimeout(_officeEventTimer);
-  _officeEventTimer = setTimeout(() => {
-    const el = document.getElementById('ov-fx');
-    if (el) el.className = '';
-  }, 2200);
+  clearTimeout(_ocvEventTimer);
+  _ocvEventTimer = setTimeout(() => { const el=document.getElementById('ov-fx'); if(el) el.className=''; }, 2200);
 }
 
 function renderOfficeScene() {
-  const visual = document.getElementById('office-visual');
-  if (!visual) return;
-
-  const lvl    = state.officeLevel ?? 0;
-  const morale = (state.morale.ceo + state.morale.employee + state.morale.freelance) / 3;
-  const total  = getTotalPeople();
-  const cap    = getCurrentCapacity();
-  const mCls   = morale < 30 ? 'atmo-depressed'
-               : morale < 50 ? 'atmo-tired'
-               : morale > 85 ? 'atmo-amazing'
-               : morale > 70 ? 'atmo-energetic' : '';
-
-  // Skip if nothing visible changed
-  const key = `${lvl}-${mCls}-${total}-${cap}`;
-  if (key === _officeRenderKey) return;
-  _officeRenderKey = key;
-
-  visual.className = `office-lv${lvl} ${mCls}`.trim();
-
-  // HUD
-  const nameEl  = document.getElementById('ov-office-name');
-  const countEl = document.getElementById('ov-people-count');
-  if (nameEl)  nameEl.textContent  = OFFICE_LEVELS[lvl]?.name || '―';
-  if (countEl) countEl.textContent = `👥 ${total}/${cap}`;
-
-  // 窓の空
-  const winIcon = morale < 30 ? '🌧️' : (OFFICE_WINDOW_ICONS[lvl] || '☁️');
-  document.querySelectorAll('.ov-window-inner').forEach(w => { w.textContent = winIcon; });
-
-  // 装飾
-  const deco = OFFICE_DECO[Math.min(lvl, OFFICE_DECO.length - 1)];
-  const pL = document.getElementById('ov-plant-l');
-  const pR = document.getElementById('ov-plant-r');
-  const pl = document.getElementById('ov-plate');
-  if (pL) pL.textContent = deco.plants;
-  if (pR) pR.textContent = lvl >= 3 ? deco.plants : '';
-  if (pl) pl.textContent = deco.plate;
-
-  // 雰囲気パーティクル
-  const atmo = document.getElementById('ov-atmo');
-  if (atmo) {
-    if (morale < 30) {
-      atmo.innerHTML = '<span class="atmo-rain">💧</span><span class="atmo-rain r2">💧</span><span class="atmo-rain r3">💧</span>';
-    } else if (morale > 85) {
-      atmo.innerHTML = '<span class="atmo-spark s1">✨</span><span class="atmo-spark s2">⭐</span><span class="atmo-note n1">🎵</span><span class="atmo-note n2">🎶</span>';
-    } else if (morale > 70) {
-      atmo.innerHTML = '<span class="atmo-spark s3">💫</span>';
-    } else {
-      atmo.innerHTML = '';
-    }
-  }
-
-  // 人物
-  renderOfficePeople(total, morale);
-
-  // 説明テキスト
   const descEl = document.getElementById('office-desc');
-  if (descEl) {
-    if (!state.gameStarted) {
-      descEl.textContent = '資本金 ¥10,000,000。事務所を借りてSES会社を始めよう！';
-    } else if (morale < 30) {
-      descEl.textContent = '😔 重苦しい空気…誰も目を合わせない。交流会が必要かも。';
-    } else if (morale < 50) {
-      descEl.textContent = '😑 疲弊した空気が漂っている。士気を上げる施策を検討しよう。';
-    } else if (morale > 85) {
-      descEl.textContent = '🤩 最高の職場！全員がいきいきと輝いている！';
-    } else if (morale > 70) {
-      descEl.textContent = '😊 活気に満ちたオフィス。チームの成長が感じられる。';
-    } else {
-      descEl.textContent = STAGE_DEFS[getCurrentStageIdx()].desc;
-    }
-  }
-}
-
-function renderOfficePeople(count, morale) {
-  const container = document.getElementById('ov-people');
-  if (!container) return;
-
-  if (count === 0) {
-    container.innerHTML = `<div class="office-nobody">まだ誰もいない…<br>営業を雇うとFLエンジニアが集まってくる</div>`;
-    return;
-  }
-
-  const face = morale < 30 ? '😔' : morale < 50 ? '😑' : morale > 85 ? '🤩' : morale > 70 ? '😊' : '🙂';
-  const visible = Math.min(count, 10);
-  let html = '';
-  for (let i = 0; i < visible; i++) {
-    const delay = ((i * 0.37) % 1.5).toFixed(2);
-    html += `<div class="op-unit" style="animation-delay:${delay}s"><span class="op-face">${face}</span><span class="op-desk">💻</span></div>`;
-  }
-  if (count > 10) html += `<div class="op-extra">+${count - 10}名</div>`;
-  container.innerHTML = html;
+  if (!descEl) return;
+  const m = state.morale || { ceo:70, employee:70, freelance:70 };
+  const mor = (m.ceo + m.employee + m.freelance) / 3;
+  if (!state.gameStarted)  descEl.textContent = '資本金 ¥10,000,000。事務所を借りてSES会社を始めよう！';
+  else if (mor < 30)       descEl.textContent = '😔 重苦しい空気…誰も目を合わせない。交流会が必要かも。';
+  else if (mor < 50)       descEl.textContent = '😑 疲弊した空気が漂っている。士気を上げる施策を検討しよう。';
+  else if (mor > 85)       descEl.textContent = '🤩 最高の職場！全員がいきいきと輝いている！';
+  else if (mor > 70)       descEl.textContent = '😊 活気に満ちたオフィス。チームの成長が感じられる。';
+  else                     descEl.textContent = STAGE_DEFS[getCurrentStageIdx()].desc;
 }
 
 function renderAll() {
@@ -1409,5 +1640,6 @@ setInterval(save, 5000);
 window.addEventListener('DOMContentLoaded', () => {
   load();
   renderAll();
+  initOCV();
   requestAnimationFrame(gameLoop);
 });

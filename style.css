@@ -989,7 +989,7 @@ body {
 }
 
 /* ====================================================
-   オフィスビジュアル UI
+   オフィスキャンバス UI（ドット絵）
    ==================================================== */
 
 #office-scene {
@@ -1003,218 +1003,37 @@ body {
   overflow: hidden;
 }
 
-#office-visual {
+#office-canvas-wrap {
   position: relative;
   width: 100%;
-  height: 155px;
-  overflow: hidden;
-  transition: filter 1.2s ease;
-  background: linear-gradient(180deg,#0f0505 0%,#180c0c 55%,#110808 100%);
-}
-#office-visual::after {
-  content: '';
-  position: absolute;
-  bottom: 30px; left: 0; right: 0;
-  height: 1px;
-  background: rgba(255,255,255,0.05);
-  pointer-events: none;
+  line-height: 0;
 }
 
-/* ── レベル別背景 ── */
-#office-visual.office-lv0{background:linear-gradient(180deg,#0f0505 0%,#180c0c 55%,#110808 100%)}
-#office-visual.office-lv1{background:linear-gradient(180deg,#0b0b2a 0%,#101030 55%,#0c0c24 100%)}
-#office-visual.office-lv2{background:linear-gradient(180deg,#091230 0%,#0d1838 55%,#090f22 100%)}
-#office-visual.office-lv3{background:linear-gradient(180deg,#071030 0%,#0b162e 55%,#070f20 100%)}
-#office-visual.office-lv4{background:linear-gradient(180deg,#050820 0%,#080d26 55%,#04071a 100%)}
-#office-visual.office-lv5{background:linear-gradient(180deg,#030510 0%,#060a18 55%,#02040c 100%)}
-#office-visual.office-lv6{background:linear-gradient(180deg,#020308 0%,#04060f 55%,#020308 100%)}
-
-/* ── 窓 ── */
-#ov-bg {
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 60px;
-  display: flex;
-  padding: 6px 12px 0;
-  gap: 10px;
-}
-.ov-window {
-  flex: 1;
-  height: 50px;
-  border: 1.5px solid rgba(255,255,255,0.10);
-  border-bottom: none;
-  border-radius: 3px 3px 0 0;
-  overflow: hidden;
-  position: relative;
-}
-.ov-window::before {
-  content: '';
-  position: absolute;
-  top: 0; bottom: 0; left: 50%;
-  width: 1px;
-  background: rgba(255,255,255,0.07);
-  pointer-events: none;
-}
-.ov-window-inner {
-  width: 100%; height: 100%;
-  display: flex;
-  align-items: flex-end;
-  justify-content: flex-end;
-  padding: 0 5px 3px 0;
-  font-size: 17px;
-}
-/* 空の色：レベル別 */
-.office-lv0 .ov-window{background:linear-gradient(180deg,#1a0d0d,#240f0f)}
-.office-lv1 .ov-window{background:linear-gradient(180deg,#0d1235,#141e50)}
-.office-lv2 .ov-window{background:linear-gradient(180deg,#0a1a50,#142060)}
-.office-lv3 .ov-window{background:linear-gradient(180deg,#091e60,#122580)}
-.office-lv4 .ov-window{background:linear-gradient(180deg,#0a10a0,#1520c0)}
-.office-lv5 .ov-window{background:linear-gradient(180deg,#060890,#0c10b0)}
-.office-lv6 .ov-window{background:linear-gradient(180deg,#040860,#080c90)}
-
-/* ── 装飾（植物・看板） ── */
-#ov-deco {
-  position: absolute;
-  top: 60px; left: 0; right: 0;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 14px;
-  font-size: 17px;
-}
-#ov-plate { font-size: 13px; opacity: 0.55; }
-
-/* ── 人物レイヤー ── */
-#ov-people {
-  position: absolute;
-  bottom: 4px; left: 0; right: 0;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  align-items: flex-end;
-  gap: 4px 3px;
-  padding: 0 8px;
-  max-height: 58px;
-  overflow: hidden;
-}
-.op-unit {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  animation: op-work 2s ease-in-out infinite;
-}
-.op-face { font-size: 14px; line-height: 1; }
-.op-desk { font-size: 12px; line-height: 1; }
-@keyframes op-work {
-  0%,100% { transform: translateY(0); }
-  50%     { transform: translateY(-2px); }
-}
-.op-extra {
-  font-size: 10px;
-  color: rgba(255,255,255,0.4);
-  background: rgba(255,255,255,0.07);
-  border-radius: 8px;
-  padding: 1px 6px;
-  align-self: center;
-}
-.office-nobody {
-  font-size: 10px;
-  color: rgba(255,255,255,0.22);
-  text-align: center;
-  line-height: 1.6;
-  padding: 6px 16px;
+#office-canvas {
+  width: 100%;
+  height: auto;
+  display: block;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
 }
 
-/* ── 雰囲気パーティクル ── */
-#ov-atmo {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 4;
-  overflow: hidden;
-}
-.atmo-rain {
-  position: absolute;
-  font-size: 11px;
-  top: -10px;
-  left: 25%;
-  animation: rain-fall 1.4s linear infinite;
-}
-.atmo-rain.r2 { left: 65%; animation-delay: .65s; animation-duration: 1.7s; }
-.atmo-rain.r3 { left: 45%; animation-delay: 1.1s; animation-duration: 1.5s; }
-@keyframes rain-fall {
-  from { transform: translateY(-10px); opacity: .8; }
-  to   { transform: translateY(170px); opacity: 0; }
-}
-.atmo-spark {
-  position: absolute;
-  animation: spark-float 2.5s ease-in-out infinite;
-}
-.atmo-spark.s1 { top: 22%; left: 10%; font-size: 14px; }
-.atmo-spark.s2 { top: 28%; right: 12%; font-size: 12px; animation-delay: 1.1s; }
-.atmo-spark.s3 { top: 32%; left: 38%; font-size: 13px; animation-delay: .5s; }
-@keyframes spark-float {
-  0%,100% { transform: translateY(0) scale(1); opacity: .7; }
-  50%     { transform: translateY(-8px) scale(1.3); opacity: 1; }
-}
-.atmo-note {
-  position: absolute;
-  font-size: 13px;
-  animation: note-rise 3s ease-in-out infinite;
-}
-.atmo-note.n1 { bottom: 35px; left: 20%; }
-.atmo-note.n2 { bottom: 35px; right: 18%; animation-delay: 1.5s; }
-@keyframes note-rise {
-  0%    { transform: translateY(0); opacity: .7; }
-  100%  { transform: translateY(-50px); opacity: 0; }
-}
-
-/* ── イベントFX ── */
+/* イベントFX オーバーレイ */
 #ov-fx {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  z-index: 8;
+  z-index: 10;
 }
 #ov-fx.fx-good { animation: fx-good 2s ease-out forwards; }
 #ov-fx.fx-bad  { animation: fx-bad  2s ease-out forwards; }
 @keyframes fx-good {
-  0%   { background: rgba(74,222,128,.45); }
+  0%   { background: rgba(74,222,128,.42); }
   100% { background: transparent; }
 }
 @keyframes fx-bad {
-  0%   { background: rgba(248,113,113,.45); }
+  0%   { background: rgba(248,113,113,.42); }
   100% { background: transparent; }
 }
-
-/* ── HUD ── */
-#ov-hud {
-  position: absolute;
-  top: 6px; left: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  z-index: 5;
-}
-#ov-office-name {
-  font-size: 9px;
-  color: rgba(255,255,255,.45);
-  background: rgba(0,0,0,.35);
-  padding: 1px 5px;
-  border-radius: 3px;
-}
-#ov-people-count {
-  font-size: 9px;
-  color: rgba(255,255,255,.32);
-  padding-left: 2px;
-}
-
-/* ── 士気フィルター ── */
-#office-visual.atmo-depressed { filter: saturate(.15) brightness(.60); }
-#office-visual.atmo-tired     { filter: saturate(.55) brightness(.82); }
-#office-visual.atmo-energetic { filter: saturate(1.18) brightness(1.06); }
-#office-visual.atmo-amazing   { filter: saturate(1.45) brightness(1.18); }
 
 /* ── 下部テキスト ── */
 #office-bottom {
