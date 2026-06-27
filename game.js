@@ -380,17 +380,52 @@ function getCostReduction() {
   return Math.max(0.1, 1 - hr.specialValue * (state.employees['hr'] || 0));
 }
 
+function getCurrentMonthOfYear() {
+  const monthNum = Math.floor(state.elapsedSeconds / (WEEK_SEC * MONTH_WEEKS));
+  return (monthNum % 12) + 1;
+}
+
+function getSESSeasonal() {
+  const m = getCurrentMonthOfYear();
+  if ([3, 6, 9, 12].includes(m)) return  0.05;
+  if ([2, 8].includes(m))        return -0.05;
+  return 0;
+}
+
+function getSESSeasonalLabel() {
+  const m = getCurrentMonthOfYear();
+  if ([3, 6, 9, 12].includes(m)) return `🔥 ${m}月 繁忙月 採用+5%`;
+  if ([2, 8].includes(m))        return `❄️ ${m}月 閑散月 採用−5%`;
+  return '';
+}
+
+function getStaffingSeasonal() {
+  const m = getCurrentMonthOfYear();
+  if ([3, 10].includes(m)) return  0.05;
+  if ([4, 11].includes(m)) return -0.05;
+  return 0;
+}
+
+function getStaffingSeasonalLabel() {
+  const m = getCurrentMonthOfYear();
+  if ([3, 10].includes(m)) return `🔥 ${m}月 繁忙月 発掘+5%`;
+  if ([4, 11].includes(m)) return `❄️ ${m}月 閑散月 発掘−5%`;
+  return '';
+}
+
 function getRecruitChance() {
   const salesMult = state.deptMults['sales'] || 1;
   const hrBonus   = (state.employees['hr'] || 0) * 0.03;
   const mktBonus  = (state.employees['marketing'] || 0) * 0.001;
-  return Math.min(0.95, (0.25 + hrBonus + mktBonus) * salesMult);
+  const seasonal  = getSESSeasonal();
+  return Math.min(0.95, Math.max(0.01, (0.25 + hrBonus + mktBonus + seasonal) * salesMult));
 }
 
 function getStaffingFindRate() {
   const staffingMult = state.deptMults['staffing'] || 1;
   const mktBonus     = (state.employees['marketing'] || 0) * 0.0005;
-  return Math.min(0.80, (0.10 + mktBonus) * staffingMult);
+  const seasonal     = getStaffingSeasonal();
+  return Math.min(0.80, Math.max(0.01, (0.10 + mktBonus + seasonal) * staffingMult));
 }
 
 function getMarketingFlProfitBonus() {
@@ -1513,7 +1548,7 @@ function _buildFLCard() {
       <div class="dept-name" style="color:#93c5fd">フリーランスエンジニア <span class="emp-count" style="background:#3b5bdb">${fl}名</span>${atCap ? '<span style="font-size:10px;color:#f87171;margin-left:4px">上限</span>' : ''}</div>
       <div class="dept-desc">${incomeDetail}</div>
       ${salesCount > 0
-        ? `<div class="dept-margin"><span class="ml" style="color:#a78bfa">採用確率 ${(recruitChance*100).toFixed(1)}%/週 × 営業${salesCount}名　上限 ${flCap}名</span></div>`
+        ? (() => { const sl = getSESSeasonalLabel(); return `<div class="dept-margin"><span class="ml" style="color:#a78bfa">採用確率 ${(recruitChance*100).toFixed(1)}%/週 × 営業${salesCount}名　上限 ${flCap}名</span>${sl ? `<br><span class="ml" style="color:${sl.startsWith('🔥')?'#fb923c':'#93c5fd'}">${sl}</span>` : ''}</div>`; })()
         : `<div class="dept-margin"><span class="ml" style="color:#555">営業を雇うと毎週採用活動（1人あたり最大15名）</span></div>`}
     </div>
   </div>`;
@@ -1550,12 +1585,14 @@ function _buildDeptRow(id) {
     incomeText = `営業上限 ${salesCap}名（現在${curSales}名）　採用コスト −${Math.min(r, 90).toFixed(0)}%　FL採用確率 ＋${(emp*3).toFixed(0)}%`;
   } else if (def.special === 'staffingSales') {
     const findRate = getStaffingFindRate();
-    incomeText = `発掘確率 ${(findRate*100).toFixed(1)}%/週/人　成約時: 年収×35%　月次固定費 ${yen(Math.ceil(def.monthlySalary*(1+def.insuranceRate)*emp))}/月`;
+    const sLbl = getStaffingSeasonalLabel();
+    incomeText = `発掘確率 ${(findRate*100).toFixed(1)}%/週/人　成約時: 年収×35%　月次固定費 ${yen(Math.ceil(def.monthlySalary*(1+def.insuranceRate)*emp))}/月${sLbl ? `<br><span style="color:${sLbl.startsWith('🔥')?'#fb923c':'#93c5fd'}">${sLbl}</span>` : ''}`;
   } else if (def.special === 'marketing') {
     const mktMult = state.deptMults['marketing'] || 1;
     incomeText = `SES採用確率 ＋${(emp*0.6*mktMult).toFixed(1)}%/週　紹介発掘率 ＋${(emp*0.5*mktMult).toFixed(1)}%/週　月次固定費 ${yen(Math.ceil(def.monthlySalary*(1+def.insuranceRate)*emp))}/月`;
   } else if (id === 'sales') {
-    incomeText = `採用確率 ${(getRecruitChance()*100).toFixed(1)}%/週/人　月次固定費 ${yen(Math.ceil(def.monthlySalary*(1+def.insuranceRate)*emp))}/月`;
+    const sLbl = getSESSeasonalLabel();
+    incomeText = `採用確率 ${(getRecruitChance()*100).toFixed(1)}%/週/人　月次固定費 ${yen(Math.ceil(def.monthlySalary*(1+def.insuranceRate)*emp))}/月${sLbl ? `<br><span style="color:${sLbl.startsWith('🔥')?'#fb923c':'#93c5fd'}">${sLbl}</span>` : ''}`;
   } else {
     const inc = getDeptIncome(id);
     incomeText = `${yen(inc)}/秒　(${yen(def.incomePerSec*(state.deptMults[id]||1))}/秒/人)`;
@@ -1575,61 +1612,90 @@ function _buildDeptRow(id) {
   </div>`;
 }
 
+function _deptUnlockScore(primaryId) {
+  const def = DEPT_DEFS.find(d => d.id === primaryId);
+  if (!def) return 0;
+  if ((state.employees[primaryId] || 0) > 0) return 1e15;
+  if (state.totalEarned >= def.unlockAt) return 1e15 - def.unlockAt;
+  return -def.unlockAt;
+}
+
+function _execIslandScore() {
+  const hired = EXEC_DEFS.some(e => state.executives?.[e.id]);
+  if (hired) return 1e15;
+  const firstUnlocked = EXEC_DEFS.find(e => !e.comingSoon && state.totalEarned >= e.unlockAt);
+  if (firstUnlocked) return 1e15 - firstUnlocked.unlockAt;
+  return -EXEC_DEFS[0].unlockAt;
+}
+
 function renderDepts() {
   const container = document.getElementById('depts-list');
 
   let html = _buildOfficeCard();
 
-  // 島1: SES事業部（営業 + FL）
+  // SES事業部は常時先頭
   html += `<div class="dept-island island-sales">
     <div class="island-hdr"><span class="island-icon">💼</span><span>SES事業部</span></div>
     ${_buildDeptRow('sales')}
     ${_buildFLCard()}
   </div>`;
 
-  // 島2: 人材紹介事業部
-  const staffingOpened = state.staffingOpened !== false;
-  if (!staffingOpened) {
-    html += `<div class="dept-island island-staffing">
-      <div class="island-hdr"><span class="island-icon">🤝</span><span>人材紹介事業部</span></div>
-      <div style="padding:20px;text-align:center;display:flex;flex-direction:column;gap:10px;align-items:center">
-        <div style="font-size:12px;color:#94a3b8">初期費用を支払って事業部を開設できます</div>
-        <button class="hire-btn${state.money >= 50000000 ? '' : ' disabled'}" onclick="openStaffingDivision()" style="font-size:12px;padding:10px 16px">
-          🤝 開設する<br><small style="color:#94a3b8">¥50,000,000</small>
-        </button>
-      </div>
-    </div>`;
-  } else {
-    html += `<div class="dept-island island-staffing">
-      <div class="island-hdr"><span class="island-icon">🤝</span><span>人材紹介事業部</span></div>
-      ${_buildDeptRow('staffing')}
-    </div>`;
-  }
+  // ソート対象の島（解放済みが上）
+  const sortable = [
+    {
+      score: state.staffingOpened !== false ? 1e14 : -1,
+      build: () => {
+        const opened = state.staffingOpened !== false;
+        return opened
+          ? `<div class="dept-island island-staffing">
+              <div class="island-hdr"><span class="island-icon">🤝</span><span>人材紹介事業部</span></div>
+              ${_buildDeptRow('staffing')}
+             </div>`
+          : `<div class="dept-island island-staffing">
+              <div class="island-hdr"><span class="island-icon">🤝</span><span>人材紹介事業部</span></div>
+              <div style="padding:20px;text-align:center;display:flex;flex-direction:column;gap:10px;align-items:center">
+                <div style="font-size:12px;color:#94a3b8">初期費用を支払って事業部を開設できます</div>
+                <button class="hire-btn${state.money >= 50000000 ? '' : ' disabled'}" onclick="openStaffingDivision()" style="font-size:12px;padding:10px 16px">
+                  🤝 開設する<br><small style="color:#94a3b8">¥50,000,000</small>
+                </button>
+              </div>
+             </div>`;
+      },
+    },
+    {
+      score: _execIslandScore(),
+      build: () => `<div class="dept-island island-exec">
+        <div class="island-hdr"><span class="island-icon">🏛️</span><span>経営企画部</span></div>
+        ${EXEC_DEFS.map(e => _buildExecCard(e)).join('')}
+      </div>`,
+    },
+    {
+      score: _deptUnlockScore('marketing'),
+      build: () => `<div class="dept-island island-marketing">
+        <div class="island-hdr"><span class="island-icon">📣</span><span>マーケティング部</span></div>
+        ${_buildDeptRow('marketing')}
+      </div>`,
+    },
+    {
+      score: Math.max(_deptUnlockScore('finance'), _deptUnlockScore('strategy')),
+      build: () => `<div class="dept-island island-finance">
+        <div class="island-hdr"><span class="island-icon">💹</span><span>財務部</span></div>
+        ${_deptUnlockScore('finance') >= _deptUnlockScore('strategy')
+          ? _buildDeptRow('finance') + _buildDeptRow('strategy')
+          : _buildDeptRow('strategy') + _buildDeptRow('finance')}
+      </div>`,
+    },
+    {
+      score: _deptUnlockScore('global'),
+      build: () => `<div class="dept-island island-global">
+        <div class="island-hdr"><span class="island-icon">🌐</span><span>グローバル部</span></div>
+        ${_buildDeptRow('global')}
+      </div>`,
+    },
+  ];
 
-  // 島3: マーケティング部
-  html += `<div class="dept-island island-marketing">
-    <div class="island-hdr"><span class="island-icon">📣</span><span>マーケティング部</span></div>
-    ${_buildDeptRow('marketing')}
-  </div>`;
-
-  // 島4: 財務部（財務 + 戦略）
-  html += `<div class="dept-island island-finance">
-    <div class="island-hdr"><span class="island-icon">💹</span><span>財務部</span></div>
-    ${_buildDeptRow('finance')}
-    ${_buildDeptRow('strategy')}
-  </div>`;
-
-  // 島5: グローバル部
-  html += `<div class="dept-island island-global">
-    <div class="island-hdr"><span class="island-icon">🌐</span><span>グローバル部</span></div>
-    ${_buildDeptRow('global')}
-  </div>`;
-
-  // 島6: 経営企画部（役員）
-  html += `<div class="dept-island island-exec">
-    <div class="island-hdr"><span class="island-icon">🏛️</span><span>経営企画部</span></div>
-    ${EXEC_DEFS.map(e => _buildExecCard(e)).join('')}
-  </div>`;
+  sortable.sort((a, b) => b.score - a.score);
+  sortable.forEach(s => { html += s.build(); });
 
   container.innerHTML = html;
 }
@@ -2841,12 +2907,13 @@ function gameLoop(ts) {
           newFL++;
         }
       }
+      const sesSsnLabel = getSESSeasonalLabel();
       if (newFL > 0) {
-        weeklyLog.push({ emoji: '👨‍💻', text: `FL ${newFL}名を採用（在籍 ${state.freelancers}名）` });
+        weeklyLog.push({ emoji: '👨‍💻', text: `FL ${newFL}名を採用（在籍 ${state.freelancers}名）${sesSsnLabel ? ' ' + sesSsnLabel : ''}` });
       } else if (salesCount > 0 && state.flData.length >= flCap) {
         weeklyLog.push({ emoji: '📋', text: `FL上限に達しているため採用なし（上限 ${flCap}名）` });
       } else if (salesCount > 0) {
-        weeklyLog.push({ emoji: '📋', text: `FL採用なし（採用確率 ${(recruitChance * 100).toFixed(0)}%）` });
+        weeklyLog.push({ emoji: '📋', text: `FL採用なし（採用確率 ${(recruitChance * 100).toFixed(0)}%）${sesSsnLabel ? ' ' + sesSsnLabel : ''}` });
       }
 
       // FL 自動離脱チェック（モラール連動・ニュースとは独立）
@@ -2911,10 +2978,11 @@ function gameLoop(ts) {
             }
           }
         }
+        const stfSsnLabel = getStaffingSeasonalLabel();
         if (weeklyStaffingCount > 0) {
-          weeklyLog.push({ emoji: '🤝', text: `人材紹介 ${weeklyStaffingCount}件成約　＋${yen(weeklyStaffingFees)}` });
+          weeklyLog.push({ emoji: '🤝', text: `人材紹介 ${weeklyStaffingCount}件成約　＋${yen(weeklyStaffingFees)}${stfSsnLabel ? ' ' + stfSsnLabel : ''}` });
         } else {
-          weeklyLog.push({ emoji: '🤝', text: `人材紹介 成約なし（発掘率 ${(findRate * 100).toFixed(0)}%）` });
+          weeklyLog.push({ emoji: '🤝', text: `人材紹介 成約なし（発掘率 ${(findRate * 100).toFixed(0)}%）${stfSsnLabel ? ' ' + stfSsnLabel : ''}` });
         }
       }
 
