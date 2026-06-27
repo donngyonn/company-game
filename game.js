@@ -1654,10 +1654,10 @@ function _buildDeptRow(id) {
       <div class="dept-income">${incomeText}</div>
     </div>
     <div class="dept-btn-group">
-      ${fireBtn}
       <button class="hire-btn${canAfford ? '' : ' disabled'}" onclick="hire('${id}')">
         ${hireLabel}<br><small>${atCap ? '満員' : yen(hireCost)}</small>
       </button>
+      ${fireBtn}
     </div>
   </div>`;
 }
