@@ -34,7 +34,7 @@ const OFFICE_LEVELS = [
 const DEPT_DEFS = [
   {
     id: 'sales',
-    name: '営業部（クライアント・要員担当）',
+    name: '営業',
     emoji: '💼',
     desc: '社員がクライアントを開拓し、フリーランスを採用・配置。月給35〜40万＋社保15%が固定費。売上は生まない。',
     incomePerSec: 0,
@@ -50,8 +50,17 @@ const DEPT_DEFS = [
     emoji: '🎓',
     desc: '1マネージャー＝10名の営業を管理。毎週自動採用＋交流会を自動化。採用コスト削減（−3%/人）・FL採用確率＋3%/人。',
     incomePerSec: 0, marginRate: null, salaryLabel: null, monthlySalary: null,
-    baseCost: 50000000, costMult: 1.20, unlockAt: 100000000,
+    baseCost: 10000000, costMult: 1.20, unlockAt: 50000000,
     special: 'costReduction', specialValue: 0.03,
+  },
+  {
+    id: 'staffing',
+    name: '人材紹介事業部',
+    emoji: '🤝',
+    desc: '求職者と企業を成功報酬型でマッチング。紹介フィーで直接収益。',
+    incomePerSec: 7000,
+    marginRate: 0.35, salaryLabel: '人件費', monthlySalary: null,
+    baseCost: 50000000, costMult: 1.18, unlockAt: 0,
   },
   {
     id: 'finance',
@@ -574,6 +583,17 @@ function _renderWeeklyModalContent(idx) {
     html += `<div class="expense-balance" style="margin-top:8px"><div>引落前: ${yen(r.beforeMoney)}</div><div style="color:${r.afterMoney < 0 ? '#f87171' : '#4ade80'}">引落後: ${yen(r.afterMoney)}</div></div>`;
   }
 
+  if (r.event) {
+    const isGood = r.event.type === 'good';
+    const evColor = isGood ? '#4ade80' : '#f87171';
+    const evLabel = isGood ? '📰 グッドニュース！' : '📰 バッドニュース…';
+    html += `<div class="weekly-section-title" style="color:${evColor}">${evLabel}</div>`;
+    html += `<div class="weekly-event-row" style="border-color:${evColor}22;background:${evColor}08">
+      <span class="weekly-event-emoji">${r.event.emoji}</span>
+      <span class="weekly-event-title" style="color:${evColor}">${r.event.title}</span>
+    </div>`;
+  }
+
   document.getElementById('weekly-period').textContent = `第${r.period}期 第${r.monthNum}月 第${r.weekInMonth}週`;
   document.getElementById('report-nav-label').textContent = `${idx + 1} / ${total}`;
   document.getElementById('weekly-detail').innerHTML = html;
@@ -600,10 +620,14 @@ function showWeeklyModal(weekNum, deptIncome, flWeeklyIncome, flGross, flCost, m
   const flCount     = state.freelancers || 0;
 
   if (!state.reportHistory) state.reportHistory = [];
+  const evSnap = pendingWeeklyEvent
+    ? { type: pendingWeeklyEvent.type, emoji: pendingWeeklyEvent.emoji, title: pendingWeeklyEvent.title }
+    : null;
   state.reportHistory.push({
     weekNum, period, monthNum, weekInMonth,
     deptIncome, flIncome: flWeeklyIncome, flCount, flGross, flCost,
     monthlyExp, beforeMoney, afterMoney: state.money,
+    event: evSnap,
   });
   if (state.reportHistory.length > 52) state.reportHistory.shift();
 
@@ -1269,14 +1293,20 @@ function renderDepts() {
     ${_buildDeptRow('hr')}
   </div>`;
 
-  // 島2: 財務部（財務 + 戦略）
+  // 島2: 人材紹介事業部
+  html += `<div class="dept-island island-staffing">
+    <div class="island-hdr"><span class="island-icon">🤝</span><span>人材紹介事業部</span></div>
+    ${_buildDeptRow('staffing')}
+  </div>`;
+
+  // 島3: 財務部（財務 + 戦略）
   html += `<div class="dept-island island-finance">
     <div class="island-hdr"><span class="island-icon">💹</span><span>財務部</span></div>
     ${_buildDeptRow('finance')}
     ${_buildDeptRow('strategy')}
   </div>`;
 
-  // 島3: グローバル部
+  // 島4: グローバル部
   html += `<div class="dept-island island-global">
     <div class="island-hdr"><span class="island-icon">🌐</span><span>グローバル部</span></div>
     ${_buildDeptRow('global')}
@@ -2065,10 +2095,9 @@ function gameLoop(ts) {
         }
       }
 
-      // 週次イベント（週次モーダルを閉じた後に適用・表示）
-      if (Math.random() < 0.75) {
+      // 週次イベント（毎週100%発生・週次モーダルを閉じた後に適用）
+      {
         const ev = WEEK_EVENTS[Math.floor(Math.random() * WEEK_EVENTS.length)];
-        setOfficeEventFx(ev.type);
         pendingWeeklyEvent = ev;
       }
 
@@ -2153,5 +2182,6 @@ window.addEventListener('DOMContentLoaded', () => {
     if (pb) { pb.textContent = '▶'; pb.classList.add('paused'); }
   }
   renderAll();
+  initOCV();
   requestAnimationFrame(gameLoop);
 });
