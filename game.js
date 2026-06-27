@@ -118,7 +118,9 @@ const WEEK_EVENTS = [
     type: 'bad', emoji: '😱', title: 'フリーランスが競合に引き抜かれた！',
     desc: '高待遇オファーにより稼働中のエンジニアが突然退場した。',
     effect: s => {
-      const loss = Math.random() < 0.4 ? Math.min(s.freelancers || 0, 1) : 0;
+      const flFavor = (s.morale && s.morale.freelance) || 70;
+      const departChance = Math.max(0.05, Math.min(0.80, 0.40 - (flFavor - 70) * 0.006));
+      const loss = Math.random() < departChance ? Math.min(s.freelancers || 0, 1) : 0;
       if (loss > 0 && s.flData && s.flData.length > 0) s.flData.pop();
       s.freelancers = Math.max(0, (s.freelancers || 0) - loss);
       return loss > 0 ? `フリーランス ${loss}名が離脱` : 'FL引き抜き未遂（被害なし）';
@@ -286,18 +288,32 @@ function getDeptIncome(deptId) {
 
 function getFlWeeklyGross() {
   if (!state.flData || state.flData.length === 0) return 0;
+  const currentWeek = Math.floor(state.elapsedSeconds / WEEK_SEC);
   const mult = (state.freelancerMult || 1) * getGlobalMultiplier();
-  return state.flData.reduce((sum, fl) => sum + Math.floor(fl.gross / 4 * mult), 0);
+  return state.flData
+    .filter(fl => (fl.hiredWeek ?? 0) < currentWeek)
+    .reduce((sum, fl) => sum + Math.floor(fl.gross / 4 * mult), 0);
 }
 
 function getFlWeeklyIncome() {
   if (!state.flData || state.flData.length === 0) return 0;
-  const mult = (state.freelancerMult || 1) * getGlobalMultiplier();
-  return state.flData.reduce((sum, fl) => sum + Math.floor(fl.gross / 4 * fl.profitRate * mult), 0);
+  const currentWeek = Math.floor(state.elapsedSeconds / WEEK_SEC);
+  const flFavor = (state.morale && state.morale.freelance) || 70;
+  const favorMult = 1 + (flFavor - 70) * 0.002;
+  const mult = (state.freelancerMult || 1) * getGlobalMultiplier() * Math.max(0.5, favorMult);
+  return state.flData
+    .filter(fl => (fl.hiredWeek ?? 0) < currentWeek)
+    .reduce((sum, fl) => sum + Math.floor(fl.gross / 4 * fl.profitRate * mult), 0);
 }
 
 function getFlWeeklyCost() {
   return getFlWeeklyGross() - getFlWeeklyIncome();
+}
+
+function getFlActiveCount() {
+  if (!state.flData) return 0;
+  const currentWeek = Math.floor(state.elapsedSeconds / WEEK_SEC);
+  return state.flData.filter(fl => (fl.hiredWeek ?? 0) < currentWeek).length;
 }
 
 function getFreelancerBaseIncome() {
@@ -721,12 +737,15 @@ function renderBank() {
 // ---- 交流タブ（精神状況） ----
 
 const EXCHANGE_ACTIONS = [
-  { id: 'ex_party',       name: '🍻 社内交流会',        desc: '社員・FLの士気を上げる懇親会',          cost: () => Math.max(500000, getTotalIncome() * 200),  targets: ['employee','freelance'], gain: 8,  color: '#4ade80' },
-  { id: 'ex_seminar',     name: '📚 研修・セミナー開催', desc: '社員のスキルアップと充実感を高める',      cost: () => Math.max(2000000, getTotalIncome() * 500), targets: ['employee'],             gain: 12, color: '#60a5fa' },
-  { id: 'ex_ceo_round',   name: '☕ 社長懇談会',         desc: '社長が社員と直接対話。全員の士気UP',      cost: () => Math.max(1000000, getTotalIncome() * 300), targets: ['ceo','employee'],        gain: 10, color: '#a78bfa' },
-  { id: 'ex_client',      name: '🥂 クライアント接待',   desc: '社長が得意先を接待。社長の士気が大幅UP',  cost: () => Math.max(3000000, getTotalIncome() * 800), targets: ['ceo'],                  gain: 20, color: '#fbbf24' },
-  { id: 'ex_retreat',     name: '🏔️ 合宿・チームビルディング', desc: '全員参加の泊まり込み合宿',         cost: () => Math.max(10000000, getTotalIncome() * 2000), targets: ['ceo','employee','freelance'], gain: 18, color: '#f97316' },
-  { id: 'ex_bonus',       name: '💴 特別ボーナス支給',   desc: '社員・FLへの臨時ボーナスで大幅改善',     cost: () => Math.max(20000000, getTotalIncome() * 4000), targets: ['employee','freelance'], gain: 25, color: '#ec4899' },
+  { id: 'ex_party',       name: '🍻 社内交流会',          desc: '社員・FLの好感度を上げる懇親会',         cost: () => Math.max(500000, getTotalIncome() * 200),    targets: ['employee','freelance'], gain: 8,  color: '#4ade80',  flOnly: false },
+  { id: 'ex_seminar',     name: '📚 研修・セミナー開催',   desc: '社員のスキルアップと充実感を高める',      cost: () => Math.max(2000000, getTotalIncome() * 500),   targets: ['employee'],             gain: 12, color: '#60a5fa',  flOnly: false },
+  { id: 'ex_ceo_round',   name: '☕ 社長懇談会',           desc: '社長が社員と直接対話。全員の好感度UP',    cost: () => Math.max(1000000, getTotalIncome() * 300),   targets: ['ceo','employee'],        gain: 10, color: '#a78bfa',  flOnly: false },
+  { id: 'ex_client',      name: '🥂 クライアント接待',     desc: '社長が得意先を接待。社長の好感度が大幅UP',cost: () => Math.max(3000000, getTotalIncome() * 800),   targets: ['ceo'],                  gain: 20, color: '#fbbf24',  flOnly: false },
+  { id: 'ex_retreat',     name: '🏔️ 合宿・チームビルディング', desc: '全員参加の泊まり込み合宿。全好感度UP', cost: () => Math.max(10000000, getTotalIncome() * 2000), targets: ['ceo','employee','freelance'], gain: 18, color: '#f97316', flOnly: false },
+  { id: 'ex_bonus',       name: '💴 特別ボーナス支給',     desc: '社員・FLへの臨時ボーナスで大幅改善',     cost: () => Math.max(20000000, getTotalIncome() * 4000), targets: ['employee','freelance'], gain: 25, color: '#ec4899',  flOnly: false },
+  { id: 'ex_fl_lunch',    name: '🍱 FL懇親ランチ',         desc: 'FLと昼食をともにする。FL好感度UP',        cost: () => Math.max(50000, getTotalIncome() * 30),      targets: ['freelance'],            gain: 10, color: '#93c5fd',  flOnly: true  },
+  { id: 'ex_fl_visit',    name: '🏢 FL常駐先への差し入れ', desc: '常駐先へ差し入れ訪問。FL好感度が大幅UP',  cost: () => Math.max(150000, getTotalIncome() * 80),     targets: ['freelance'],            gain: 20, color: '#7dd3fc',  flOnly: true  },
+  { id: 'ex_fl_event',    name: '🎉 FL専用交流イベント',   desc: 'FL限定の感謝イベント。離脱率が激減',      cost: () => Math.max(500000, getTotalIncome() * 300),    targets: ['freelance'],            gain: 35, color: '#a78bfa',  flOnly: true  },
 ];
 
 function doExchangeAction(actionId) {
@@ -735,8 +754,8 @@ function doExchangeAction(actionId) {
   const cost = action.cost();
   if (state.money < cost) { showToast('💸 資金が不足しています'); return; }
   state.money -= cost;
-  action.targets.forEach(t => { state.morale[t] = Math.min(100, (state.morale[t] || 50) + action.gain); });
-  showToast(`${action.name}を実施！士気+${action.gain}`);
+  action.targets.forEach(t => { state.morale[t] = Math.min(100, (state.morale[t] || 70) + action.gain); });
+  showToast(`${action.name}を実施！好感度+${action.gain}`);
   renderAll();
 }
 
@@ -746,48 +765,64 @@ function renderExchange() {
 
   const m = state.morale;
   const mc  = v => v >= 70 ? '#4ade80' : v >= 40 ? '#fbbf24' : '#f87171';
-  const ml  = v => v >= 80 ? '絶好調' : v >= 60 ? '普通' : v >= 40 ? '疲弊中' : '崩壊寸前';
+  const ml  = v => v >= 80 ? '絶好調' : v >= 60 ? '良好' : v >= 40 ? '疲弊中' : '崩壊寸前';
   const avg = (m.ceo + m.employee + m.freelance) / 3;
   const eff = ((avg - 50) * 0.01 * 100).toFixed(0);
 
+  const flFavor = m.freelance || 70;
+  const departChance = Math.max(0.05, Math.min(0.80, 0.40 - (flFavor - 70) * 0.006));
+  const favorBonus   = ((flFavor - 70) * 0.002 * 100).toFixed(1);
+
   const rows = [
-    { key: 'ceo', label: '👔 社長' },
-    { key: 'employee', label: '👨‍💼 社員' },
-    { key: 'freelance', label: '💻 フリーランス' },
+    { key: 'ceo',       label: '👔 社長' },
+    { key: 'employee',  label: '👨‍💼 社員' },
+    { key: 'freelance', label: '💻 FL好感度' },
   ].map(({ key, label }) => {
-    const v = m[key] || 50;
+    const v = m[key] || 70;
+    const extra = key === 'freelance'
+      ? `<span style="font-size:10px;color:#93c5fd;margin-left:4px">離脱率 ${(departChance*100).toFixed(0)}% / 利益${Number(favorBonus)>=0?'+':''}${favorBonus}%</span>`
+      : '';
     return `<div class="morale-row">
       <span class="morale-label">${label}</span>
       <div class="morale-bar-wrap"><div class="morale-bar" style="width:${v}%;background:${mc(v)}"></div></div>
       <span class="morale-value" style="color:${mc(v)}">${v}</span>
       <span style="font-size:11px;color:${mc(v)};min-width:52px;text-align:right">${ml(v)}</span>
+      ${extra}
     </div>`;
   }).join('');
 
-  const btns = EXCHANGE_ACTIONS.map(a => {
+  const makeBtn = a => {
     const cost = a.cost();
-    const ok   = state.money >= cost;
-    return `<button class="exchange-btn" onclick="doExchangeAction('${a.id}')" ${ok ? '' : 'disabled'}>
+    const ok   = state.money >= cost && (state.freelancers > 0 || !a.flOnly);
+    const disabledReason = a.flOnly && state.freelancers === 0 ? 'FL在籍なし' : ok ? '' : '資金不足';
+    return `<button class="exchange-btn" onclick="doExchangeAction('${a.id}')" ${(ok && disabledReason === '') ? '' : 'disabled'}>
       <div class="exchange-btn-left">
         <span class="exchange-btn-name">${a.name}</span>
         <span class="exchange-btn-desc">${a.desc}</span>
       </div>
       <div class="exchange-btn-right">
-        <span class="exchange-btn-cost" style="color:${ok ? '#fbbf24' : '#666'}">¥${fmt(cost)}</span>
-        <span class="exchange-btn-effect" style="color:${a.color}">士気+${a.gain}</span>
+        <span class="exchange-btn-cost" style="color:${ok?'#fbbf24':'#666'}">${disabledReason || yen(cost)}</span>
+        <span class="exchange-btn-effect" style="color:${a.color}">好感度+${a.gain}</span>
       </div>
     </button>`;
-  }).join('');
+  };
+
+  const generalBtns = EXCHANGE_ACTIONS.filter(a => !a.flOnly).map(makeBtn).join('');
+  const flBtns      = EXCHANGE_ACTIONS.filter(a =>  a.flOnly).map(makeBtn).join('');
 
   container.innerHTML = `
     <div class="exchange-morale-box">
-      <div class="exchange-morale-title">📊 精神状況メーター</div>
+      <div class="exchange-morale-title">📊 好感度メーター</div>
       ${rows}
       <div class="morale-effect">売上影響: <strong style="color:${Number(eff)>=0?'#4ade80':'#f87171'}">${Number(eff)>=0?'+':''}${eff}%</strong>（平均 ${avg.toFixed(0)}/100）</div>
     </div>
     <div class="exchange-actions">
-      <div class="exchange-action-title">🤝 社内政治アクション</div>
-      ${btns}
+      <div class="exchange-action-title">🤝 社内施策</div>
+      ${generalBtns}
+    </div>
+    <div class="exchange-actions" style="margin-top:12px">
+      <div class="exchange-action-title" style="color:#93c5fd">👨‍💻 FL関係施策</div>
+      ${flBtns}
     </div>`;
 }
 
@@ -883,13 +918,12 @@ function load() {
     if (state.gameSpeed === undefined)  state.gameSpeed = 1;
     if (state.ceoSalary === undefined)  state.ceoSalary = 500000;
     if (!state.reportHistory)           state.reportHistory = [];
-    if (!state.flData) {
-      state.flData = [];
-      for (let i = 0; i < (state.freelancers || 0); i++) {
+    if (!state.flData) state.flData = [];
+    { const preFlCount = state.freelancers || 0;
+      while (state.flData.length < preFlCount) {
         state.flData.push({ gross: 600000 + Math.floor(Math.random() * 400001), profitRate: 0.10 + Math.random() * 0.10 });
       }
-    }
-    state.freelancers = state.flData.length;
+      state.freelancers = state.flData.length; }
     if (state.flGrossRevenue === undefined) state.flGrossRevenue = 0;
     if (offlineSec > 30) {
       const deptIncome     = getTotalIncome() * offlineSec;
@@ -933,13 +967,12 @@ function loadFromSlot(n) {
     const offlineSec = Math.min((Date.now() - (saved.lastTimestamp || Date.now())) / 1000, MAX_OFFLINE_SEC);
     Object.assign(state, saved);
     state.lastTimestamp = Date.now();
-    if (!state.flData) {
-      state.flData = [];
-      for (let i = 0; i < (state.freelancers || 0); i++) {
+    if (!state.flData) state.flData = [];
+    { const preFlCount = state.freelancers || 0;
+      while (state.flData.length < preFlCount) {
         state.flData.push({ gross: 600000 + Math.floor(Math.random() * 400001), profitRate: 0.10 + Math.random() * 0.10 });
       }
-      state.freelancers = state.flData.length;
-    }
+      state.freelancers = state.flData.length; }
     if (state.flGrossRevenue === undefined) state.flGrossRevenue = 0;
     if (offlineSec > 30) {
       const deptIncome      = getTotalIncome() * offlineSec;
@@ -1090,15 +1123,19 @@ function _buildOfficeCard() {
 
 function _buildFLCard() {
   const fl            = state.freelancers || 0;
+  const activeFL      = getFlActiveCount();
   const salesCount    = state.employees['sales'] || 0;
   const recruitChance = getRecruitChance();
   const flWeeklyGross = getFlWeeklyGross();
   const flWeeklyNet   = getFlWeeklyIncome();
   const flWeeklyCost  = getFlWeeklyCost();
 
-  const incomeDetail = fl > 0
-    ? `売上 ${yen(flWeeklyGross)} − 報酬 ${yen(flWeeklyCost)} = 利益 ${yen(flWeeklyNet)}/週`
-    : '1人あたり: 売上¥150k〜¥250k/週 − 報酬 → 利益¥15k〜¥50k/週';
+  const pendingNote   = (fl > activeFL) ? `（うち${fl - activeFL}名は翌週稼働開始）` : '';
+  const incomeDetail  = activeFL > 0
+    ? `売上 ${yen(flWeeklyGross)} − 報酬 ${yen(flWeeklyCost)} = 利益 ${yen(flWeeklyNet)}/週 ${pendingNote}`
+    : fl > 0
+      ? `採用済み（翌週から稼働）${pendingNote}`
+      : '1人あたり: 売上¥150k〜¥250k/週 − 報酬 → 利益¥15k〜¥50k/週';
 
   return `<div class="island-row ${fl > 0 ? 'island-row-active' : ''}">
     <div class="dept-emoji">👨‍💻</div>
@@ -1230,6 +1267,7 @@ function setCeoSalary(amount) {
 function renderLabor() {
   const totalEmp   = Object.values(state.employees).reduce((a, b) => a + b, 0);
   const fl         = state.freelancers || 0;
+  const activeFL   = getFlActiveCount();
   const gt         = getGameTime();
   const ceoSalary  = state.ceoSalary || 0;
 
@@ -1287,7 +1325,7 @@ function renderLabor() {
     <div class="stats-grid">
       <div class="stat-item"><div class="stat-label">第${gt.period}期 ${gt.month}月目</div><div class="stat-value">第${gt.week}週</div></div>
       <div class="stat-item"><div class="stat-label">社員数</div><div class="stat-value">${totalEmp}名</div></div>
-      <div class="stat-item"><div class="stat-label">FL在籍</div><div class="stat-value">${fl}名</div></div>
+      <div class="stat-item"><div class="stat-label">FL在籍</div><div class="stat-value">${fl}名 <small style="color:#93c5fd;font-size:10px">稼働${activeFL}名</small></div></div>
       <div class="stat-item"><div class="stat-label">週次収益</div><div class="stat-value">${yen(getDisplayWeeklyIncome())}/週</div></div>
       <div class="stat-item"><div class="stat-label">累計売上</div><div class="stat-value">${yen(state.totalEarned)}</div></div>
       <div class="stat-item"><div class="stat-label">当期収益</div><div class="stat-value">${yen(state.periodEarned)}</div></div>
@@ -1296,12 +1334,12 @@ function renderLabor() {
       <div class="stat-item"><div class="stat-label">FL単価倍率</div><div class="stat-value">×${(state.freelancerMult||1).toFixed(2)}</div></div>
     </div>
 
-    ${fl > 0 ? `<div class="labor-section">
-      <div class="labor-section-title">👨‍💻 FL収益内訳（週次現在レート）</div>
-      <div class="expense-row" style="color:#4ade80"><span>売上（${fl}名）</span><span>＋${yen(flWeeklyGross)}</span></div>
-      <div class="expense-row" style="color:#f87171"><span>FL報酬（${fl}名）</span><span>−${yen(flWeeklyCost)}</span></div>
-      <div class="expense-row" style="color:#93c5fd;font-weight:700;border-top:2px solid #2a2a50;padding-top:8px;margin-top:4px"><span>利益（${fl}名）</span><span>＋${yen(flWeeklyNet)}</span></div>
-    </div>` : ''}
+    ${activeFL > 0 ? `<div class="labor-section">
+      <div class="labor-section-title">👨‍💻 FL収益内訳（週次・稼働${activeFL}名）</div>
+      <div class="expense-row" style="color:#4ade80"><span>売上（${activeFL}名合算）</span><span>＋${yen(flWeeklyGross)}</span></div>
+      <div class="expense-row" style="color:#f87171"><span>FL報酬（${activeFL}名合算）</span><span>−${yen(flWeeklyCost)}</span></div>
+      <div class="expense-row" style="color:#93c5fd;font-weight:700;border-top:2px solid #2a2a50;padding-top:8px;margin-top:4px"><span>利益（${activeFL}名合算）</span><span>＋${yen(flWeeklyNet)}</span></div>
+    </div>` : fl > 0 ? `<div class="labor-section"><div class="labor-section-title" style="color:#888">👨‍💻 FL${fl}名 採用済み（翌週から稼働）</div></div>` : ''}
 
     ${plRows || flPlRow ? `
     <div class="pl-table-wrap">
@@ -1890,17 +1928,18 @@ function gameLoop(ts) {
 
       // モラル低下
       ['ceo','employee','freelance'].forEach(k => {
-        state.morale[k] = Math.max(10, (state.morale[k] || 50) - 2);
+        state.morale[k] = Math.max(10, (state.morale[k] || 70) - 2);
       });
 
       // FL採用
       const salesCount    = state.employees['sales'] || 0;
       const recruitChance = getRecruitChance();
+      const hiredWeek = currentWeekNum;
       let newFL = 0;
       for (let i = 0; i < salesCount; i++) {
         if (Math.random() < recruitChance) {
           if (!state.flData) state.flData = [];
-          state.flData.push({ gross: 600000 + Math.floor(Math.random() * 400001), profitRate: 0.10 + Math.random() * 0.10 });
+          state.flData.push({ gross: 600000 + Math.floor(Math.random() * 400001), profitRate: 0.10 + Math.random() * 0.10, hiredWeek });
           state.freelancers = state.flData.length;
           newFL++;
         }
