@@ -775,22 +775,18 @@ function showWeeklyModal(weekNum, deptIncome, flWeeklyIncome, flGross, flCost, m
   weeklyModalShowing = true;
   document.getElementById('weekly-modal').classList.remove('hidden');
 
-  // 月次は自動クローズなし、週次は5秒カウントダウン
+  // 週次・月次ともに5秒カウントダウン
   const bar = document.getElementById('weekly-auto-close-bar');
   clearTimeout(weeklyAutoCloseTimer);
   weeklyAutoCloseTimer = null;
-  if (!isMonthly) {
-    if (bar) {
-      bar.style.transition = 'none';
-      bar.style.width = '100%';
-      void bar.offsetWidth;
-      bar.style.transition = `width ${WEEKLY_MODAL_AUTO_CLOSE_SEC}s linear`;
-      bar.style.width = '0%';
-    }
-    weeklyAutoCloseTimer = setTimeout(() => closeWeeklyModal(), WEEKLY_MODAL_AUTO_CLOSE_SEC * 1000);
-  } else {
-    if (bar) { bar.style.transition = 'none'; bar.style.width = '0%'; }
+  if (bar) {
+    bar.style.transition = 'none';
+    bar.style.width = '100%';
+    void bar.offsetWidth;
+    bar.style.transition = `width ${WEEKLY_MODAL_AUTO_CLOSE_SEC}s linear`;
+    bar.style.width = '0%';
   }
+  weeklyAutoCloseTimer = setTimeout(() => closeWeeklyModal(), WEEKLY_MODAL_AUTO_CLOSE_SEC * 1000);
 }
 
 function closeWeeklyModal() {
@@ -805,7 +801,6 @@ function closeWeeklyModal() {
 }
 
 function weeklyModalOverlayClick() {
-  if (weeklyModalIsMonthly) return; // 月次は閉じられない
   closeWeeklyModal();
 }
 
@@ -1040,25 +1035,25 @@ function renderExchange() {
   const empFlMult     = getEmpMoraleMult();
   const salaryMult    = getCeoSalaryMoraleMult();
 
-  const rows = [
+  const cols = [
     { key: 'ceo',       label: '👔 社長' },
     { key: 'employee',  label: '👨‍💼 社員' },
-    { key: 'freelance', label: '💻 FL好感度' },
+    { key: 'freelance', label: '💻 FL' },
   ].map(({ key, label }) => {
     const v = m[key] || 70;
-    const extra = key === 'freelance'
-      ? `<span style="font-size:10px;color:#93c5fd;margin-left:4px">引き抜き離脱率 ${(departChance*100).toFixed(0)}%</span>`
+    const sub = key === 'freelance'
+      ? `<span style="color:#93c5fd">離脱率 ${(departChance*100).toFixed(0)}%</span>`
       : key === 'employee'
-        ? `<span style="font-size:10px;color:#86efac;margin-left:4px">FL収益×${empFlMult.toFixed(2)}</span>`
-        : key === 'ceo' && salaryMult > 1
-          ? `<span style="font-size:10px;color:#fde68a;margin-left:4px">好感度効果×${salaryMult.toFixed(2)}</span>`
-          : '';
-    return `<div class="morale-row">
-      <span class="morale-label">${label}</span>
+        ? `<span style="color:#86efac">収益×${empFlMult.toFixed(2)}</span>`
+        : salaryMult > 1
+          ? `<span style="color:#fde68a">効果×${salaryMult.toFixed(2)}</span>`
+          : `<span style="color:transparent">-</span>`;
+    return `<div class="morale-col">
+      <div class="morale-col-label">${label}</div>
+      <div class="morale-col-val" style="color:${mc(v)}">${v}</div>
       <div class="morale-bar-wrap"><div class="morale-bar" style="width:${v}%;background:${mc(v)}"></div></div>
-      <span class="morale-value" style="color:${mc(v)}">${v}</span>
-      <span style="font-size:11px;color:${mc(v)};min-width:52px;text-align:right">${ml(v)}</span>
-      ${extra}
+      <div class="morale-col-status" style="color:${mc(v)}">${ml(v)}</div>
+      <div class="morale-col-sub">${sub}</div>
     </div>`;
   }).join('');
 
@@ -1101,8 +1096,7 @@ function renderExchange() {
 
   container.innerHTML = `
     <div class="exchange-morale-box">
-      <div class="exchange-morale-title">📊 好感度メーター</div>
-      ${rows}
+      <div class="morale-cols">${cols}</div>
       ${ceoWarning}
       <div class="morale-effect">売上影響: <strong style="color:${Number(eff)>=0?'#4ade80':'#f87171'}">${Number(eff)>=0?'+':''}${eff}%</strong>（平均 ${avg.toFixed(0)}/100）</div>
     </div>
