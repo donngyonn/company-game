@@ -1223,6 +1223,10 @@ function load() {
     if (state.staffingOpened === undefined)           state.staffingOpened = true;
     if (state.periodStaffingPlacements === undefined) state.periodStaffingPlacements = 0;
     if (state.hideWeeklyReport === undefined)         state.hideWeeklyReport = false;
+    if (state.bgmMuted === undefined)                 state.bgmMuted = false;
+    bgmMuted = state.bgmMuted;
+    const bgmBtn = document.getElementById('bgm-btn');
+    if (bgmBtn) bgmBtn.textContent = bgmMuted ? '🔇' : '🔊';
     const chk = document.getElementById('hide-weekly-report');
     if (chk) chk.checked = !!state.hideWeeklyReport;
     if (offlineSec > 30) {
@@ -2507,12 +2511,145 @@ function gameLoop(ts) {
     lastUpgradeCheck = ts;
     renderUpgrades();
     checkIPO();
+    if (bgmCtx) bgmSetStage(Math.min(getCurrentStageIdx(), BGM_DEF.length - 1));
   }
 
   requestAnimationFrame(gameLoop);
 }
 
 setInterval(save, 5000);
+
+// ==================== BGM ====================
+// フェーズ別のスケール・メロディ・パッドを定義
+const BGM_DEF = [
+  // 0: 個人事業 - ソロカフェ (C pentatonic, 72bpm)
+  { bpm:72,  root:261.63, scale:[0,2,4,7,9,12],    mel:[0,2,1,3,2,0,4,2,1,3,0,2],           pad:[-12,0,7],    baseSt:-24, melVol:0.10, padVol:0.05, bassVol:0.08, melW:'sine',     padW:'sine'     },
+  // 1: 零細SES - 希望の芽吹き (G major, 90bpm)
+  { bpm:90,  root:392.00, scale:[0,2,4,5,7,9,11],  mel:[0,2,4,2,5,3,4,2,3,1,2,0,4,6,5,3],  pad:[-12,0,4,7], baseSt:-24, melVol:0.10, padVol:0.06, bassVol:0.09, melW:'triangle', padW:'sine'     },
+  // 2: 中小SES - 安定成長 (F major, 108bpm)
+  { bpm:108, root:349.23, scale:[0,2,4,5,7,9,11],  mel:[0,4,2,5,3,6,4,2,3,5,4,2,1,3,2,4],  pad:[-12,0,4,7], baseSt:-24, melVol:0.11, padVol:0.06, bassVol:0.10, melW:'triangle', padW:'sine'     },
+  // 3: 成長SES - ドライブ (D major, 122bpm)
+  { bpm:122, root:293.66, scale:[0,2,4,5,7,9,11,12],mel:[0,2,4,7,5,4,2,5,4,6,7,5,4,2,3,5], pad:[-12,0,4,7,11],baseSt:-24,melVol:0.12,padVol:0.06,bassVol:0.11,melW:'square',   padW:'triangle' },
+  // 4: 大手SES - 威風堂々 (A major, 128bpm)
+  { bpm:128, root:220.00, scale:[0,2,4,5,7,9,11,12],mel:[0,4,7,4,5,7,5,4,2,4,6,7,6,4,5,7], pad:[-12,0,4,7,11],baseSt:-24,melVol:0.13,padVol:0.07,bassVol:0.12,melW:'sawtooth', padW:'triangle' },
+  // 5: 上場準備中 - 緊迫のマイナー (A minor, 116bpm)
+  { bpm:116, root:220.00, scale:[0,2,3,5,7,8,10,12],mel:[0,3,5,7,5,3,0,2,3,5,7,6,5,3,2,0], pad:[-12,0,3,7,10],baseSt:-24,melVol:0.13,padVol:0.07,bassVol:0.12,melW:'sawtooth', padW:'sine'     },
+  // 6: 上場直前 - 凱旋 (C major, 140bpm)
+  { bpm:140, root:261.63, scale:[0,2,4,5,7,9,11,12,14],mel:[0,4,7,4,8,7,5,4,7,8,6,4,5,7,8,7],pad:[-12,0,4,7,12],baseSt:-24,melVol:0.14,padVol:0.08,bassVol:0.13,melW:'sawtooth',padW:'triangle'},
+];
+
+let bgmCtx      = null;
+let bgmGain     = null;
+let bgmMuted    = false;
+let bgmCurStage = -1;
+let bgmBeat     = 0;
+let bgmNextTime = 0;
+let bgmTimer    = null;
+let bgmPadNodes = [];
+
+function _bgmFreq(root, semitones) {
+  return root * Math.pow(2, semitones / 12);
+}
+
+function _bgmNote(freq, vol, wave, t0, dur) {
+  if (!bgmCtx) return;
+  const osc = bgmCtx.createOscillator();
+  const g   = bgmCtx.createGain();
+  osc.type  = wave;
+  osc.frequency.setValueAtTime(freq, t0);
+  g.gain.setValueAtTime(0, t0);
+  g.gain.linearRampToValueAtTime(vol, t0 + Math.min(0.025, dur * 0.15));
+  g.gain.setValueAtTime(vol * 0.7, t0 + dur * 0.65);
+  g.gain.linearRampToValueAtTime(0, t0 + dur);
+  osc.connect(g);
+  g.connect(bgmGain);
+  osc.start(t0);
+  osc.stop(t0 + dur + 0.05);
+}
+
+function _bgmStopPad() {
+  if (!bgmCtx) return;
+  const t = bgmCtx.currentTime;
+  bgmPadNodes.forEach(({ osc, g }) => {
+    try { g.gain.linearRampToValueAtTime(0, t + 1.5); osc.stop(t + 1.6); } catch(e) {}
+  });
+  bgmPadNodes = [];
+}
+
+function _bgmStartPad(def) {
+  if (!bgmCtx) return;
+  const t       = bgmCtx.currentTime + 0.4;
+  const padRoot = def.root / 2;
+  def.pad.forEach((st, i) => {
+    const freq = _bgmFreq(padRoot, st);
+    const osc  = bgmCtx.createOscillator();
+    const filt = bgmCtx.createBiquadFilter();
+    const g    = bgmCtx.createGain();
+    osc.type   = def.padW;
+    osc.frequency.setValueAtTime(freq, t);
+    filt.type  = 'lowpass';
+    filt.frequency.value = 700;
+    filt.Q.value = 0.5;
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(def.padVol * Math.pow(0.7, i), t + 2.2);
+    osc.connect(filt); filt.connect(g); g.connect(bgmGain);
+    osc.start(t);
+    bgmPadNodes.push({ osc, g });
+  });
+}
+
+function _bgmSchedule() {
+  if (!bgmCtx || state.bankrupt) return;
+  const def  = BGM_DEF[Math.max(0, Math.min(bgmCurStage, BGM_DEF.length - 1))];
+  const spb  = 60 / def.bpm;
+  while (bgmNextTime < bgmCtx.currentTime + 0.12) {
+    const si    = def.mel[bgmBeat % def.mel.length] % def.scale.length;
+    const mFreq = _bgmFreq(def.root, def.scale[si]);
+    _bgmNote(mFreq, def.melVol, def.melW, bgmNextTime, spb * 0.78);
+    if (bgmBeat % 4 === 0 || bgmBeat % 4 === 2) {
+      _bgmNote(_bgmFreq(def.root, def.baseSt), def.bassVol, 'sine', bgmNextTime, spb * 1.4);
+    }
+    bgmNextTime += spb;
+    bgmBeat++;
+  }
+  bgmTimer = setTimeout(_bgmSchedule, 50);
+}
+
+function bgmSetStage(idx) {
+  if (!bgmCtx) return;
+  idx = Math.max(0, Math.min(idx, BGM_DEF.length - 1));
+  if (idx === bgmCurStage) return;
+  bgmCurStage = idx;
+  _bgmStopPad();
+  clearTimeout(bgmTimer);
+  bgmBeat = 0;
+  bgmNextTime = bgmCtx.currentTime + 0.6;
+  _bgmStartPad(BGM_DEF[idx]);
+  _bgmSchedule();
+}
+
+function bgmStart() {
+  if (bgmCtx) { bgmCtx.resume(); return; }
+  bgmCtx  = new (window.AudioContext || window.webkitAudioContext)();
+  const comp = bgmCtx.createDynamicsCompressor();
+  comp.threshold.value = -18; comp.ratio.value = 6;
+  comp.connect(bgmCtx.destination);
+  bgmGain = bgmCtx.createGain();
+  bgmGain.gain.setValueAtTime(bgmMuted ? 0 : 1.0, bgmCtx.currentTime);
+  bgmGain.connect(comp);
+  bgmNextTime = bgmCtx.currentTime + 0.5;
+  bgmSetStage(Math.min(getCurrentStageIdx(), BGM_DEF.length - 1));
+}
+
+function bgmToggle() {
+  bgmMuted = !bgmMuted;
+  state.bgmMuted = bgmMuted;
+  if (bgmGain && bgmCtx) {
+    bgmGain.gain.linearRampToValueAtTime(bgmMuted ? 0 : 1.0, bgmCtx.currentTime + 0.3);
+  }
+  const btn = document.getElementById('bgm-btn');
+  if (btn) btn.textContent = bgmMuted ? '🔇' : '🔊';
+}
 
 window.addEventListener('DOMContentLoaded', () => {
   load();
@@ -2524,4 +2661,8 @@ window.addEventListener('DOMContentLoaded', () => {
   renderAll();
   initOCV();
   requestAnimationFrame(gameLoop);
+  // 最初のユーザー操作でBGM開始（ブラウザのAutoPlay制限対応）
+  const startBgm = () => bgmStart();
+  document.addEventListener('click',      startBgm, { once: true });
+  document.addEventListener('touchstart', startBgm, { once: true });
 });
