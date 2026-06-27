@@ -1169,7 +1169,7 @@ function renderExchange() {
   const flFavor    = m.freelance || 90;
   const empMorale  = m.employee || 90;
   const empPenaltyDisp = Math.max(0, (90 - empMorale) * 0.001);
-  const departChance   = Math.min(0.55, 0.05 + (100 - flFavor) * 0.002 + empPenaltyDisp);
+  const departChance   = Math.min(0.55, (100 - flFavor) * 0.002 + empPenaltyDisp);
   const empFlMult     = getEmpMoraleMult();
   const salaryMult    = getCeoSalaryMoraleMult();
 
@@ -2951,7 +2951,7 @@ function gameLoop(ts) {
       const ceoMorBefore = state.morale.ceo || 90;
       const empMorBefore = state.morale.employee || 90;
       const flMorBefore  = state.morale.freelance || 90;
-      const baseDecay    = 2;
+      const baseDecay    = 3;
       const extraDecay   = Math.max(0, Math.floor((90 - ceoMorBefore) / 15));
       state.morale.ceo      = Math.max(10, ceoMorBefore - baseDecay);
       state.morale.employee = Math.max(10, empMorBefore - baseDecay - extraDecay);
@@ -2993,7 +2993,7 @@ function gameLoop(ts) {
         const flFavor  = state.morale.freelance || 90;
         const empMor   = state.morale.employee  || 90;
         const empPenalty = Math.max(0, (90 - empMor) * 0.001);  // 社員モラール90未満で離職率増加
-        const quitRate = Math.min(0.55, 0.05 + (100 - flFavor) * 0.002 + empPenalty);
+        const quitRate = Math.min(0.55, (100 - flFavor) * 0.002 + empPenalty);
         for (let i = state.flData.length - 1; i >= 0; i--) {
           if (Math.random() < quitRate) { state.flData.splice(i, 1); lostFL++; }
         }
