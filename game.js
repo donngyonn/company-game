@@ -119,6 +119,7 @@ const WEEK_EVENTS = [
     desc: '高待遇オファーにより稼働中のエンジニアが突然退場した。',
     effect: s => {
       const loss = Math.random() < 0.4 ? Math.min(s.freelancers || 0, 1) : 0;
+      if (loss > 0 && s.flData && s.flData.length > 0) s.flData.pop();
       s.freelancers = Math.max(0, (s.freelancers || 0) - loss);
       return loss > 0 ? `フリーランス ${loss}名が離脱` : 'FL引き抜き未遂（被害なし）';
     },
@@ -200,6 +201,8 @@ let state = {
   deptRevenue: {},
   deptCost: {},
   freelancers: 0,       // フリーランスエンジニア人数
+  flData: [],           // FL毎データ [{gross, profitRate}]
+  flGrossRevenue: 0,    // FL累計総売上
   officeLevel: 0,       // 事務所レベル (0=なし, 1-6)
   freelancerMult: 1,    // フリーランス単価倍率
   lastEventWeek: 0,
@@ -235,6 +238,10 @@ function getCurrentCapacity() {
 function getTotalPeople() {
   const emp = Object.values(state.employees).reduce((a, b) => a + b, 0);
   return emp + (state.freelancers || 0);
+}
+
+function getEmployeeCount() {
+  return Object.values(state.employees).reduce((a, b) => a + b, 0);
 }
 
 function getMoraleMultiplier() {
@@ -277,14 +284,30 @@ function getDeptIncome(deptId) {
   return def.incomePerSec * (state.employees[deptId] || 0) * (state.deptMults[deptId] || 1);
 }
 
+function getFlWeeklyGross() {
+  if (!state.flData || state.flData.length === 0) return 0;
+  const mult = (state.freelancerMult || 1) * getGlobalMultiplier();
+  return state.flData.reduce((sum, fl) => sum + Math.floor(fl.gross / 4 * mult), 0);
+}
+
+function getFlWeeklyIncome() {
+  if (!state.flData || state.flData.length === 0) return 0;
+  const mult = (state.freelancerMult || 1) * getGlobalMultiplier();
+  return state.flData.reduce((sum, fl) => sum + Math.floor(fl.gross / 4 * fl.profitRate * mult), 0);
+}
+
+function getFlWeeklyCost() {
+  return getFlWeeklyGross() - getFlWeeklyIncome();
+}
+
 function getFreelancerBaseIncome() {
-  return 0; // FL収益は週次で¥25,000/人として分配
+  return 0;
 }
 
 // 表示用週次収益（部署の秒収益×WEEK_SEC + FL週次利益）
 function getDisplayWeeklyIncome() {
   const deptPerWeek = getTotalIncome() * WEEK_SEC;
-  const flPerWeek = (state.freelancers || 0) * 25000 * (state.freelancerMult || 1) * getGlobalMultiplier();
+  const flPerWeek = getFlWeeklyIncome();
   return deptPerWeek + flPerWeek;
 }
 
@@ -330,7 +353,7 @@ const yen = n => '¥' + fmt(n);
 // ---- ゲームロジック ----
 
 function hire(deptId) {
-  if (getTotalPeople() >= getCurrentCapacity()) {
+  if (getEmployeeCount() >= getCurrentCapacity()) {
     showToast('🏢 事務所が満員です！拡張してください。');
     return;
   }
@@ -418,7 +441,7 @@ function doPrestige() {
 // ---- 月次費用 ----
 
 function calcMonthlyExpenses() {
-  const totalPeople = getTotalPeople();
+  const totalPeople = getEmployeeCount();
   const hasOffice = (state.officeLevel ?? 0) > 0;
   let rent = 0;
   if (hasOffice) {
@@ -488,9 +511,9 @@ function _renderWeeklyModalContent(idx) {
   let html = '';
   html += `<div class="expense-row" style="color:#4ade80"><span>🏢 部署収益</span><span>＋${yen(Math.floor(r.deptIncome))}</span></div>`;
   if (r.flGross > 0) {
-    html += `<div class="expense-row" style="color:#4ade80"><span>👨‍💻 FL売上（${r.flCount}名×¥150,000）</span><span>＋${yen(Math.floor(r.flGross))}</span></div>`;
-    html += `<div class="expense-row" style="color:#f87171"><span>💸 FL報酬（${r.flCount}名×¥125,000）</span><span>−${yen(Math.floor(r.flCost))}</span></div>`;
-    html += `<div class="expense-row" style="color:#93c5fd"><span>💹 FL利益（${r.flCount}名×¥25,000）</span><span>＋${yen(Math.floor(r.flIncome))}</span></div>`;
+    html += `<div class="expense-row" style="color:#4ade80"><span>👨‍💻 FL売上（${r.flCount}名）</span><span>＋${yen(Math.floor(r.flGross))}</span></div>`;
+    html += `<div class="expense-row" style="color:#f87171"><span>💸 FL報酬（${r.flCount}名）</span><span>−${yen(Math.floor(r.flCost))}</span></div>`;
+    html += `<div class="expense-row" style="color:#93c5fd"><span>💹 FL利益（${r.flCount}名）</span><span>＋${yen(Math.floor(r.flIncome))}</span></div>`;
   }
   const totalIncome = Math.floor(r.deptIncome) + Math.floor(r.flIncome);
   html += `<div class="expense-row" style="font-weight:700;color:#4ade80;border-top:2px solid #2a2a50;padding-top:8px;margin-top:4px"><span>収入合計</span><span>＋${yen(totalIncome)}</span></div>`;
@@ -530,13 +553,11 @@ function nextReport() {
   }
 }
 
-function showWeeklyModal(weekNum, deptIncome, flWeeklyIncome, monthlyExp, beforeMoney) {
+function showWeeklyModal(weekNum, deptIncome, flWeeklyIncome, flGross, flCost, monthlyExp, beforeMoney) {
   const period      = Math.floor((weekNum - 1) / YEAR_WEEKS) + 1;
   const monthNum    = Math.floor(((weekNum - 1) % YEAR_WEEKS) / MONTH_WEEKS) + 1;
   const weekInMonth = ((weekNum - 1) % MONTH_WEEKS) + 1;
   const flCount     = state.freelancers || 0;
-  const flGross     = Math.floor(flWeeklyIncome * 6);
-  const flCost      = Math.floor(flWeeklyIncome * 5);
 
   if (!state.reportHistory) state.reportHistory = [];
   state.reportHistory.push({
@@ -862,10 +883,18 @@ function load() {
     if (state.gameSpeed === undefined)  state.gameSpeed = 1;
     if (state.ceoSalary === undefined)  state.ceoSalary = 500000;
     if (!state.reportHistory)           state.reportHistory = [];
+    if (!state.flData) {
+      state.flData = [];
+      for (let i = 0; i < (state.freelancers || 0); i++) {
+        state.flData.push({ gross: 600000 + Math.floor(Math.random() * 400001), profitRate: 0.10 + Math.random() * 0.10 });
+      }
+    }
+    state.freelancers = state.flData.length;
+    if (state.flGrossRevenue === undefined) state.flGrossRevenue = 0;
     if (offlineSec > 30) {
       const deptIncome     = getTotalIncome() * offlineSec;
       const offlineWeeks   = Math.floor(offlineSec / WEEK_SEC);
-      const flOfflineIncome = (state.freelancers || 0) * 25000 * (state.freelancerMult || 1) * offlineWeeks;
+      const flOfflineIncome = getFlWeeklyIncome() * offlineWeeks;
       const income = deptIncome + flOfflineIncome;
       if (income > 0) {
         state.money += income;
@@ -904,10 +933,18 @@ function loadFromSlot(n) {
     const offlineSec = Math.min((Date.now() - (saved.lastTimestamp || Date.now())) / 1000, MAX_OFFLINE_SEC);
     Object.assign(state, saved);
     state.lastTimestamp = Date.now();
+    if (!state.flData) {
+      state.flData = [];
+      for (let i = 0; i < (state.freelancers || 0); i++) {
+        state.flData.push({ gross: 600000 + Math.floor(Math.random() * 400001), profitRate: 0.10 + Math.random() * 0.10 });
+      }
+      state.freelancers = state.flData.length;
+    }
+    if (state.flGrossRevenue === undefined) state.flGrossRevenue = 0;
     if (offlineSec > 30) {
       const deptIncome      = getTotalIncome() * offlineSec;
       const offlineWeeks    = Math.floor(offlineSec / WEEK_SEC);
-      const flOfflineIncome = (state.freelancers || 0) * 25000 * (state.freelancerMult || 1) * offlineWeeks;
+      const flOfflineIncome = getFlWeeklyIncome() * offlineWeeks;
       const income = deptIncome + flOfflineIncome;
       if (income > 0) { state.money += income; state.totalEarned += income; showOfflineModal(offlineSec, income); }
     }
@@ -1008,7 +1045,7 @@ function renderHeader() {
 function _buildOfficeCard() {
   const curLvl = state.officeLevel ?? 0;
   const offlvl = OFFICE_LEVELS[curLvl];
-  const total  = getTotalPeople();
+  const total  = getEmployeeCount();
   const cap    = getCurrentCapacity();
   const nextLvl = OFFICE_LEVELS[curLvl + 1];
 
@@ -1055,13 +1092,13 @@ function _buildFLCard() {
   const fl            = state.freelancers || 0;
   const salesCount    = state.employees['sales'] || 0;
   const recruitChance = getRecruitChance();
-  const flWeeklyNet   = fl * 25000 * (state.freelancerMult || 1) * getGlobalMultiplier();
-  const flWeeklyGross = Math.floor(flWeeklyNet * 6);
-  const flWeeklyCost  = Math.floor(flWeeklyNet * 5);
+  const flWeeklyGross = getFlWeeklyGross();
+  const flWeeklyNet   = getFlWeeklyIncome();
+  const flWeeklyCost  = getFlWeeklyCost();
 
   const incomeDetail = fl > 0
-    ? `売上 ${yen(flWeeklyGross)} − 報酬 ${yen(flWeeklyCost)} = 利益 ${yen(Math.floor(flWeeklyNet))}/週`
-    : '1人あたり: 売上¥150,000/週 − 報酬¥125,000 = 利益¥25,000/週';
+    ? `売上 ${yen(flWeeklyGross)} − 報酬 ${yen(flWeeklyCost)} = 利益 ${yen(flWeeklyNet)}/週`
+    : '1人あたり: 売上¥150k〜¥250k/週 − 報酬 → 利益¥15k〜¥50k/週';
 
   return `<div class="island-row ${fl > 0 ? 'island-row-active' : ''}">
     <div class="dept-emoji">👨‍💻</div>
@@ -1093,7 +1130,7 @@ function _buildDeptRow(id) {
   }
 
   const hireCost  = getHireCost(id);
-  const atCap     = getTotalPeople() >= getCurrentCapacity();
+  const atCap     = getEmployeeCount() >= getCurrentCapacity();
   const canAfford = state.money >= hireCost && !atCap;
 
   let incomeText = '';
@@ -1202,10 +1239,10 @@ function renderLabor() {
     `<button class="salary-btn${ceoSalary === v ? ' active' : ''}" onclick="setCeoSalary(${v})">${SALARY_LABELS[i]}</button>`
   ).join('');
 
-  // FL収益内訳（現在レートで算出）
-  const flWeeklyNet   = fl * 25000 * (state.freelancerMult || 1) * getGlobalMultiplier();
-  const flWeeklyGross = Math.floor(flWeeklyNet * 6);
-  const flWeeklyCost  = Math.floor(flWeeklyNet * 5);
+  // FL収益内訳（エンジニア毎ランダムレートで算出）
+  const flWeeklyGross = getFlWeeklyGross();
+  const flWeeklyNet   = getFlWeeklyIncome();
+  const flWeeklyCost  = getFlWeeklyCost();
 
   // P&L rows
   const plRows = DEPT_DEFS
@@ -1228,13 +1265,16 @@ function renderLabor() {
     }).join('');
 
   // FL P&L row
-  const flRevCum  = state.deptRevenue['freelancer'] || 0;
-  const flPlRow   = flRevCum > 0 ? `<tr>
+  const flRevCum   = state.deptRevenue['freelancer'] || 0;
+  const flGrossCum = state.flGrossRevenue || 0;
+  const flCostCum  = flGrossCum - flRevCum;
+  const flMgText   = flGrossCum > 0 ? `▲${(flRevCum / flGrossCum * 100).toFixed(1)}%` : '―';
+  const flPlRow    = flRevCum > 0 ? `<tr>
     <td>👨‍💻 FL（累計）</td>
-    <td class="num" style="color:#4ade80">${yen(Math.floor(flRevCum * 6))}</td>
-    <td class="num" style="color:#f87171">${yen(Math.floor(flRevCum * 5))}</td>
+    <td class="num" style="color:#4ade80">${yen(flGrossCum)}</td>
+    <td class="num" style="color:#f87171">${yen(flCostCum)}</td>
     <td class="num" style="color:#94a3b8">―</td>
-    <td class="num" style="color:#4ade80;font-weight:700">▲16.7%</td>
+    <td class="num" style="color:#4ade80;font-weight:700">${flMgText}</td>
   </tr>` : '';
 
   document.getElementById('labor-content').innerHTML = `
@@ -1258,9 +1298,9 @@ function renderLabor() {
 
     ${fl > 0 ? `<div class="labor-section">
       <div class="labor-section-title">👨‍💻 FL収益内訳（週次現在レート）</div>
-      <div class="expense-row" style="color:#4ade80"><span>売上（${fl}名×¥150,000）</span><span>＋${yen(flWeeklyGross)}</span></div>
-      <div class="expense-row" style="color:#f87171"><span>FL報酬（${fl}名×¥125,000）</span><span>−${yen(flWeeklyCost)}</span></div>
-      <div class="expense-row" style="color:#93c5fd;font-weight:700;border-top:2px solid #2a2a50;padding-top:8px;margin-top:4px"><span>利益（${fl}名×¥25,000）</span><span>＋${yen(Math.floor(flWeeklyNet))}</span></div>
+      <div class="expense-row" style="color:#4ade80"><span>売上（${fl}名）</span><span>＋${yen(flWeeklyGross)}</span></div>
+      <div class="expense-row" style="color:#f87171"><span>FL報酬（${fl}名）</span><span>−${yen(flWeeklyCost)}</span></div>
+      <div class="expense-row" style="color:#93c5fd;font-weight:700;border-top:2px solid #2a2a50;padding-top:8px;margin-top:4px"><span>利益（${fl}名）</span><span>＋${yen(flWeeklyNet)}</span></div>
     </div>` : ''}
 
     ${plRows || flPlRow ? `
@@ -1675,13 +1715,13 @@ function ocvOverlay(ctx, mor, count) {
     ctx.fillStyle=`rgba(255,195,70,${a})`; ctx.fillRect(0,0,OCV_W,OCV_H);
   }
   // HUD chip
-  const cap=getCurrentCapacity(), full=count>=cap&&cap>0;
+  const empCnt=getEmployeeCount(), cap=getCurrentCapacity(), full=empCnt>=cap&&cap>0;
   ctx.fillStyle='rgba(0,0,0,0.48)'; ctx.fillRect(4,4,108,17);
   const nm=(OFFICE_LEVELS[Math.min(state.officeLevel??0,OFFICE_LEVELS.length-1)]||{}).name||'';
   ctx.fillStyle='rgba(200,200,200,0.55)'; ctx.font='6.5px monospace';
   ctx.fillText(nm.slice(0,10), 7, 12);
   ctx.fillStyle=full?'rgba(248,100,100,0.8)':'rgba(80,215,100,0.72)';
-  ctx.fillText(`\u{1F465} ${count}/${cap}`, 7, 19);
+  ctx.fillText(`\u{1F465} ${empCnt}/${cap}`, 7, 19);
 }
 
 let _ocvEventTimer = null;
@@ -1766,13 +1806,20 @@ function setGameSpeed(s) {
   });
 }
 
+function isGamePaused() {
+  return ['weekly-modal', 'event-modal', 'expense-modal', 'ipo-modal'].some(id => {
+    const el = document.getElementById(id);
+    return el && !el.classList.contains('hidden');
+  });
+}
+
 function gameLoop(ts) {
   const now     = Date.now();
   const rawElapsed = (now - state.lastTimestamp) / 1000;
   const elapsed = rawElapsed * (state.gameSpeed || 1);
   state.lastTimestamp = now;
 
-  if (state.gameStarted && !state.bankrupt) {
+  if (state.gameStarted && !state.bankrupt && !isGamePaused()) {
     state.elapsedSeconds += elapsed;
 
     // 収益確率変動
@@ -1803,13 +1850,16 @@ function gameLoop(ts) {
     if (currentWeekNum > (state.lastEventWeek || 0) && currentWeekNum > 0 && !weeklyModalShowing) {
       state.lastEventWeek = currentWeekNum;
 
-      // FL週次利益の分配（¥25,000/週/人）
-      const flWeeklyIncome = Math.floor((state.freelancers || 0) * 25000 * (state.freelancerMult || 1) * getGlobalMultiplier());
+      // FL週次利益の分配（エンジニア毎ランダムレート）
+      const flWeeklyGross  = getFlWeeklyGross();
+      const flWeeklyIncome = getFlWeeklyIncome();
+      const flWeeklyCost   = flWeeklyGross - flWeeklyIncome;
       if (flWeeklyIncome > 0) {
         state.money += flWeeklyIncome;
         state.totalEarned += flWeeklyIncome;
         state.periodEarned = (state.periodEarned || 0) + flWeeklyIncome;
         state.deptRevenue['freelancer'] = (state.deptRevenue['freelancer'] || 0) + flWeeklyIncome;
+        state.flGrossRevenue = (state.flGrossRevenue || 0) + flWeeklyGross;
       }
 
       // 月次経費（4週ごと）
@@ -1848,15 +1898,17 @@ function gameLoop(ts) {
       const recruitChance = getRecruitChance();
       let newFL = 0;
       for (let i = 0; i < salesCount; i++) {
-        if (getTotalPeople() < getCurrentCapacity() && Math.random() < recruitChance) {
-          state.freelancers++;
+        if (Math.random() < recruitChance) {
+          if (!state.flData) state.flData = [];
+          state.flData.push({ gross: 600000 + Math.floor(Math.random() * 400001), profitRate: 0.10 + Math.random() * 0.10 });
+          state.freelancers = state.flData.length;
           newFL++;
         }
       }
       if (newFL > 0) showToast(`👨‍💻 フリーランス ${newFL}名が採用されました！`);
 
       // 週次サマリーモーダル表示
-      showWeeklyModal(currentWeekNum, state.weeklyIncomeAccum || 0, flWeeklyIncome, monthlyExp, beforeMoney);
+      showWeeklyModal(currentWeekNum, state.weeklyIncomeAccum || 0, flWeeklyIncome, flWeeklyGross, flWeeklyCost, monthlyExp, beforeMoney);
       state.weeklyIncomeAccum = 0;
     }
 
