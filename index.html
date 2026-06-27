@@ -42,27 +42,9 @@
   <!-- オフィスシーン -->
   <div id="office-scene">
     <div id="office-visual">
-      <!-- 窓レイヤー -->
-      <div id="ov-bg">
-        <div class="ov-window"><div class="ov-window-inner">⛈️</div></div>
-        <div class="ov-window"><div class="ov-window-inner">⛈️</div></div>
-      </div>
-      <!-- 装飾レイヤー（植物・看板） -->
-      <div id="ov-deco">
-        <span id="ov-plant-l"></span>
-        <span id="ov-plate"></span>
-        <span id="ov-plant-r"></span>
-      </div>
-      <!-- 人物レイヤー -->
-      <div id="ov-people"></div>
-      <!-- 雰囲気パーティクル -->
-      <div id="ov-atmo"></div>
-      <!-- イベントフラッシュ -->
-      <div id="ov-fx"></div>
-      <!-- HUD -->
-      <div id="ov-hud">
-        <span id="ov-office-name">事務所なし</span>
-        <span id="ov-people-count">👥 0/0</span>
+      <div id="office-canvas-wrap">
+        <canvas id="office-canvas"></canvas>
+        <div id="ov-fx"></div>
       </div>
     </div>
     <div id="office-bottom">
@@ -77,10 +59,10 @@
       ⬆️ 強化
       <span id="upgrade-badge" class="badge" style="display:none"></span>
     </button>
-    <button class="tab-btn" onclick="switchTab('exchange', this)">🤝 交流</button>
-    <button class="tab-btn" onclick="switchTab('stats', this)">📊 実績</button>
-    <button class="tab-btn" id="bank-tab-btn" disabled onclick="switchTab('bank', this)">🔒 銀行</button>
     <button class="tab-btn" onclick="switchTab('slots', this)">💾 セーブ</button>
+    <button class="tab-btn" onclick="switchTab('labor', this)">👷 労務</button>
+    <button class="tab-btn" id="bank-tab-btn" disabled onclick="switchTab('bank', this)">🔒 銀行</button>
+    <button class="tab-btn" onclick="switchTab('exchange', this)">🤝 交流</button>
   </nav>
 
   <!-- 部署タブ -->
@@ -101,9 +83,9 @@
     <div id="slots-list"></div>
   </section>
 
-  <!-- 実績タブ -->
-  <section id="tab-stats" class="tab-content hidden">
-    <div id="stats-content"></div>
+  <!-- 労務タブ -->
+  <section id="tab-labor" class="tab-content hidden">
+    <div id="labor-content"></div>
   </section>
 
   <!-- 銀行タブ -->
@@ -121,8 +103,13 @@
     <div class="modal-box weekly-modal-box">
       <div class="modal-title">📅 週次レポート</div>
       <div id="weekly-period" class="weekly-period"></div>
+      <div class="report-nav">
+        <button class="report-nav-btn" onclick="prevReport()">◀ 前週</button>
+        <span id="report-nav-label" class="report-nav-label">1/1</span>
+        <button class="report-nav-btn" onclick="nextReport()">次週 ▶</button>
+      </div>
       <div id="weekly-detail"></div>
-      <button class="modal-btn" onclick="closeWeeklyModal()">OK</button>
+      <button class="modal-btn" onclick="closeWeeklyModal()">閉じる</button>
     </div>
   </div>
 
