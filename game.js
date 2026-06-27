@@ -432,11 +432,13 @@ function getStaffingSeasonalLabel() {
 }
 
 function getRecruitChance() {
-  const salesMult = state.deptMults['sales'] || 1;
-  const hrBonus   = (state.employees['hr'] || 0) * 0.03;
-  const mktBonus  = (state.employees['marketing'] || 0) * 0.001;
-  const seasonal  = getSESSeasonal();
-  return Math.min(0.95, Math.max(0.01, (0.25 + hrBonus + mktBonus + seasonal) * salesMult));
+  const salesMult   = state.deptMults['sales'] || 1;
+  const hrBonus     = (state.employees['hr'] || 0) * 0.03;
+  const mktBonus    = (state.employees['marketing'] || 0) * 0.001;
+  const seasonal    = getSESSeasonal();
+  const empMorale   = state.morale?.employee || 90;
+  const moraleBonus = (empMorale - 90) * 0.001;  // 90→±0、100→+1%、70→−2%
+  return Math.min(0.95, Math.max(0.01, (0.25 + hrBonus + mktBonus + seasonal + moraleBonus) * salesMult));
 }
 
 function getStaffingFindRate() {
@@ -1166,7 +1168,8 @@ function renderExchange() {
 
   const flFavor    = m.freelance || 90;
   const empMorale  = m.employee || 90;
-  const departChance  = Math.min(0.55, 0.05 + (100 - flFavor) * 0.005);
+  const empPenaltyDisp = Math.max(0, (90 - empMorale) * 0.002);
+  const departChance   = Math.min(0.55, 0.05 + (100 - flFavor) * 0.005 + empPenaltyDisp);
   const empFlMult     = getEmpMoraleMult();
   const salaryMult    = getCeoSalaryMoraleMult();
 
@@ -2988,7 +2991,9 @@ function gameLoop(ts) {
       let lostFL = 0;
       if (state.flData.length > 0) {
         const flFavor  = state.morale.freelance || 90;
-        const quitRate = Math.min(0.55, 0.05 + (100 - flFavor) * 0.005);
+        const empMor   = state.morale.employee  || 90;
+        const empPenalty = Math.max(0, (90 - empMor) * 0.002);  // 社員モラール90未満で離職率増加
+        const quitRate = Math.min(0.55, 0.05 + (100 - flFavor) * 0.005 + empPenalty);
         for (let i = state.flData.length - 1; i >= 0; i--) {
           if (Math.random() < quitRate) { state.flData.splice(i, 1); lostFL++; }
         }
