@@ -182,15 +182,12 @@ const WEEK_EVENTS = [
   },
   // ---- bad / personnel ----
   {
-    type: 'bad', category: 'personnel', emoji: '😱', title: 'フリーランスが競合に引き抜かれた！',
-    desc: '高待遇オファーにより稼働中のエンジニアが突然退場した。',
+    type: 'bad', category: 'personnel', emoji: '😤', title: 'ベテラン営業が突然退職！',
+    desc: '条件面での不満から優秀な営業が競合他社へ転職した。チームの士気が低下。',
     effect: s => {
-      const flFavor = (s.morale && s.morale.freelance) || 70;
-      const departChance = Math.max(0.05, Math.min(0.80, 0.40 - (flFavor - 70) * 0.006));
-      const loss = Math.random() < departChance ? Math.min(s.freelancers || 0, 1) : 0;
-      if (loss > 0 && s.flData && s.flData.length > 0) s.flData.pop();
-      s.freelancers = Math.max(0, (s.freelancers || 0) - loss);
-      return loss > 0 ? `フリーランス ${loss}名が離脱` : 'FL引き抜き未遂（被害なし）';
+      const drop = 8 + Math.floor(Math.random() * 8);
+      s.morale.employee = Math.max(10, (s.morale.employee || 70) - drop);
+      return `社員モラール −${drop}`;
     },
   },
 ];
@@ -2301,6 +2298,22 @@ function gameLoop(ts) {
         }
       }
       if (newFL > 0) showToast(`👨‍💻 フリーランス ${newFL}名が採用されました！`);
+
+      // FL 自動離脱チェック（モラール連動・ニュースとは独立）
+      if (state.flData.length > 0) {
+        const flFavor = (state.morale && state.morale.freelance) || 70;
+        // 離脱率: モラール70=8%/週、100=2%、30=17%
+        const quitRate = Math.max(0.02, Math.min(0.30, 0.08 + (70 - flFavor) * 0.003));
+        let lostFL = 0;
+        for (let i = state.flData.length - 1; i >= 0; i--) {
+          if (Math.random() < quitRate) {
+            state.flData.splice(i, 1);
+            lostFL++;
+          }
+        }
+        state.freelancers = state.flData.length;
+        if (lostFL > 0) showToast(`😞 フリーランス ${lostFL}名が離脱しました`);
+      }
 
       // マネージャー自動処理（人材育成部）
       const mgrCount = state.employees['hr'] || 0;
