@@ -289,21 +289,17 @@ function getDeptIncome(deptId) {
 function getFlWeeklyGross() {
   if (!state.flData || state.flData.length === 0) return 0;
   const currentWeek = Math.floor(state.elapsedSeconds / WEEK_SEC);
-  const mult = (state.freelancerMult || 1) * getGlobalMultiplier();
   return state.flData
     .filter(fl => (fl.hiredWeek ?? 0) < currentWeek)
-    .reduce((sum, fl) => sum + Math.floor(fl.gross / 4 * mult), 0);
+    .reduce((sum, fl) => sum + Math.floor(fl.gross / 4), 0);
 }
 
 function getFlWeeklyIncome() {
   if (!state.flData || state.flData.length === 0) return 0;
   const currentWeek = Math.floor(state.elapsedSeconds / WEEK_SEC);
-  const flFavor = (state.morale && state.morale.freelance) || 70;
-  const favorMult = 1 + (flFavor - 70) * 0.002;
-  const mult = (state.freelancerMult || 1) * getGlobalMultiplier() * Math.max(0.5, favorMult);
   return state.flData
     .filter(fl => (fl.hiredWeek ?? 0) < currentWeek)
-    .reduce((sum, fl) => sum + Math.floor(fl.gross / 4 * fl.profitRate * mult), 0);
+    .reduce((sum, fl) => sum + Math.floor(fl.gross / 4 * fl.profitRate), 0);
 }
 
 function getFlWeeklyCost() {
@@ -737,15 +733,15 @@ function renderBank() {
 // ---- 交流タブ（精神状況） ----
 
 const EXCHANGE_ACTIONS = [
-  { id: 'ex_party',       name: '🍻 社内交流会',          desc: '社員・FLの好感度を上げる懇親会',         cost: () => Math.max(500000, getTotalIncome() * 200),    targets: ['employee','freelance'], gain: 8,  color: '#4ade80',  flOnly: false },
-  { id: 'ex_seminar',     name: '📚 研修・セミナー開催',   desc: '社員のスキルアップと充実感を高める',      cost: () => Math.max(2000000, getTotalIncome() * 500),   targets: ['employee'],             gain: 12, color: '#60a5fa',  flOnly: false },
-  { id: 'ex_ceo_round',   name: '☕ 社長懇談会',           desc: '社長が社員と直接対話。全員の好感度UP',    cost: () => Math.max(1000000, getTotalIncome() * 300),   targets: ['ceo','employee'],        gain: 10, color: '#a78bfa',  flOnly: false },
-  { id: 'ex_client',      name: '🥂 クライアント接待',     desc: '社長が得意先を接待。社長の好感度が大幅UP',cost: () => Math.max(3000000, getTotalIncome() * 800),   targets: ['ceo'],                  gain: 20, color: '#fbbf24',  flOnly: false },
-  { id: 'ex_retreat',     name: '🏔️ 合宿・チームビルディング', desc: '全員参加の泊まり込み合宿。全好感度UP', cost: () => Math.max(10000000, getTotalIncome() * 2000), targets: ['ceo','employee','freelance'], gain: 18, color: '#f97316', flOnly: false },
-  { id: 'ex_bonus',       name: '💴 特別ボーナス支給',     desc: '社員・FLへの臨時ボーナスで大幅改善',     cost: () => Math.max(20000000, getTotalIncome() * 4000), targets: ['employee','freelance'], gain: 25, color: '#ec4899',  flOnly: false },
-  { id: 'ex_fl_lunch',    name: '🍱 FL懇親ランチ',         desc: 'FLと昼食をともにする。FL好感度UP',        cost: () => Math.max(50000, getTotalIncome() * 30),      targets: ['freelance'],            gain: 10, color: '#93c5fd',  flOnly: true  },
-  { id: 'ex_fl_visit',    name: '🏢 FL常駐先への差し入れ', desc: '常駐先へ差し入れ訪問。FL好感度が大幅UP',  cost: () => Math.max(150000, getTotalIncome() * 80),     targets: ['freelance'],            gain: 20, color: '#7dd3fc',  flOnly: true  },
-  { id: 'ex_fl_event',    name: '🎉 FL専用交流イベント',   desc: 'FL限定の感謝イベント。離脱率が激減',      cost: () => Math.max(500000, getTotalIncome() * 300),    targets: ['freelance'],            gain: 35, color: '#a78bfa',  flOnly: true  },
+  { id: 'ex_party',       name: '🍻 社内交流会',          desc: '社員・FLの好感度を上げる懇親会',         cost: () => Math.max(500000, getTotalIncome() * 200),    targets: ['employee','freelance'], gain: 5,  color: '#4ade80',  flOnly: false },
+  { id: 'ex_seminar',     name: '📚 研修・セミナー開催',   desc: '社員のスキルアップと充実感を高める',      cost: () => Math.max(2000000, getTotalIncome() * 500),   targets: ['employee'],             gain: 8,  color: '#60a5fa',  flOnly: false },
+  { id: 'ex_ceo_round',   name: '☕ 社長懇談会',           desc: '社長が社員と直接対話。全員の好感度UP',    cost: () => Math.max(1000000, getTotalIncome() * 300),   targets: ['ceo','employee'],        gain: 7,  color: '#a78bfa',  flOnly: false },
+  { id: 'ex_client',      name: '🥂 クライアント接待',     desc: '社長が得意先を接待。社長の好感度が大幅UP',cost: () => Math.max(3000000, getTotalIncome() * 800),   targets: ['ceo'],                  gain: 12, color: '#fbbf24',  flOnly: false },
+  { id: 'ex_retreat',     name: '🏔️ 合宿・チームビルディング', desc: '全員参加の泊まり込み合宿。全好感度UP', cost: () => Math.max(10000000, getTotalIncome() * 2000), targets: ['ceo','employee','freelance'], gain: 10, color: '#f97316', flOnly: false },
+  { id: 'ex_bonus',       name: '💴 特別ボーナス支給',     desc: '社員・FLへの臨時ボーナスで大幅改善',     cost: () => Math.max(20000000, getTotalIncome() * 4000), targets: ['employee','freelance'], gain: 15, color: '#ec4899',  flOnly: false },
+  { id: 'ex_fl_lunch',    name: '🍱 FL懇親ランチ',         desc: 'FLと昼食をともにする。FL好感度UP',        cost: () => Math.max(50000, getTotalIncome() * 30),      targets: ['freelance'],            gain: 6,  color: '#93c5fd',  flOnly: true  },
+  { id: 'ex_fl_visit',    name: '🏢 FL常駐先への差し入れ', desc: '常駐先へ差し入れ訪問。FL好感度が大幅UP',  cost: () => Math.max(150000, getTotalIncome() * 80),     targets: ['freelance'],            gain: 10, color: '#7dd3fc',  flOnly: true  },
+  { id: 'ex_fl_event',    name: '🎉 FL専用交流イベント',   desc: 'FL限定の感謝イベント。離脱率が激減',      cost: () => Math.max(500000, getTotalIncome() * 300),    targets: ['freelance'],            gain: 18, color: '#a78bfa',  flOnly: true  },
 ];
 
 function doExchangeAction(actionId) {
@@ -753,9 +749,24 @@ function doExchangeAction(actionId) {
   if (!action) return;
   const cost = action.cost();
   if (state.money < cost) { showToast('💸 資金が不足しています'); return; }
+  if (action.flOnly && state.freelancers === 0) { showToast('👨‍💻 FL在籍なし'); return; }
   state.money -= cost;
   action.targets.forEach(t => { state.morale[t] = Math.min(100, (state.morale[t] || 70) + action.gain); });
-  showToast(`${action.name}を実施！好感度+${action.gain}`);
+  // FL対象アクション: 各FLの利益率を確率的に改善
+  if (action.targets.includes('freelance') && state.flData && state.flData.length > 0) {
+    let improved = 0;
+    state.flData.forEach(fl => {
+      if (Math.random() < 0.3) {
+        fl.profitRate = Math.min(0.30, fl.profitRate + 0.005 + Math.random() * 0.01);
+        improved++;
+      }
+    });
+    showToast(improved > 0
+      ? `${action.name}を実施！好感度+${action.gain} / FL${improved}名の利益率が改善`
+      : `${action.name}を実施！好感度+${action.gain}`);
+  } else {
+    showToast(`${action.name}を実施！好感度+${action.gain}`);
+  }
   renderAll();
 }
 
@@ -771,7 +782,6 @@ function renderExchange() {
 
   const flFavor = m.freelance || 70;
   const departChance = Math.max(0.05, Math.min(0.80, 0.40 - (flFavor - 70) * 0.006));
-  const favorBonus   = ((flFavor - 70) * 0.002 * 100).toFixed(1);
 
   const rows = [
     { key: 'ceo',       label: '👔 社長' },
@@ -780,7 +790,7 @@ function renderExchange() {
   ].map(({ key, label }) => {
     const v = m[key] || 70;
     const extra = key === 'freelance'
-      ? `<span style="font-size:10px;color:#93c5fd;margin-left:4px">離脱率 ${(departChance*100).toFixed(0)}% / 利益${Number(favorBonus)>=0?'+':''}${favorBonus}%</span>`
+      ? `<span style="font-size:10px;color:#93c5fd;margin-left:4px">引き抜き離脱率 ${(departChance*100).toFixed(0)}% / アクションで利益率改善</span>`
       : '';
     return `<div class="morale-row">
       <span class="morale-label">${label}</span>
@@ -1125,6 +1135,7 @@ function _buildFLCard() {
   const fl            = state.freelancers || 0;
   const activeFL      = getFlActiveCount();
   const salesCount    = state.employees['sales'] || 0;
+  const flCap         = salesCount * 15;
   const recruitChance = getRecruitChance();
   const flWeeklyGross = getFlWeeklyGross();
   const flWeeklyNet   = getFlWeeklyIncome();
@@ -1137,14 +1148,16 @@ function _buildFLCard() {
       ? `採用済み（翌週から稼働）${pendingNote}`
       : '1人あたり: 売上¥150k〜¥250k/週 − 報酬 → 利益¥15k〜¥50k/週';
 
+  const atCap = salesCount > 0 && fl >= flCap;
+
   return `<div class="island-row ${fl > 0 ? 'island-row-active' : ''}">
     <div class="dept-emoji">👨‍💻</div>
     <div class="dept-info">
-      <div class="dept-name" style="color:#93c5fd">フリーランスエンジニア <span class="emp-count" style="background:#3b5bdb">${fl}名</span></div>
+      <div class="dept-name" style="color:#93c5fd">フリーランスエンジニア <span class="emp-count" style="background:#3b5bdb">${fl}名</span>${atCap ? '<span style="font-size:10px;color:#f87171;margin-left:4px">上限</span>' : ''}</div>
       <div class="dept-desc">${incomeDetail}</div>
       ${salesCount > 0
-        ? `<div class="dept-margin"><span class="ml" style="color:#a78bfa">採用確率 ${(recruitChance*100).toFixed(1)}%/週 × 営業${salesCount}名</span></div>`
-        : `<div class="dept-margin"><span class="ml" style="color:#555">営業を雇うと毎週採用活動</span></div>`}
+        ? `<div class="dept-margin"><span class="ml" style="color:#a78bfa">採用確率 ${(recruitChance*100).toFixed(1)}%/週 × 営業${salesCount}名　上限 ${flCap}名</span></div>`
+        : `<div class="dept-margin"><span class="ml" style="color:#555">営業を雇うと毎週採用活動（1人あたり最大15名）</span></div>`}
     </div>
   </div>`;
 }
@@ -1928,17 +1941,18 @@ function gameLoop(ts) {
 
       // モラル低下
       ['ceo','employee','freelance'].forEach(k => {
-        state.morale[k] = Math.max(10, (state.morale[k] || 70) - 2);
+        state.morale[k] = Math.max(10, (state.morale[k] || 70) - 1);
       });
 
       // FL採用
       const salesCount    = state.employees['sales'] || 0;
       const recruitChance = getRecruitChance();
+      const flCap         = salesCount * 15;
       const hiredWeek = currentWeekNum;
       let newFL = 0;
       for (let i = 0; i < salesCount; i++) {
+        if (state.flData.length >= flCap) break;
         if (Math.random() < recruitChance) {
-          if (!state.flData) state.flData = [];
           state.flData.push({ gross: 600000 + Math.floor(Math.random() * 400001), profitRate: 0.10 + Math.random() * 0.10, hiredWeek });
           state.freelancers = state.flData.length;
           newFL++;
