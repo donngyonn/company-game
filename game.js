@@ -209,6 +209,8 @@ let state = {
   periodEarned: 0,      // 当期累計収益（3月決算で課税）
   loans: [],
   morale: { ceo: 70, employee: 70, freelance: 70 },
+  gameStarted: false,   // 事務所契約後に true
+  bankrupt: false,
 };
 
 DEPT_DEFS.forEach(d => {
@@ -338,8 +340,13 @@ function upgradeOffice() {
   if (next.upgradeCost > 0 && state.money < next.upgradeCost) { showToast('資金が足りません！'); return; }
   if (next.upgradeCost > 0) state.money -= next.upgradeCost;
   state.officeLevel = cur + 1;
-  const verb = cur === 0 ? '開設' : '移転';
-  showToast(`🏢 ${next.name}を${verb}！収容人数 ${next.capacity}名`);
+  if (cur === 0) {
+    state.gameStarted = true;
+    state.lastTimestamp = Date.now(); // ここから時計スタート
+    showToast(`🏢 ${next.name}を開設！ゲームスタート！`);
+  } else {
+    showToast(`🏢 ${next.name}に移転！収容人数 ${next.capacity}名`);
+  }
   renderDepts();
   renderHeader();
 }
@@ -458,11 +465,6 @@ function processMonthlyExpenses() {
 
   const beforeMoney = state.money;
   state.money -= exp.total;
-
-  if (state.money < 0) {
-    showToast('⚠️ 資金がマイナスです！銀行から借入を検討してください。');
-  }
-
   showExpenseModal(exp, beforeMoney);
   renderAll();
 }
@@ -487,6 +489,26 @@ function showExpenseModal(exp, before) {
 
 function closeExpenseModal() {
   document.getElementById('expense-modal').classList.add('hidden');
+  if (state.money < 0 && !state.bankrupt) {
+    triggerBankruptcy();
+  }
+}
+
+function triggerBankruptcy() {
+  state.bankrupt = true;
+  state.gameStarted = false;
+  const gt = getGameTime();
+  document.getElementById('bankrupt-period').textContent  = `第${gt.period}期 ${gt.month}月`;
+  document.getElementById('bankrupt-fl').textContent      = state.freelancers || 0;
+  document.getElementById('bankrupt-earned').textContent  = yen(state.totalEarned);
+  document.getElementById('bankrupt-prestige').textContent = state.prestige;
+  document.getElementById('bankrupt-modal').classList.remove('hidden');
+}
+
+function restartGame() {
+  localStorage.removeItem(SAVE_KEY);
+  SLOT_KEYS.forEach(k => k && localStorage.removeItem(k));
+  location.reload();
 }
 
 // ---- 3月決算・法人税 ----
@@ -738,6 +760,8 @@ function load() {
     if (!state.morale)          state.morale          = { ceo: 70, employee: 70, freelance: 70 };
     if (!state.freelancers)          state.freelancers  = 0;
     if (state.officeLevel === undefined) state.officeLevel = 0;
+    if (state.gameStarted === undefined) state.gameStarted = (state.officeLevel > 0);
+    if (!state.bankrupt) state.bankrupt = false;
     if (!state.freelancerMult)  state.freelancerMult  = 1;
     if (!state.lastTaxPeriod)   state.lastTaxPeriod   = 0;
     if (!state.periodEarned)    state.periodEarned    = 0;
@@ -1174,78 +1198,73 @@ function gameLoop(ts) {
   const now     = Date.now();
   const elapsed = (now - state.lastTimestamp) / 1000;
   state.lastTimestamp = now;
-  state.elapsedSeconds += elapsed;
 
-  // 収益確率変動
-  let incomeVariance = 1.0;
-  const rnd = Math.random();
-  if      (rnd < 0.05) incomeVariance = 2.0;
-  else if (rnd < 0.10) incomeVariance = 0.5;
-  else if (rnd < 0.40) incomeVariance = 1.2;
+  if (state.gameStarted && !state.bankrupt) {
+    state.elapsedSeconds += elapsed;
 
-  const income = getTotalIncome() * elapsed * incomeVariance;
-  state.money        += income;
-  state.totalEarned  += income;
-  state.periodEarned  = (state.periodEarned || 0) + income;
+    // 収益確率変動
+    let incomeVariance = 1.0;
+    const rnd = Math.random();
+    if      (rnd < 0.05) incomeVariance = 2.0;
+    else if (rnd < 0.10) incomeVariance = 0.5;
+    else if (rnd < 0.40) incomeVariance = 1.2;
 
-  // 部署別売上高積算（global部署のみ gross記録）
-  const globalMult = getGlobalMultiplier();
-  DEPT_DEFS.forEach(d => {
-    const net = getDeptIncome(d.id) * globalMult * elapsed * incomeVariance;
-    if (net > 0) {
-      const gross = d.marginRate ? net / d.marginRate : net;
-      state.deptRevenue[d.id] = (state.deptRevenue[d.id] || 0) + gross;
-    }
-  });
-  // フリーランス売上記録（gross）
-  const flNetPerSec = getFreelancerBaseIncome() * globalMult * elapsed * incomeVariance;
-  if (flNetPerSec > 0) {
-    state.deptRevenue['freelancer'] = (state.deptRevenue['freelancer'] || 0) + flNetPerSec / 0.1667; // 利益率100/600
-  }
+    const income = getTotalIncome() * elapsed * incomeVariance;
+    state.money        += income;
+    state.totalEarned  += income;
+    state.periodEarned  = (state.periodEarned || 0) + income;
 
-  // ---- 週次チェック ----
-  const currentWeekNum = Math.floor(state.elapsedSeconds / WEEK_SEC);
-  if (currentWeekNum > (state.lastEventWeek || 0) && currentWeekNum > 0) {
-    state.lastEventWeek = currentWeekNum;
-
-    // 週次イベント
-    if (Math.random() < 0.75) triggerWeeklyEvent();
-
-    // モラル自然低下
-    ['ceo','employee','freelance'].forEach(k => {
-      state.morale[k] = Math.max(10, (state.morale[k] || 50) - 2);
-    });
-
-    // 営業部によるFL採用（週次・1人ずつ確率判定）
-    const salesCount    = state.employees['sales'] || 0;
-    const recruitChance = getRecruitChance();
-    let newFL = 0;
-    for (let i = 0; i < salesCount; i++) {
-      if (getTotalPeople() < getCurrentCapacity() && Math.random() < recruitChance) {
-        state.freelancers++;
-        newFL++;
+    // 部署別売上高積算
+    const globalMult = getGlobalMultiplier();
+    DEPT_DEFS.forEach(d => {
+      const net = getDeptIncome(d.id) * globalMult * elapsed * incomeVariance;
+      if (net > 0) {
+        const gross = d.marginRate ? net / d.marginRate : net;
+        state.deptRevenue[d.id] = (state.deptRevenue[d.id] || 0) + gross;
       }
+    });
+    const flNetPerSec = getFreelancerBaseIncome() * globalMult * elapsed * incomeVariance;
+    if (flNetPerSec > 0) {
+      state.deptRevenue['freelancer'] = (state.deptRevenue['freelancer'] || 0) + flNetPerSec * 6;
     }
-    if (newFL > 0) {
-      showToast(`👨‍💻 フリーランス ${newFL}名が採用されました！`);
+
+    // ---- 週次チェック ----
+    const currentWeekNum = Math.floor(state.elapsedSeconds / WEEK_SEC);
+    if (currentWeekNum > (state.lastEventWeek || 0) && currentWeekNum > 0) {
+      state.lastEventWeek = currentWeekNum;
+
+      if (Math.random() < 0.75) triggerWeeklyEvent();
+
+      ['ceo','employee','freelance'].forEach(k => {
+        state.morale[k] = Math.max(10, (state.morale[k] || 50) - 2);
+      });
+
+      const salesCount    = state.employees['sales'] || 0;
+      const recruitChance = getRecruitChance();
+      let newFL = 0;
+      for (let i = 0; i < salesCount; i++) {
+        if (getTotalPeople() < getCurrentCapacity() && Math.random() < recruitChance) {
+          state.freelancers++;
+          newFL++;
+        }
+      }
+      if (newFL > 0) showToast(`👨‍💻 フリーランス ${newFL}名が採用されました！`);
     }
-  }
 
-  // ---- 月次費用（EXPENSE_WEEK週ごと） ----
-  const lastExp    = state.lastExpenseWeek || 0;
-  const expDueWeek = Math.floor(currentWeekNum / EXPENSE_WEEK) * EXPENSE_WEEK;
-  if (expDueWeek > 0 && expDueWeek > lastExp) {
-    state.lastExpenseWeek = expDueWeek;
-    processMonthlyExpenses();
-  }
+    // ---- 月次費用（4週ごと） ----
+    const lastExp    = state.lastExpenseWeek || 0;
+    const expDueWeek = Math.floor(currentWeekNum / EXPENSE_WEEK) * EXPENSE_WEEK;
+    if (expDueWeek > 0 && expDueWeek > lastExp) {
+      state.lastExpenseWeek = expDueWeek;
+      processMonthlyExpenses();
+    }
 
-  // ---- 3月決算（12ヶ月ごと = YEAR_WEEKS週ごと） ----
-  // 3月 = 月が3のタイミング（当期の第3月末）→ 12ヶ月の第3月なので、実際は毎期第3月末
-  // 簡略化: 毎期末（48週ごと）に法人税を徴収
-  const currentPeriod = Math.floor(currentWeekNum / YEAR_WEEKS);
-  if (currentPeriod > (state.lastTaxPeriod || 0) && currentWeekNum > 0) {
-    state.lastTaxPeriod = currentPeriod;
-    processCorpTax();
+    // ---- 3月決算（毎期末） ----
+    const currentPeriod = Math.floor(currentWeekNum / YEAR_WEEKS);
+    if (currentPeriod > (state.lastTaxPeriod || 0) && currentWeekNum > 0) {
+      state.lastTaxPeriod = currentPeriod;
+      processCorpTax();
+    }
   }
 
   if (ts - lastRender > 100) {
