@@ -48,8 +48,9 @@ const DEPT_DEFS = [
     id: 'hr',
     name: '人材育成部',
     emoji: '🎓',
-    desc: '1マネージャー＝10名の営業を管理。毎週自動採用＋交流会を自動化。採用コスト削減（−3%/人）・FL採用確率＋3%/人。',
-    incomePerSec: 0, marginRate: null, salaryLabel: null, monthlySalary: null,
+    desc: '1マネージャー＝10名の営業を管理。毎週自動採用＋交流会を自動化。採用コスト削減（−3%/人）・FL採用確率＋3%/人。月給70〜75万＋社保15%。',
+    incomePerSec: 0, marginRate: null, salaryLabel: '人件費',
+    monthlySalary: 725000, insuranceRate: 0.15,
     baseCost: 10000000, costMult: 1.20, unlockAt: 50000000,
     special: 'costReduction', specialValue: 0.03,
   },
@@ -288,6 +289,8 @@ let state = {
   gameSpeed: 1,         // 倍速（1x / 2x / 4x）
   ceoSalary: 300000,    // 社長月次報酬
   reportHistory: [],    // 週次レポート履歴（最大52件）
+  staffingOpened: true, // 人材紹介事業部開設フラグ（常時解放中）
+  periodStaffingPlacements: 0, // 今期紹介人数（年度末リセット）
 };
 
 DEPT_DEFS.forEach(d => {
@@ -587,13 +590,17 @@ function calcMonthlyExpenses() {
   const mktCount      = state.employees['marketing'] || 0;
   const marketingSalary = mktCount * (mktDef.monthlySalary || 475000) * (1 + (mktDef.insuranceRate || 0.15));
 
+  const hrDef       = DEPT_DEFS.find(d => d.id === 'hr');
+  const hrCount     = state.employees['hr'] || 0;
+  const hrSalary    = hrCount * (hrDef.monthlySalary || 725000) * (1 + (hrDef.insuranceRate || 0.15));
+
   const loanPay   = state.loans.reduce((a, l) => a + Math.min(l.remaining, l.monthlyPayment), 0);
   const ceoSalary = state.ceoSalary || 0;
 
   return {
     rent, utilities, supplies,
-    salesperson, staffingSalary, marketingSalary, loanPay, ceoSalary,
-    total: rent + utilities + supplies + salesperson + staffingSalary + marketingSalary + loanPay + ceoSalary,
+    salesperson, staffingSalary, marketingSalary, hrSalary, loanPay, ceoSalary,
+    total: rent + utilities + supplies + salesperson + staffingSalary + marketingSalary + hrSalary + loanPay + ceoSalary,
   };
 }
 
@@ -603,6 +610,7 @@ function showExpenseModal(exp, before) {
   if (exp.utilities > 0)       rows += `<div class="expense-row"><span>💡 水道光熱費</span><span>−${yen(exp.utilities)}</span></div>`;
   if (exp.supplies > 0)        rows += `<div class="expense-row"><span>📦 備品・消耗品</span><span>−${yen(exp.supplies)}</span></div>`;
   if (exp.salesperson > 0)     rows += `<div class="expense-row"><span>💼 SES営業 人件費＋社保</span><span>−${yen(exp.salesperson)}</span></div>`;
+  if (exp.hrSalary > 0)        rows += `<div class="expense-row"><span>🎓 マネージャー 人件費＋社保</span><span>−${yen(exp.hrSalary)}</span></div>`;
   if (exp.staffingSalary > 0)  rows += `<div class="expense-row"><span>🤝 紹介営業 人件費＋社保</span><span>−${yen(exp.staffingSalary)}</span></div>`;
   if (exp.marketingSalary > 0) rows += `<div class="expense-row"><span>📣 マーケター 人件費＋社保</span><span>−${yen(exp.marketingSalary)}</span></div>`;
   if (exp.ceoSalary > 0)       rows += `<div class="expense-row"><span>🤵 社長報酬</span><span>−${yen(exp.ceoSalary)}</span></div>`;
@@ -644,7 +652,11 @@ function _renderWeeklyModalContent(idx) {
     html += `<div class="expense-row" style="color:#f87171"><span>💸 FL報酬（${r.flCount}名）</span><span>−${yen(Math.floor(r.flCost))}</span></div>`;
     html += `<div class="expense-row" style="color:#93c5fd"><span>💹 FL利益（${r.flCount}名）</span><span>＋${yen(Math.floor(r.flIncome))}</span></div>`;
   }
-  const totalIncome = Math.floor(r.deptIncome) + Math.floor(r.flIncome);
+  if (r.staffingPlacements > 0) {
+    html += `<div class="weekly-section-title" style="color:#38c8e8">🤝 人材紹介成績</div>`;
+    html += `<div class="expense-row" style="color:#38c8e8"><span>成約件数（${r.staffingPlacements}件）</span><span>＋${yen(r.staffingFees)}</span></div>`;
+  }
+  const totalIncome = Math.floor(r.deptIncome) + Math.floor(r.flIncome) + (r.staffingFees || 0);
   html += `<div class="expense-row" style="font-weight:700;color:#4ade80;border-top:2px solid #2a2a50;padding-top:8px;margin-top:4px"><span>収入合計</span><span>＋${yen(totalIncome)}</span></div>`;
 
   if (r.monthlyExp) {
@@ -653,8 +665,11 @@ function _renderWeeklyModalContent(idx) {
     if (mExp.rent > 0)        html += `<div class="expense-row"><span>🏢 事務所家賃</span><span>−${yen(mExp.rent)}</span></div>`;
     if (mExp.utilities > 0)   html += `<div class="expense-row"><span>💡 水道光熱費</span><span>−${yen(mExp.utilities)}</span></div>`;
     if (mExp.supplies > 0)    html += `<div class="expense-row"><span>📦 備品・消耗品</span><span>−${yen(mExp.supplies)}</span></div>`;
-    if (mExp.salesperson > 0) html += `<div class="expense-row"><span>👔 営業部 人件費</span><span>−${yen(mExp.salesperson)}</span></div>`;
-    if (mExp.ceoSalary > 0)   html += `<div class="expense-row"><span>🤵 社長報酬</span><span>−${yen(mExp.ceoSalary)}</span></div>`;
+    if (mExp.salesperson > 0)    html += `<div class="expense-row"><span>👔 SES営業 人件費</span><span>−${yen(mExp.salesperson)}</span></div>`;
+    if (mExp.hrSalary > 0)       html += `<div class="expense-row"><span>🎓 マネージャー 人件費</span><span>−${yen(mExp.hrSalary)}</span></div>`;
+    if (mExp.staffingSalary > 0) html += `<div class="expense-row"><span>🤝 紹介営業 人件費</span><span>−${yen(mExp.staffingSalary)}</span></div>`;
+    if (mExp.marketingSalary > 0)html += `<div class="expense-row"><span>📣 マーケター 人件費</span><span>−${yen(mExp.marketingSalary)}</span></div>`;
+    if (mExp.ceoSalary > 0)      html += `<div class="expense-row"><span>🤵 社長報酬</span><span>−${yen(mExp.ceoSalary)}</span></div>`;
     if (mExp.loanPay > 0)     html += `<div class="expense-row" style="color:#f87171"><span>🏦 ローン返済</span><span>−${yen(mExp.loanPay)}</span></div>`;
     html += `<div class="expense-row" style="font-weight:700;color:#f87171;border-top:2px solid #2a2a50;padding-top:8px;margin-top:4px"><span>支出合計</span><span>−${yen(mExp.total)}</span></div>`;
     const net = totalIncome - mExp.total;
@@ -696,7 +711,7 @@ function nextReport() {
   }
 }
 
-function showWeeklyModal(weekNum, deptIncome, flWeeklyIncome, flGross, flCost, monthlyExp, beforeMoney) {
+function showWeeklyModal(weekNum, deptIncome, flWeeklyIncome, flGross, flCost, monthlyExp, beforeMoney, staffingPlacements, staffingFees) {
   const period      = Math.floor((weekNum - 1) / YEAR_WEEKS) + 1;
   const monthNum    = Math.floor(((weekNum - 1) % YEAR_WEEKS) / MONTH_WEEKS) + 1;
   const weekInMonth = ((weekNum - 1) % MONTH_WEEKS) + 1;
@@ -718,6 +733,8 @@ function showWeeklyModal(weekNum, deptIncome, flWeeklyIncome, flGross, flCost, m
     deptIncome, flIncome: flWeeklyIncome, flCount, flGross, flCost,
     monthlyExp, beforeMoney, afterMoney: state.money,
     event: evSnap,
+    staffingPlacements: staffingPlacements || 0,
+    staffingFees: staffingFees || 0,
   });
   if (state.reportHistory.length > 52) state.reportHistory.shift();
 
@@ -778,6 +795,7 @@ function processCorpTax() {
   const taxable    = Math.max(0, netIncome);
   state.periodEarned     = 0;
   state.periodDeductible = 0;
+  state.periodStaffingPlacements = 0;
 
   const tax = Math.floor(taxable * CORP_TAX_RATE);
   const before = state.money;
@@ -802,6 +820,17 @@ function processCorpTax() {
   renderAll();
   if (tax > 0) showToast(`🏛️ 法人税 ${yen(tax)} を納付（純利益 ${yen(netIncome)} × 30%）`);
   else         showToast(`📊 年度末決算完了。当期は赤字のため法人税なし。`);
+}
+
+// ---- 人材紹介事業部 開設 ----
+
+function openStaffingDivision() {
+  if (state.staffingOpened) return;
+  if (state.money < 50000000) { showToast('💸 資金が足りません！（必要: ¥50,000,000）'); return; }
+  state.money -= 50000000;
+  state.staffingOpened = true;
+  renderDepts();
+  showToast('🤝 人材紹介事業部を開設しました！');
 }
 
 // ---- 銀行借入 ----
@@ -1098,7 +1127,9 @@ function load() {
         state.flData.push({ gross: 600000 + Math.floor(Math.random() * 400001), profitRate: 0.10 + Math.random() * 0.10 });
       }
       state.freelancers = state.flData.length; }
-    if (state.flGrossRevenue === undefined) state.flGrossRevenue = 0;
+    if (state.flGrossRevenue === undefined)           state.flGrossRevenue = 0;
+    if (state.staffingOpened === undefined)           state.staffingOpened = true;
+    if (state.periodStaffingPlacements === undefined) state.periodStaffingPlacements = 0;
     if (offlineSec > 30) {
       const deptIncome     = getTotalIncome() * offlineSec;
       const offlineWeeks   = Math.floor(offlineSec / WEEK_SEC);
@@ -1403,10 +1434,23 @@ function renderDepts() {
   </div>`;
 
   // 島2: 人材紹介事業部
-  html += `<div class="dept-island island-staffing">
-    <div class="island-hdr"><span class="island-icon">🤝</span><span>人材紹介事業部</span></div>
-    ${_buildDeptRow('staffing')}
-  </div>`;
+  const staffingOpened = state.staffingOpened !== false;
+  if (!staffingOpened) {
+    html += `<div class="dept-island island-staffing">
+      <div class="island-hdr"><span class="island-icon">🤝</span><span>人材紹介事業部</span></div>
+      <div style="padding:20px;text-align:center;display:flex;flex-direction:column;gap:10px;align-items:center">
+        <div style="font-size:12px;color:#94a3b8">初期費用を支払って事業部を開設できます</div>
+        <button class="hire-btn${state.money >= 50000000 ? '' : ' disabled'}" onclick="openStaffingDivision()" style="font-size:12px;padding:10px 16px">
+          🤝 開設する<br><small style="color:#94a3b8">¥50,000,000</small>
+        </button>
+      </div>
+    </div>`;
+  } else {
+    html += `<div class="dept-island island-staffing">
+      <div class="island-hdr"><span class="island-icon">🤝</span><span>人材紹介事業部</span></div>
+      ${_buildDeptRow('staffing')}
+    </div>`;
+  }
 
   // 島3: マーケティング部
   html += `<div class="dept-island island-marketing">
@@ -2054,6 +2098,7 @@ function renderOfficeScene() {
   const fEl = document.getElementById('hs-fl');
   const sEl = document.getElementById('hs-sales');
   const mEl = document.getElementById('hs-morale');
+  const pEl = document.getElementById('hs-staffing-count');
   if (wEl) wEl.textContent = yen(getDisplayWeeklyIncome());
   if (fEl) fEl.textContent = (state.freelancers || 0) + '名';
   if (sEl) sEl.textContent = (state.employees['sales'] || 0) + '人';
@@ -2061,6 +2106,7 @@ function renderOfficeScene() {
     mEl.textContent = mor;
     mEl.className = 'hs-val ' + (mor >= 80 ? 'green' : mor >= 55 ? 'amber' : 'red');
   }
+  if (pEl) pEl.textContent = (state.periodStaffingPlacements || 0) + '件';
 
   const descEl = document.getElementById('office-desc');
   if (!descEl) return;
@@ -2223,8 +2269,9 @@ function gameLoop(ts) {
           // 損金積算（家賃・全給与・社長報酬）
           state.periodDeductible = (state.periodDeductible || 0)
             + (monthlyExp.rent || 0) + (monthlyExp.utilities || 0) + (monthlyExp.supplies || 0)
-            + (monthlyExp.salesperson || 0) + (monthlyExp.staffingSalary || 0)
-            + (monthlyExp.marketingSalary || 0) + (monthlyExp.ceoSalary || 0);
+            + (monthlyExp.salesperson || 0) + (monthlyExp.hrSalary || 0)
+            + (monthlyExp.staffingSalary || 0) + (monthlyExp.marketingSalary || 0)
+            + (monthlyExp.ceoSalary || 0);
         }
       }
 
@@ -2278,10 +2325,10 @@ function gameLoop(ts) {
 
       // 人材紹介事業部 週次成約処理
       const staffingSalesCount = state.employees['staffing'] || 0;
+      let weeklyStaffingCount = 0;
+      let weeklyStaffingFees  = 0;
       if (staffingSalesCount > 0) {
         const findRate = getStaffingFindRate();
-        let placedCount = 0;
-        let totalFees   = 0;
         for (let i = 0; i < staffingSalesCount; i++) {
           if (Math.random() < findRate) {
             // 年収 300万〜1000万 (低め寄りの分布)
@@ -2297,16 +2344,17 @@ function gameLoop(ts) {
               state.periodEarned     = (state.periodEarned || 0) + fee;
               state.weeklyIncomeAccum = (state.weeklyIncomeAccum || 0) + fee;
               state.deptRevenue['staffing'] = (state.deptRevenue['staffing'] || 0) + fee;
-              placedCount++;
-              totalFees += fee;
+              weeklyStaffingCount++;
+              weeklyStaffingFees += fee;
+              state.periodStaffingPlacements = (state.periodStaffingPlacements || 0) + 1;
             }
           }
         }
-        if (placedCount > 0) showToast(`🤝 人材紹介${placedCount}件成約！ ＋${yen(totalFees)}`);
+        if (weeklyStaffingCount > 0) showToast(`🤝 人材紹介${weeklyStaffingCount}件成約！ ＋${yen(weeklyStaffingFees)}`);
       }
 
       // 週次サマリーモーダル表示
-      showWeeklyModal(currentWeekNum, state.weeklyIncomeAccum || 0, flWeeklyIncome, flWeeklyGross, flWeeklyCost, monthlyExp, beforeMoney);
+      showWeeklyModal(currentWeekNum, state.weeklyIncomeAccum || 0, flWeeklyIncome, flWeeklyGross, flWeeklyCost, monthlyExp, beforeMoney, weeklyStaffingCount, weeklyStaffingFees);
       state.weeklyIncomeAccum = 0;
     }
 
