@@ -1501,6 +1501,15 @@ body {
 .dept-island.island-marketing { border-top: 2px solid rgba(251,146,60,0.7); }
 .dept-island.island-finance   { border-top: 2px solid rgba(52,211,153,0.7); }
 .dept-island.island-global    { border-top: 2px solid rgba(129,140,248,0.7); }
+.dept-island.island-exec      { border-top: 2px solid rgba(250,180,80,0.7); background: rgba(250,180,80,0.03); }
+.island-exec .island-hdr      { color: #fbbf24; border-bottom-color: rgba(251,191,36,0.15); }
+
+.exec-card { align-items: flex-start !important; gap: 10px; }
+.exec-card .dept-name { font-size: 13px; font-weight: 700; }
+.exec-card .dept-desc { font-size: 10px; color: var(--dim); line-height: 1.45; }
+.exec-active { background: rgba(74,222,128,0.05) !important; }
+.exec-soon   { opacity: 0.5; pointer-events: none; }
+.exec-locked .dept-emoji { filter: grayscale(1); }
 
 /* ---- stat-item グロー ---- */
 .stat-item {
