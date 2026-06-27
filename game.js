@@ -2980,7 +2980,7 @@ function gameLoop(ts) {
       let lostFL = 0;
       if (state.flData.length > 0) {
         const flFavor  = state.morale.freelance || 70;
-        const quitRate = Math.max(0.01, Math.min(0.25, 0.03 + (70 - flFavor) * 0.003));
+        const quitRate = Math.min(0.60, 0.15 + (100 - flFavor) * 0.005);
         for (let i = state.flData.length - 1; i >= 0; i--) {
           if (Math.random() < quitRate) { state.flData.splice(i, 1); lostFL++; }
         }
