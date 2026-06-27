@@ -68,7 +68,7 @@ const DEPT_DEFS = [
     id: 'marketing',
     name: 'マーケター',
     emoji: '📣',
-    desc: '採用広告・ブランディングで認知向上。1人でSES採用確率+0.6%・人材紹介採用率+0.5%/週。月給45〜50万＋社保15%。',
+    desc: '採用広告・ブランディングで認知向上。1人でSES採用率+0.1%・FL利益率+0.1%、紹介採用率+0.05%・紹介利益率+0.05%。月給45〜50万＋社保15%。',
     incomePerSec: 0, marginRate: null, salaryLabel: '人件費',
     monthlySalary: 475000, insuranceRate: 0.15,
     baseCost: 1800000, costMult: 1.28, unlockAt: 100000000,
@@ -345,14 +345,22 @@ function getCostReduction() {
 function getRecruitChance() {
   const salesMult = state.deptMults['sales'] || 1;
   const hrBonus   = (state.employees['hr'] || 0) * 0.03;
-  const mktBonus  = (state.employees['marketing'] || 0) * 0.006;
+  const mktBonus  = (state.employees['marketing'] || 0) * 0.001;
   return Math.min(0.95, (0.25 + hrBonus + mktBonus) * salesMult);
 }
 
 function getStaffingFindRate() {
   const staffingMult = state.deptMults['staffing'] || 1;
-  const mktBonus     = (state.employees['marketing'] || 0) * 0.005;
+  const mktBonus     = (state.employees['marketing'] || 0) * 0.0005;
   return Math.min(0.80, (0.10 + mktBonus) * staffingMult);
+}
+
+function getMarketingFlProfitBonus() {
+  return (state.employees['marketing'] || 0) * 0.001;
+}
+
+function getMarketingStaffingFeeBonus() {
+  return (state.employees['marketing'] || 0) * 0.0005;
 }
 
 function getMarketingMult() {
@@ -388,9 +396,10 @@ function getFlWeeklyIncome() {
   if (!state.flData || state.flData.length === 0) return 0;
   const currentWeek = Math.floor(state.elapsedSeconds / WEEK_SEC);
   const mult = getEmpMoraleMult() * (state.freelancerMult || 1);
+  const mktProfitBonus = getMarketingFlProfitBonus();
   return state.flData
     .filter(fl => (fl.hiredWeek ?? 0) < currentWeek)
-    .reduce((sum, fl) => sum + Math.floor(fl.gross / 4 * fl.profitRate * mult), 0);
+    .reduce((sum, fl) => sum + Math.floor(fl.gross / 4 * Math.min(0.80, fl.profitRate + mktProfitBonus) * mult), 0);
 }
 
 function getFlWeeklyCost() {
@@ -2311,14 +2320,15 @@ function gameLoop(ts) {
 
       const weeklyLog = [];
 
-      // モラル低下（社長の士気低下は社員・FLの低下を加速）
+      // モラル低下（4週に1回スキップ → 実効 0.75/週、社長低下は社員・FLを加速）
       const ceoMorBefore = state.morale.ceo || 70;
       const empMorBefore = state.morale.employee || 70;
       const flMorBefore  = state.morale.freelance || 70;
-      const extraDecay = ceoMorBefore >= 70 ? 0 : ceoMorBefore >= 50 ? 1 : ceoMorBefore >= 30 ? 2 : 3;
-      state.morale.ceo      = Math.max(10, ceoMorBefore - 1);
-      state.morale.employee = Math.max(10, empMorBefore - 1 - extraDecay);
-      state.morale.freelance= Math.max(10, flMorBefore  - 1 - extraDecay);
+      const extraDecay  = ceoMorBefore >= 70 ? 0 : ceoMorBefore >= 50 ? 1 : ceoMorBefore >= 30 ? 2 : 3;
+      const baseDecay   = (currentWeekNum % 4) !== 0 ? 1 : 0;
+      state.morale.ceo      = Math.max(10, ceoMorBefore - baseDecay);
+      state.morale.employee = Math.max(10, empMorBefore - baseDecay - extraDecay);
+      state.morale.freelance= Math.max(10, flMorBefore  - baseDecay - extraDecay);
       {
         const dc = state.morale.ceo - ceoMorBefore;
         const de = state.morale.employee - empMorBefore;
@@ -2398,7 +2408,8 @@ function gameLoop(ts) {
             const diffRatio      = (annualSalary - 3000000) / 7000000;
             const placementRate  = 0.85 - diffRatio * 0.65;
             if (Math.random() < placementRate) {
-              const fee = Math.floor(annualSalary * 0.35);
+              const feeRate = Math.min(0.50, 0.35 + getMarketingStaffingFeeBonus());
+              const fee = Math.floor(annualSalary * feeRate);
               state.money       += fee;
               state.totalEarned += fee;
               state.periodEarned     = (state.periodEarned || 0) + fee;
