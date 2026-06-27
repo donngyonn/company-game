@@ -643,31 +643,34 @@ function _renderWeeklyModalContent(idx) {
   const total = state.reportHistory.length;
 
   let html = '';
+
+  // ---- 収益サマリー ----
+  html += `<div class="weekly-section-title">💰 収益サマリー</div>`;
   html += `<div class="expense-row" style="color:#4ade80"><span>🏢 部署収益</span><span>＋${yen(Math.floor(r.deptIncome))}</span></div>`;
   if (r.flGross > 0) {
     html += `<div class="expense-row" style="color:#4ade80"><span>👨‍💻 FL売上（${r.flCount}名）</span><span>＋${yen(Math.floor(r.flGross))}</span></div>`;
-    html += `<div class="expense-row" style="color:#f87171"><span>💸 FL報酬（${r.flCount}名）</span><span>−${yen(Math.floor(r.flCost))}</span></div>`;
-    html += `<div class="expense-row" style="color:#93c5fd"><span>💹 FL利益（${r.flCount}名）</span><span>＋${yen(Math.floor(r.flIncome))}</span></div>`;
+    html += `<div class="expense-row" style="color:#f87171"><span>💸 FL報酬</span><span>−${yen(Math.floor(r.flCost))}</span></div>`;
+    html += `<div class="expense-row" style="color:#93c5fd"><span>💹 FL利益</span><span>＋${yen(Math.floor(r.flIncome))}</span></div>`;
   }
-  if (r.staffingPlacements > 0) {
-    html += `<div class="weekly-section-title" style="color:#38c8e8">🤝 人材紹介成績</div>`;
-    html += `<div class="expense-row" style="color:#38c8e8"><span>成約件数（${r.staffingPlacements}件）</span><span>＋${yen(r.staffingFees)}</span></div>`;
+  if ((r.staffingFees || 0) > 0) {
+    html += `<div class="expense-row" style="color:#38c8e8"><span>🤝 人材紹介フィー（${r.staffingPlacements}件）</span><span>＋${yen(r.staffingFees)}</span></div>`;
   }
   const totalIncome = Math.floor(r.deptIncome) + Math.floor(r.flIncome) + (r.staffingFees || 0);
   html += `<div class="expense-row" style="font-weight:700;color:#4ade80;border-top:2px solid #2a2a50;padding-top:8px;margin-top:4px"><span>収入合計</span><span>＋${yen(totalIncome)}</span></div>`;
 
+  // ---- 月次経費 ----
   if (r.monthlyExp) {
     const mExp = r.monthlyExp;
     html += `<div class="weekly-section-title">📋 月次経費（第${r.monthNum}月末）</div>`;
-    if (mExp.rent > 0)        html += `<div class="expense-row"><span>🏢 事務所家賃</span><span>−${yen(mExp.rent)}</span></div>`;
-    if (mExp.utilities > 0)   html += `<div class="expense-row"><span>💡 水道光熱費</span><span>−${yen(mExp.utilities)}</span></div>`;
-    if (mExp.supplies > 0)    html += `<div class="expense-row"><span>📦 備品・消耗品</span><span>−${yen(mExp.supplies)}</span></div>`;
+    if (mExp.rent > 0)           html += `<div class="expense-row"><span>🏢 事務所家賃</span><span>−${yen(mExp.rent)}</span></div>`;
+    if (mExp.utilities > 0)      html += `<div class="expense-row"><span>💡 水道光熱費</span><span>−${yen(mExp.utilities)}</span></div>`;
+    if (mExp.supplies > 0)       html += `<div class="expense-row"><span>📦 備品・消耗品</span><span>−${yen(mExp.supplies)}</span></div>`;
     if (mExp.salesperson > 0)    html += `<div class="expense-row"><span>👔 SES営業 人件費</span><span>−${yen(mExp.salesperson)}</span></div>`;
     if (mExp.hrSalary > 0)       html += `<div class="expense-row"><span>🎓 マネージャー 人件費</span><span>−${yen(mExp.hrSalary)}</span></div>`;
     if (mExp.staffingSalary > 0) html += `<div class="expense-row"><span>🤝 紹介営業 人件費</span><span>−${yen(mExp.staffingSalary)}</span></div>`;
     if (mExp.marketingSalary > 0)html += `<div class="expense-row"><span>📣 マーケター 人件費</span><span>−${yen(mExp.marketingSalary)}</span></div>`;
     if (mExp.ceoSalary > 0)      html += `<div class="expense-row"><span>🤵 社長報酬</span><span>−${yen(mExp.ceoSalary)}</span></div>`;
-    if (mExp.loanPay > 0)     html += `<div class="expense-row" style="color:#f87171"><span>🏦 ローン返済</span><span>−${yen(mExp.loanPay)}</span></div>`;
+    if (mExp.loanPay > 0)        html += `<div class="expense-row" style="color:#f87171"><span>🏦 ローン返済</span><span>−${yen(mExp.loanPay)}</span></div>`;
     html += `<div class="expense-row" style="font-weight:700;color:#f87171;border-top:2px solid #2a2a50;padding-top:8px;margin-top:4px"><span>支出合計</span><span>−${yen(mExp.total)}</span></div>`;
     const net = totalIncome - mExp.total;
     const netColor = net >= 0 ? '#4ade80' : '#f87171';
@@ -675,11 +678,19 @@ function _renderWeeklyModalContent(idx) {
     html += `<div class="expense-balance" style="margin-top:8px"><div>引落前: ${yen(r.beforeMoney)}</div><div style="color:${r.afterMoney < 0 ? '#f87171' : '#4ade80'}">引落後: ${yen(r.afterMoney)}</div></div>`;
   }
 
+  // ---- 週次ループ一覧 ----
+  if (r.weeklyLog && r.weeklyLog.length > 0) {
+    html += `<div class="weekly-section-title">🔄 週次ログ</div>`;
+    html += r.weeklyLog.map(e =>
+      `<div class="expense-row" style="${e.bad ? 'color:#f87171' : 'color:#cbd5e1'}"><span>${e.emoji} ${e.text}</span></div>`
+    ).join('');
+  }
+
+  // ---- ニュース ----
   if (r.event) {
     const isGood = r.event.type === 'good';
     const evColor = isGood ? '#4ade80' : '#f87171';
-    const evLabel = isGood ? '📰 グッドニュース！' : '📰 バッドニュース…';
-    html += `<div class="weekly-section-title" style="color:${evColor}">${evLabel}</div>`;
+    html += `<div class="weekly-section-title" style="color:${evColor}">${isGood ? '📰 グッドニュース！' : '📰 バッドニュース…'}</div>`;
     html += `<div class="weekly-event-row" style="border-color:${evColor}22;background:${evColor}08">
       <span class="weekly-event-emoji">${r.event.emoji}</span>
       <div style="display:flex;flex-direction:column;gap:2px">
@@ -708,7 +719,7 @@ function nextReport() {
   }
 }
 
-function showWeeklyModal(weekNum, deptIncome, flWeeklyIncome, flGross, flCost, monthlyExp, beforeMoney, staffingPlacements, staffingFees) {
+function showWeeklyModal(weekNum, deptIncome, flWeeklyIncome, flGross, flCost, monthlyExp, beforeMoney, staffingPlacements, staffingFees, weeklyLog) {
   const period      = Math.floor((weekNum - 1) / YEAR_WEEKS) + 1;
   const monthNum    = Math.floor(((weekNum - 1) % YEAR_WEEKS) / MONTH_WEEKS) + 1;
   const weekInMonth = ((weekNum - 1) % MONTH_WEEKS) + 1;
@@ -732,6 +743,7 @@ function showWeeklyModal(weekNum, deptIncome, flWeeklyIncome, flGross, flCost, m
     event: evSnap,
     staffingPlacements: staffingPlacements || 0,
     staffingFees: staffingFees || 0,
+    weeklyLog: weeklyLog || [],
   });
   if (state.reportHistory.length > 52) state.reportHistory.shift();
 
@@ -2297,12 +2309,23 @@ function gameLoop(ts) {
       // 強化期限チェック
       recalcMults();
 
+      const weeklyLog = [];
+
       // モラル低下（社長の士気低下は社員・FLの低下を加速）
-      const ceoMor = state.morale.ceo || 70;
-      const extraDecay = ceoMor >= 70 ? 0 : ceoMor >= 50 ? 1 : ceoMor >= 30 ? 2 : 3;
-      state.morale.ceo      = Math.max(10, ceoMor - 1);
-      state.morale.employee = Math.max(10, (state.morale.employee  || 70) - 1 - extraDecay);
-      state.morale.freelance= Math.max(10, (state.morale.freelance || 70) - 1 - extraDecay);
+      const ceoMorBefore = state.morale.ceo || 70;
+      const empMorBefore = state.morale.employee || 70;
+      const flMorBefore  = state.morale.freelance || 70;
+      const extraDecay = ceoMorBefore >= 70 ? 0 : ceoMorBefore >= 50 ? 1 : ceoMorBefore >= 30 ? 2 : 3;
+      state.morale.ceo      = Math.max(10, ceoMorBefore - 1);
+      state.morale.employee = Math.max(10, empMorBefore - 1 - extraDecay);
+      state.morale.freelance= Math.max(10, flMorBefore  - 1 - extraDecay);
+      {
+        const dc = state.morale.ceo - ceoMorBefore;
+        const de = state.morale.employee - empMorBefore;
+        const df = state.morale.freelance - flMorBefore;
+        const warn = extraDecay > 0 ? '⚠️' : '📊';
+        weeklyLog.push({ emoji: warn, text: `モラール　社長 ${state.morale.ceo}（${dc}）　社員 ${state.morale.employee}（${de}）　FL ${state.morale.freelance}（${df}）`, bad: extraDecay > 0 });
+      }
 
       // FL採用
       const salesCount    = state.employees['sales'] || 0;
@@ -2318,43 +2341,48 @@ function gameLoop(ts) {
           newFL++;
         }
       }
-      if (newFL > 0) showToast(`👨‍💻 フリーランス ${newFL}名が採用されました！`);
+      if (newFL > 0) {
+        weeklyLog.push({ emoji: '👨‍💻', text: `FL ${newFL}名を採用（在籍 ${state.freelancers}名）` });
+      } else if (salesCount > 0 && state.flData.length >= flCap) {
+        weeklyLog.push({ emoji: '📋', text: `FL上限に達しているため採用なし（上限 ${flCap}名）` });
+      } else if (salesCount > 0) {
+        weeklyLog.push({ emoji: '📋', text: `FL採用なし（採用確率 ${(recruitChance * 100).toFixed(0)}%）` });
+      }
 
       // FL 自動離脱チェック（モラール連動・ニュースとは独立）
+      let lostFL = 0;
       if (state.flData.length > 0) {
-        const flFavor = (state.morale && state.morale.freelance) || 70;
-        // 離脱率: モラール70=8%/週、100=2%、30=17%
+        const flFavor  = state.morale.freelance || 70;
         const quitRate = Math.max(0.02, Math.min(0.30, 0.08 + (70 - flFavor) * 0.003));
-        let lostFL = 0;
         for (let i = state.flData.length - 1; i >= 0; i--) {
-          if (Math.random() < quitRate) {
-            state.flData.splice(i, 1);
-            lostFL++;
-          }
+          if (Math.random() < quitRate) { state.flData.splice(i, 1); lostFL++; }
         }
         state.freelancers = state.flData.length;
-        if (lostFL > 0) showToast(`😞 フリーランス ${lostFL}名が離脱しました`);
+        if (lostFL > 0) {
+          weeklyLog.push({ emoji: '😞', text: `FL ${lostFL}名が離脱（在籍 ${state.freelancers}名・離脱率 ${(quitRate * 100).toFixed(0)}%）`, bad: true });
+        }
       }
 
       // マネージャー自動処理（人材育成部）
       const mgrCount = state.employees['hr'] || 0;
       if (mgrCount > 0) {
-        // 営業自動採用（マネージャー×10まで）
         const salesCap = mgrCount * 10;
         const curSales = state.employees['sales'] || 0;
+        let autoHiredSales = false;
         if (curSales < salesCap && getEmployeeCount() < getCurrentCapacity()) {
           const hireCostSales = getHireCost('sales');
           if (state.money >= hireCostSales) {
             state.money -= hireCostSales;
             state.employees['sales'] = (state.employees['sales'] || 0) + 1;
             state.deptCost['sales'] = (state.deptCost['sales'] || 0) + hireCostSales;
-            showToast('👔 マネージャーが営業を1名自動採用！');
+            autoHiredSales = true;
           }
         }
-        // 交流会自動実施（無料の士気ブースト）
+        if (autoHiredSales) weeklyLog.push({ emoji: '👔', text: `マネージャーが営業1名を自動採用（−${yen(getHireCost('sales'))}）` });
         const morBoost = Math.min(4, mgrCount);
         state.morale['employee'] = Math.min(100, (state.morale['employee'] || 70) + morBoost);
         state.morale['freelance'] = Math.min(100, (state.morale['freelance'] || 70) + Math.max(1, Math.floor(morBoost / 2)));
+        weeklyLog.push({ emoji: '🎉', text: `自動交流会を実施（社員+${morBoost}、FL+${Math.max(1, Math.floor(morBoost / 2))}）` });
       }
 
       // 人材紹介事業部 週次成約処理
@@ -2365,10 +2393,8 @@ function gameLoop(ts) {
         const findRate = getStaffingFindRate();
         for (let i = 0; i < staffingSalesCount; i++) {
           if (Math.random() < findRate) {
-            // 年収 300万〜1000万 (低め寄りの分布)
             const salaryRand   = Math.pow(Math.random(), 1.5);
             const annualSalary = 3000000 + Math.floor(salaryRand * 7000001);
-            // 成約率: 300万→85%、1000万→20%
             const diffRatio      = (annualSalary - 3000000) / 7000000;
             const placementRate  = 0.85 - diffRatio * 0.65;
             if (Math.random() < placementRate) {
@@ -2384,11 +2410,15 @@ function gameLoop(ts) {
             }
           }
         }
-        if (weeklyStaffingCount > 0) showToast(`🤝 人材紹介${weeklyStaffingCount}件成約！ ＋${yen(weeklyStaffingFees)}`);
+        if (weeklyStaffingCount > 0) {
+          weeklyLog.push({ emoji: '🤝', text: `人材紹介 ${weeklyStaffingCount}件成約　＋${yen(weeklyStaffingFees)}` });
+        } else {
+          weeklyLog.push({ emoji: '🤝', text: `人材紹介 成約なし（発掘率 ${(findRate * 100).toFixed(0)}%）` });
+        }
       }
 
       // 週次サマリーモーダル表示
-      showWeeklyModal(currentWeekNum, state.weeklyIncomeAccum || 0, flWeeklyIncome, flWeeklyGross, flWeeklyCost, monthlyExp, beforeMoney, weeklyStaffingCount, weeklyStaffingFees);
+      showWeeklyModal(currentWeekNum, state.weeklyIncomeAccum || 0, flWeeklyIncome, flWeeklyGross, flWeeklyCost, monthlyExp, beforeMoney, weeklyStaffingCount, weeklyStaffingFees, weeklyLog);
       state.weeklyIncomeAccum = 0;
     }
 
