@@ -1166,7 +1166,7 @@ function renderExchange() {
 
   const flFavor    = m.freelance || 90;
   const empMorale  = m.employee || 90;
-  const departChance  = Math.max(0.05, Math.min(0.80, 0.40 - (flFavor - 70) * 0.006));
+  const departChance  = Math.min(0.60, 0.15 + (100 - flFavor) * 0.005);
   const empFlMult     = getEmpMoraleMult();
   const salaryMult    = getCeoSalaryMoraleMult();
 
