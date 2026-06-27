@@ -1757,12 +1757,23 @@ function _buildExecCard(e) {
   const salary = getExecMonthlySalary();
 
   if (e.comingSoon) {
-    return `<div class="dept-row exec-card exec-soon">
+    return `<div class="island-row exec-card exec-soon">
       <div class="dept-emoji">${e.emoji}</div>
       <div class="dept-info">
-        <div class="dept-name">${e.name} <span style="font-size:9px;color:#555;background:#1a1a2e;padding:1px 5px;border-radius:8px">SOON</span></div>
+        <div class="dept-name">${e.name} <span class="exec-badge soon">SOON</span></div>
         <div class="dept-desc">${e.desc}</div>
       </div>
+    </div>`;
+  }
+
+  if (!canUnlock) {
+    return `<div class="island-row exec-card exec-locked">
+      <div class="dept-emoji" style="opacity:0.35;filter:grayscale(1)">${e.emoji}</div>
+      <div class="dept-info">
+        <div class="dept-name" style="color:#555">${e.name}</div>
+        <div class="dept-desc" style="color:#444">累計売上 ${yen(e.unlockAt)} で解放</div>
+      </div>
+      <button class="hire-btn disabled" style="font-size:10px;padding:6px 10px">🔒</button>
     </div>`;
   }
 
@@ -1775,37 +1786,26 @@ function _buildExecCard(e) {
         <span>${a.label}</span>
       </label>`
     ).join('');
-    return `<div class="dept-row exec-card exec-active">
+    return `<div class="island-row exec-card exec-active">
       <div class="dept-emoji">${e.emoji}</div>
       <div class="dept-info">
-        <div class="dept-name">${e.name} <span style="font-size:9px;color:#4ade80;background:#0a2a10;padding:1px 5px;border-radius:8px">稼働中</span></div>
+        <div class="dept-name">${e.name} <span class="exec-badge active">稼働中</span></div>
         <div class="dept-desc">${e.role}</div>
-        <div class="dept-desc" style="color:#888">月報酬 ${yen(salary)}（会社規模連動）</div>
+        <div class="dept-income">月報酬 ${yen(salary)}（会社規模連動）</div>
         ${checkboxes ? `<div class="exec-settings-wrap">${checkboxes}</div>` : ''}
       </div>
-      <button class="hire-btn disabled fire-btn" onclick="fireExec('${e.id}')" style="font-size:10px;padding:6px 8px">解雇</button>
+      <button class="fire-btn" onclick="fireExec('${e.id}')" style="font-size:10px;padding:5px 8px;flex-shrink:0">解雇</button>
     </div>`;
   }
 
-  if (!canUnlock) {
-    return `<div class="dept-row exec-card exec-locked">
-      <div class="dept-emoji" style="opacity:0.4">${e.emoji}</div>
-      <div class="dept-info">
-        <div class="dept-name" style="color:#555">${e.name}</div>
-        <div class="dept-desc" style="color:#444">累計売上 ${yen(e.unlockAt)} で解放</div>
-      </div>
-      <button class="hire-btn disabled" style="font-size:10px;padding:6px 8px">🔒</button>
-    </div>`;
-  }
-
-  return `<div class="dept-row exec-card">
+  return `<div class="island-row exec-card">
     <div class="dept-emoji">${e.emoji}</div>
     <div class="dept-info">
       <div class="dept-name">${e.name}</div>
       <div class="dept-desc">${e.desc}</div>
-      <div class="dept-desc" style="color:#888">採用費 ${yen(e.cost)} / 月報酬 ${yen(salary)}（会社規模連動）</div>
+      <div class="dept-income">採用費 ${yen(e.cost)} ／ 月報酬 ${yen(salary)}（規模連動）</div>
     </div>
-    <button class="hire-btn${canAfford ? '' : ' disabled'}" onclick="hireExec('${e.id}')" style="font-size:10px;padding:6px 8px">
+    <button class="hire-btn${canAfford ? '' : ' disabled'}" onclick="hireExec('${e.id}')" style="font-size:10px;padding:6px 10px">
       ${canAfford ? '採用' : '資金不足'}
     </button>
   </div>`;
@@ -2980,7 +2980,7 @@ function gameLoop(ts) {
       let lostFL = 0;
       if (state.flData.length > 0) {
         const flFavor  = state.morale.freelance || 70;
-        const quitRate = Math.max(0.02, Math.min(0.30, 0.08 + (70 - flFavor) * 0.003));
+        const quitRate = Math.max(0.01, Math.min(0.25, 0.03 + (70 - flFavor) * 0.003));
         for (let i = state.flData.length - 1; i >= 0; i--) {
           if (Math.random() < quitRate) { state.flData.splice(i, 1); lostFL++; }
         }
