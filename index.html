@@ -33,15 +33,17 @@
         <div id="week-progress" style="width:0%"></div>
       </div>
     </div>
+    <div class="report-toggle-wrap">
+      <label class="report-toggle-label">
+        <input type="checkbox" id="hide-weekly-report" onchange="toggleWeeklyReport(this.checked)">
+        <span>週次レポートを非表示（月次は常に表示）</span>
+      </label>
+    </div>
     <!-- ステージ進捗バー -->
     <div class="progress-wrap">
       <div id="stage-progress" style="width:0%"></div>
     </div>
     <div id="stage-label">次: 🧑‍💻 個人事業レベル まで ¥300万</div>
-  </header>
-
-  <!-- ヒーローダッシュボード -->
-  <div id="office-scene">
     <div id="hero-stats">
       <div class="hero-stat">
         <div class="hs-label">週次収益</div>
@@ -64,6 +66,10 @@
         <div class="hs-val cyan" id="hs-staffing-count">0件</div>
       </div>
     </div>
+  </header>
+
+  <!-- ヒーローダッシュボード -->
+  <div id="office-scene">
     <div id="office-canvas-wrap">
       <canvas id="office-canvas"></canvas>
       <div id="ov-fx"></div>
@@ -118,9 +124,9 @@
   </section>
 
   <!-- 週次サマリーモーダル -->
-  <div id="weekly-modal" class="modal-overlay hidden">
-    <div class="modal-box weekly-modal-box">
-      <div class="modal-title">📅 週次レポート</div>
+  <div id="weekly-modal" class="modal-overlay hidden" onclick="weeklyModalOverlayClick()">
+    <div class="modal-box weekly-modal-box" onclick="event.stopPropagation()">
+      <div class="modal-title" id="weekly-modal-title">📅 週次レポート</div>
       <div id="weekly-period" class="weekly-period"></div>
       <div class="report-nav">
         <button class="report-nav-btn" onclick="prevReport()">◀ 前週</button>
