@@ -375,12 +375,14 @@ body {
 .island-icon { font-size: 16px; }
 
 /* 島ごとのアクセントカラー */
-.island-sales   { border-top: 3px solid #fbbf24; background: rgba(251,191,36,0.04); }
-.island-sales   .island-hdr { color: #fbbf24; border-bottom-color: rgba(251,191,36,0.15); }
-.island-finance { border-top: 3px solid #34d399; background: rgba(52,211,153,0.04); }
-.island-finance .island-hdr { color: #34d399; border-bottom-color: rgba(52,211,153,0.15); }
-.island-global  { border-top: 3px solid #818cf8; background: rgba(129,140,248,0.04); }
-.island-global  .island-hdr { color: #818cf8; border-bottom-color: rgba(129,140,248,0.15); }
+.island-sales    { border-top: 3px solid #fbbf24; background: rgba(251,191,36,0.04); }
+.island-sales    .island-hdr { color: #fbbf24; border-bottom-color: rgba(251,191,36,0.15); }
+.island-staffing { border-top: 3px solid #38c8e8; background: rgba(56,200,232,0.04); }
+.island-staffing .island-hdr { color: #38c8e8; border-bottom-color: rgba(56,200,232,0.15); }
+.island-finance  { border-top: 3px solid #34d399; background: rgba(52,211,153,0.04); }
+.island-finance  .island-hdr { color: #34d399; border-bottom-color: rgba(52,211,153,0.15); }
+.island-global   { border-top: 3px solid #818cf8; background: rgba(129,140,248,0.04); }
+.island-global   .island-hdr { color: #818cf8; border-bottom-color: rgba(129,140,248,0.15); }
 
 /* ---- 島内の行（dept-card の代替） ---- */
 .island-row {
@@ -396,9 +398,22 @@ body {
 .island-row-locked { opacity: 0.42; }
 
 /* 島行内のアクティブライン（左accent） */
-.island-sales   .island-row-active { border-left: 3px solid rgba(251,191,36,0.5); padding-left: 11px; }
-.island-finance .island-row-active { border-left: 3px solid rgba(52,211,153,0.5); padding-left: 11px; }
-.island-global  .island-row-active { border-left: 3px solid rgba(129,140,248,0.5); padding-left: 11px; }
+.island-sales    .island-row-active { border-left: 3px solid rgba(251,191,36,0.5); padding-left: 11px; }
+.island-staffing .island-row-active { border-left: 3px solid rgba(56,200,232,0.5); padding-left: 11px; }
+.island-finance  .island-row-active { border-left: 3px solid rgba(52,211,153,0.5); padding-left: 11px; }
+.island-global   .island-row-active { border-left: 3px solid rgba(129,140,248,0.5); padding-left: 11px; }
+
+.weekly-event-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  margin: 4px 0;
+}
+.weekly-event-emoji { font-size: 22px; flex-shrink: 0; }
+.weekly-event-title { font-size: 13px; font-weight: 700; line-height: 1.4; }
 
 /* ---- 共通の内部パーツ ---- */
 .dept-emoji { font-size: 34px; flex-shrink: 0; width: 46px; text-align: center; }
@@ -1264,6 +1279,10 @@ body {
   position: relative;
   width: 100%;
   line-height: 0;
+  margin-top: 9px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border2);
 }
 
 #office-canvas {
@@ -1393,9 +1412,10 @@ body {
   border-bottom: 1px solid rgba(255,255,255,0.06);
 }
 
-.dept-island.island-sales   { border-top: 2px solid rgba(251,191,36,0.7); }
-.dept-island.island-finance { border-top: 2px solid rgba(52,211,153,0.7); }
-.dept-island.island-global  { border-top: 2px solid rgba(129,140,248,0.7); }
+.dept-island.island-sales    { border-top: 2px solid rgba(251,191,36,0.7); }
+.dept-island.island-staffing { border-top: 2px solid rgba(56,200,232,0.7); }
+.dept-island.island-finance  { border-top: 2px solid rgba(52,211,153,0.7); }
+.dept-island.island-global   { border-top: 2px solid rgba(129,140,248,0.7); }
 
 /* ---- stat-item グロー ---- */
 .stat-item {
