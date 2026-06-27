@@ -218,8 +218,8 @@ body {
 
 #hero-stats {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 7px;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 5px;
   position: relative;
   z-index: 2;
 }
@@ -251,7 +251,7 @@ body {
 }
 
 .hs-val {
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 900;
   color: #fff;
   margin-top: 3px;
