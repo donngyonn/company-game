@@ -231,7 +231,7 @@ const WEEK_EVENTS = [
     desc: '条件面での不満から優秀な営業が競合他社へ転職した。チームの士気が低下。',
     effect: s => {
       const drop = 8 + Math.floor(Math.random() * 8);
-      s.morale.employee = Math.max(10, (s.morale.employee || 70) - drop);
+      s.morale.employee = Math.max(10, (s.morale.employee || 90) - drop);
       return `社員モラール −${drop}`;
     },
   },
@@ -324,7 +324,7 @@ let state = {
   periodEarned: 0,      // 当期累計収益（3月決算で課税）
   periodDeductible: 0,  // 当期損金（家賃・給与）
   loans: [],
-  morale: { ceo: 70, employee: 70, freelance: 70 },
+  morale: { ceo: 90, employee: 90, freelance: 90 },
   gameStarted: false,   // 事務所契約後に true
   bankrupt: false,
   weeklyIncomeAccum: 0, // 週中の部署収益累積
@@ -364,8 +364,16 @@ function getEmployeeCount() {
 
 function getMoraleMultiplier() {
   const m = state.morale;
-  const avg = (m.ceo + m.employee + m.freelance) / 3;
-  return 1 + (avg - 50) * 0.01;
+  const avg = ((m.ceo || 90) + (m.employee || 90) + (m.freelance || 90)) / 3;
+  if (avg >= 90) return 1 + (avg - 90) * 0.02;          // 90→±0%、95→+10%、100→+20%
+  return Math.max(0.80, 1 - (90 - avg) * (0.20 / 90));  // 90→±0%、0→−20%
+}
+
+function getMoraleEffectPct() {
+  const m = state.morale;
+  const avg = ((m.ceo || 90) + (m.employee || 90) + (m.freelance || 90)) / 3;
+  if (avg >= 90) return (avg - 90) * 2;
+  return -Math.min(20, (90 - avg) * (20 / 90));
 }
 
 function getGlobalMultiplier() {
@@ -457,8 +465,8 @@ function getDeptIncome(deptId) {
 }
 
 function getEmpMoraleMult() {
-  const empMorale = (state.morale && state.morale.employee) || 70;
-  return Math.max(0.5, 1 + (empMorale - 70) * 0.005);
+  const empMorale = (state.morale && state.morale.employee) || 90;
+  return Math.max(0.5, 1 + (empMorale - 90) * 0.005);
 }
 
 function getCeoSalaryMoraleMult() {
@@ -565,7 +573,7 @@ function fire(deptId) {
   if ((state.employees[deptId] || 0) <= 0) return;
   const def = DEPT_DEFS.find(d => d.id === deptId);
   state.employees[deptId]--;
-  state.morale['employee'] = Math.max(10, (state.morale['employee'] || 70) - 5);
+  state.morale['employee'] = Math.max(10, (state.morale['employee'] || 90) - 5);
   showToast(`👋 ${def?.name || deptId}を1名リストラ（社員モラール−5）`);
   renderDepts();
   renderUpgrades();
@@ -1141,7 +1149,7 @@ function doExchangeAction(actionId) {
   state.money -= cost;
   const salaryMult = getCeoSalaryMoraleMult();
   const effectiveGain = Math.round(action.gain * salaryMult);
-  action.targets.forEach(t => { state.morale[t] = Math.min(100, (state.morale[t] || 70) + effectiveGain); });
+  action.targets.forEach(t => { state.morale[t] = Math.min(100, (state.morale[t] || 90) + effectiveGain); });
   showToast(`${action.name}を実施！好感度+${effectiveGain}${salaryMult > 1 ? `（給料ボーナス×${salaryMult.toFixed(2)}）` : ''}`);
   renderAll();
 }
@@ -1151,13 +1159,13 @@ function renderExchange() {
   if (!container) return;
 
   const m = state.morale;
-  const mc  = v => v >= 70 ? '#4ade80' : v >= 40 ? '#fbbf24' : '#f87171';
-  const ml  = v => v >= 80 ? '絶好調' : v >= 60 ? '良好' : v >= 40 ? '疲弊中' : '崩壊寸前';
-  const avg = (m.ceo + m.employee + m.freelance) / 3;
-  const eff = ((avg - 50) * 0.01 * 100).toFixed(0);
+  const mc  = v => v >= 85 ? '#4ade80' : v >= 60 ? '#fbbf24' : '#f87171';
+  const ml  = v => v >= 95 ? '絶好調' : v >= 85 ? '良好' : v >= 70 ? '普通' : v >= 50 ? '疲弊中' : '崩壊寸前';
+  const avg = ((m.ceo || 90) + (m.employee || 90) + (m.freelance || 90)) / 3;
+  const eff = getMoraleEffectPct().toFixed(0);
 
-  const flFavor    = m.freelance || 70;
-  const empMorale  = m.employee || 70;
+  const flFavor    = m.freelance || 90;
+  const empMorale  = m.employee || 90;
   const departChance  = Math.max(0.05, Math.min(0.80, 0.40 - (flFavor - 70) * 0.006));
   const empFlMult     = getEmpMoraleMult();
   const salaryMult    = getCeoSalaryMoraleMult();
@@ -1167,7 +1175,7 @@ function renderExchange() {
     { key: 'employee',  label: '👨‍💼 社員' },
     { key: 'freelance', label: '💻 FL' },
   ].map(({ key, label }) => {
-    const v = m[key] || 70;
+    const v = m[key] || 90;
     const sub = key === 'freelance'
       ? `<span style="color:#93c5fd">離脱率 ${(departChance*100).toFixed(0)}%</span>`
       : key === 'employee'
@@ -1304,7 +1312,7 @@ function load() {
     if (!state.eventBoost)      state.eventBoost      = null;
     if (!state.lastExpenseWeek) state.lastExpenseWeek = 0;
     if (!state.loans)           state.loans           = [];
-    if (!state.morale)          state.morale          = { ceo: 70, employee: 70, freelance: 70 };
+    if (!state.morale)          state.morale          = { ceo: 90, employee: 90, freelance: 90 };
     if (!state.freelancers)          state.freelancers  = 0;
     if (state.officeLevel === undefined) state.officeLevel = 0;
     if (state.gameStarted === undefined) state.gameStarted = (state.officeLevel > 0);
@@ -2044,7 +2052,7 @@ function _getOLMutterText() {
   const fl    = state.freelancers || 0;
   const money = state.money;
   const sales = state.employees['sales'] || 0;
-  const m     = state.morale || { ceo:70, employee:70, freelance:70 };
+  const m     = state.morale || { ceo:90, employee:90, freelance:90 };
   const mor   = Math.round((m.ceo + m.employee + m.freelance) / 3);
   const stage = getCurrentStageIdx();
   const weekly = getDisplayWeeklyIncome();
@@ -2107,7 +2115,7 @@ function ocvDraw() {
   if (!ocvCtx) return;
   const ctx   = ocvCtx;
   const lvl   = state.officeLevel ?? 0;
-  const m     = state.morale || { ceo:70, employee:70, freelance:70 };
+  const m     = state.morale || { ceo:90, employee:90, freelance:90 };
   const mor   = (m.ceo + m.employee + m.freelance) / 3;
   const count = getTotalPeople();
   const th    = OCV_THEMES[Math.min(lvl, OCV_THEMES.length-1)];
@@ -2586,7 +2594,7 @@ function ocvOL(ctx, cx, fy) {
   const eyeY  = hCY - 0.5;
   const eLX   = cx - hW * 0.22;
   const eRX   = cx + hW * 0.22;
-  const mor   = Math.round(((state.morale?.ceo || 70) + (state.morale?.employee || 70) + (state.morale?.freelance || 70)) / 3);
+  const mor   = Math.round(((state.morale?.ceo || 90) + (state.morale?.employee || 90) + (state.morale?.freelance || 90)) / 3);
 
   if (!blink) {
     // Eye whites
@@ -2744,7 +2752,7 @@ function setOfficeEventFx(type) {
 }
 
 function renderOfficeScene() {
-  const m = state.morale || { ceo:70, employee:70, freelance:70 };
+  const m = state.morale || { ceo:90, employee:90, freelance:90 };
   const mor = Math.round((m.ceo + m.employee + m.freelance) / 3);
 
   const wEl = document.getElementById('hs-weekly');
@@ -2936,12 +2944,12 @@ function gameLoop(ts) {
 
       const weeklyLog = [];
 
-      // モラル低下（4週に1回スキップ → 実効 0.75/週、社長低下は社員・FLを加速）
-      const ceoMorBefore = state.morale.ceo || 70;
-      const empMorBefore = state.morale.employee || 70;
-      const flMorBefore  = state.morale.freelance || 70;
-      const extraDecay  = ceoMorBefore >= 70 ? 0 : ceoMorBefore >= 50 ? 1 : ceoMorBefore >= 30 ? 2 : 3;
-      const baseDecay   = (currentWeekNum % 4) !== 0 ? 1 : 0;
+      // モラル低下（毎週2減・社長低下は社員・FLを追加加速）
+      const ceoMorBefore = state.morale.ceo || 90;
+      const empMorBefore = state.morale.employee || 90;
+      const flMorBefore  = state.morale.freelance || 90;
+      const baseDecay    = 2;
+      const extraDecay   = Math.max(0, Math.floor((90 - ceoMorBefore) / 15));
       state.morale.ceo      = Math.max(10, ceoMorBefore - baseDecay);
       state.morale.employee = Math.max(10, empMorBefore - baseDecay - extraDecay);
       state.morale.freelance= Math.max(10, flMorBefore  - baseDecay - extraDecay);
@@ -2979,7 +2987,7 @@ function gameLoop(ts) {
       // FL 自動離脱チェック（モラール連動・ニュースとは独立）
       let lostFL = 0;
       if (state.flData.length > 0) {
-        const flFavor  = state.morale.freelance || 70;
+        const flFavor  = state.morale.freelance || 90;
         const quitRate = Math.min(0.60, 0.15 + (100 - flFavor) * 0.005);
         for (let i = state.flData.length - 1; i >= 0; i--) {
           if (Math.random() < quitRate) { state.flData.splice(i, 1); lostFL++; }
@@ -2995,9 +3003,9 @@ function gameLoop(ts) {
         const eSettings = state.execSettings?.exec_sales_dir || {};
         // モラール自動最適化
         if (eSettings.autoMorale !== false) {
-          state.morale['ceo']      = Math.min(100, (state.morale['ceo']      || 70) + 3);
-          state.morale['employee'] = Math.min(100, (state.morale['employee'] || 70) + 5);
-          state.morale['freelance']= Math.min(100, (state.morale['freelance']|| 70) + 3);
+          state.morale['ceo']      = Math.min(100, (state.morale['ceo']      || 90) + 3);
+          state.morale['employee'] = Math.min(100, (state.morale['employee'] || 90) + 5);
+          state.morale['freelance']= Math.min(100, (state.morale['freelance']|| 90) + 3);
           weeklyLog.push({ emoji: '🤵', text: '営業部役員がモラールを最適化（社長+3、社員+5、FL+3）' });
         }
         // 営業人数自動最適化（定員の40%を目標）
