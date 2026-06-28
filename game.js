@@ -278,6 +278,167 @@ const WEEK_EVENTS = [
       return `社員モラール −${drop}`;
     },
   },
+
+  // ---- 追加: good / money ----
+  {
+    type: 'good', category: 'money', emoji: '🏦', title: '税務上の還付金が入金！',
+    desc: '前期の過払い税金が還付されました。思わぬ臨時収入に。',
+    effect: s => { const b = Math.floor(_evWeeklyBase() * 1.5); s.money += b; s.totalEarned += b; return `還付金 ＋${yen(b)}`; },
+  },
+  {
+    type: 'good', category: 'money', emoji: '🤑', title: '既存クライアントから追加発注！',
+    desc: '満足度の高い既存クライアントがプロジェクトを拡大。追加売上が発生。',
+    effect: s => { const b = Math.floor(_evWeeklyBase() * 2.5); s.money += b; s.totalEarned += b; return `追加売上 ＋${yen(b)}`; },
+  },
+  {
+    type: 'good', category: 'money', emoji: '🏛️', title: 'デジタル化推進補助金を採択！',
+    desc: '中小企業向けDX補助金の採択通知が届いた。即時入金されます。',
+    effect: s => { const b = Math.floor(_evWeeklyBase() * 2); s.money += b; s.totalEarned += b; return `補助金 ＋${yen(b)}`; },
+  },
+  {
+    type: 'good', category: 'money', emoji: '📦', title: '古い機材の売却益が発生！',
+    desc: '不用になったサーバー機材を業者に売却。予想外の収入に。',
+    effect: s => { const b = Math.floor(_evWeeklyBase() * 0.8); s.money += b; s.totalEarned += b; return `売却益 ＋${yen(b)}`; },
+  },
+  {
+    type: 'good', category: 'money', emoji: '🌸', title: '繁忙期で案件が集中！',
+    desc: '年度末の駆け込み需要で案件が殺到。臨時売上が一気に積み上がった。',
+    effect: s => { const b = Math.floor(_evWeeklyBase() * 4); s.money += b; s.totalEarned += b; return `繁忙期臨時収益 ＋${yen(b)}`; },
+  },
+
+  // ---- 追加: good / multiplier ----
+  {
+    type: 'good', category: 'multiplier', emoji: '📺', title: 'ビジネス誌に特集掲載！',
+    desc: '大手ビジネス誌に成長企業として特集された。問い合わせが急増中！',
+    effect: s => { s.eventBoost = { mult: 1.6, expiresAt: s.elapsedSeconds + WEEK_SEC * 3 }; return '収益×1.6（3週間）'; },
+  },
+  {
+    type: 'good', category: 'multiplier', emoji: '🌐', title: '海外IT需要が国内に流入！',
+    desc: 'グローバルIT需要の高まりが日本市場にも波及。単価が急上昇。',
+    effect: s => { s.eventBoost = { mult: 1.4, expiresAt: s.elapsedSeconds + WEEK_SEC * 4 }; return '収益×1.4（4週間）'; },
+  },
+  {
+    type: 'good', category: 'multiplier', emoji: '🎯', title: 'プロジェクト評価が最高評価！',
+    desc: 'クライアント満足度調査で最高評価を獲得。次の案件獲得が有利に。',
+    effect: s => { s.eventBoost = { mult: 1.8, expiresAt: s.elapsedSeconds + WEEK_SEC * 2 }; return '収益×1.8（2週間）'; },
+  },
+  {
+    type: 'good', category: 'multiplier', emoji: '🤖', title: 'AI活用で業務効率が急上昇！',
+    desc: '生成AI導入が進み、エンジニアの生産性が大幅に向上。収益率がUP。',
+    effect: s => { s.eventBoost = { mult: 1.35, expiresAt: s.elapsedSeconds + WEEK_SEC * 5 }; return '収益×1.35（5週間）'; },
+  },
+
+  // ---- 追加: good / personnel ----
+  {
+    type: 'good', category: 'personnel', emoji: '👥', title: 'リファラル採用で即戦力が加入！',
+    desc: '社員の紹介で優秀なフリーランスが参加。チームの雰囲気もUP。',
+    effect: s => {
+      const currentWeek = Math.floor(s.elapsedSeconds / WEEK_SEC);
+      s.flData.push({ gross: 750000 + Math.floor(Math.random() * 250001), profitRate: 0.13 + Math.random() * 0.07, hiredWeek: currentWeek });
+      s.freelancers = s.flData.length;
+      const gain = 5 + Math.floor(Math.random() * 5);
+      s.morale.freelance = Math.min(100, (s.morale.freelance || 90) + gain);
+      return `フリーランス1名参加（計${s.freelancers}名）・FLモラール＋${gain}`;
+    },
+  },
+  {
+    type: 'good', category: 'personnel', emoji: '😊', title: 'チームビルディングで士気急回復！',
+    desc: '自発的なチームイベントが成功。全社のモラールが一気に上昇した。',
+    effect: s => {
+      const gain = 10 + Math.floor(Math.random() * 8);
+      s.morale.employee  = Math.min(100, (s.morale.employee  || 90) + gain);
+      s.morale.freelance = Math.min(100, (s.morale.freelance || 90) + Math.floor(gain * 0.6));
+      return `社員モラール ＋${gain}、FLモラール ＋${Math.floor(gain * 0.6)}`;
+    },
+  },
+  {
+    type: 'good', category: 'personnel', emoji: '🎖️', title: '社長がメンターに選ばれた！',
+    desc: '業界団体のメンタープログラムに選出。社長のモラールと社員の尊敬が上昇。',
+    effect: s => {
+      s.morale.ceo      = Math.min(100, (s.morale.ceo      || 90) + 12);
+      s.morale.employee = Math.min(100, (s.morale.employee || 90) + 6);
+      return '社長モラール ＋12、社員モラール ＋6';
+    },
+  },
+
+  // ---- 追加: bad / money ----
+  {
+    type: 'bad', category: 'money', emoji: '🧾', title: '税務調査が入った！',
+    desc: '突然の税務調査で対応費用が発生。経理処理の見直しコストも重なった。',
+    effect: s => { const loss = Math.floor(s.money * 0.12); s.money = Math.max(0, s.money - loss); return `−${yen(loss)}の対応費`; },
+  },
+  {
+    type: 'bad', category: 'money', emoji: '🌧️', title: '自然災害で事務所が被害！',
+    desc: '大雨による浸水で機材が損傷。修繕費と代替費用が発生した。',
+    effect: s => { const loss = Math.floor(s.money * 0.08); s.money = Math.max(0, s.money - loss); return `−${yen(loss)}の修繕費`; },
+  },
+  {
+    type: 'bad', category: 'money', emoji: '⚡', title: '急なシステム刷新を強いられた！',
+    desc: 'セキュリティ脆弱性が発覚し、緊急のシステム更新費用が発生。',
+    effect: s => { const loss = Math.floor(_evWeeklyBase() * 2); s.money = Math.max(0, s.money - loss); return `−${yen(loss)}の緊急対応費`; },
+  },
+  {
+    type: 'bad', category: 'money', emoji: '📋', title: 'クライアントから損害賠償請求！',
+    desc: '納品物に問題が発覚。示談で解決したが、賠償金が発生した。',
+    effect: s => { const loss = Math.floor(s.money * 0.18); s.money = Math.max(0, s.money - loss); return `−${yen(loss)}の賠償金`; },
+  },
+  {
+    type: 'bad', category: 'money', emoji: '💸', title: '為替変動で外注コストが急増！',
+    desc: '円安が進行し、海外ツール・外注費の実質コストが上昇した。',
+    effect: s => { const loss = Math.floor(_evWeeklyBase() * 1.2); s.money = Math.max(0, s.money - loss); return `−${yen(loss)}の追加コスト`; },
+  },
+
+  // ---- 追加: bad / multiplier ----
+  {
+    type: 'bad', category: 'multiplier', emoji: '🌩️', title: '景気後退でIT予算が大幅削減！',
+    desc: '複数クライアントが一斉にIT投資を縮小。市場全体の単価が急落。',
+    effect: s => { s.eventBoost = { mult: 0.6, expiresAt: s.elapsedSeconds + WEEK_SEC * 3 }; return '収益×0.6（3週間）'; },
+  },
+  {
+    type: 'bad', category: 'multiplier', emoji: '🏹', title: '大手競合が激安攻勢を開始！',
+    desc: '大手SIerが価格破壊を仕掛けてきた。単価競争に引き込まれ収益が圧迫。',
+    effect: s => { s.eventBoost = { mult: 0.75, expiresAt: s.elapsedSeconds + WEEK_SEC * 3 }; return '収益×0.75（3週間）'; },
+  },
+  {
+    type: 'bad', category: 'multiplier', emoji: '🤧', title: '感染症でエンジニアが大量欠勤！',
+    desc: '感染症が社内で流行。多くのエンジニアが一時的に稼働不能に。',
+    effect: s => { s.eventBoost = { mult: 0.65, expiresAt: s.elapsedSeconds + WEEK_SEC * 2 }; return '収益×0.65（2週間）'; },
+  },
+  {
+    type: 'bad', category: 'multiplier', emoji: '📰', title: 'IT業界への否定的報道が拡散！',
+    desc: '業界スキャンダルが週刊誌に掲載。新規問い合わせが一時的に激減。',
+    effect: s => { s.eventBoost = { mult: 0.85, expiresAt: s.elapsedSeconds + WEEK_SEC * 2 }; return '収益×0.85（2週間）'; },
+  },
+
+  // ---- 追加: bad / personnel ----
+  {
+    type: 'bad', category: 'personnel', emoji: '🚪', title: 'FL複数名が同時に離脱！',
+    desc: '待遇への不満が重なり、フリーランス複数名が一斉に契約終了を申し出た。',
+    effect: s => {
+      const n = Math.min(s.flData.length, 2 + Math.floor(Math.random() * 2));
+      for (let i = 0; i < n; i++) { if (s.flData.length > 0) s.flData.splice(0, 1); }
+      s.freelancers = s.flData.length;
+      return `FL ${n}名が離脱（残${s.freelancers}名）`;
+    },
+  },
+  {
+    type: 'bad', category: 'personnel', emoji: '😔', title: '社内いじめが発覚！',
+    desc: '匿名アンケートで職場内の問題が露呈。全社のモラールが大幅に低下。',
+    effect: s => {
+      s.morale.employee  = Math.max(10, (s.morale.employee  || 90) - 15);
+      s.morale.freelance = Math.max(10, (s.morale.freelance || 90) - 8);
+      return '社員モラール −15、FLモラール −8';
+    },
+  },
+  {
+    type: 'bad', category: 'personnel', emoji: '😴', title: '過労で社員が長期休職！',
+    desc: '長時間労働が続いたベテラン社員が休職に入った。現場への負担が増加。',
+    effect: s => {
+      const drop = 10 + Math.floor(Math.random() * 10);
+      s.morale.employee = Math.max(10, (s.morale.employee || 90) - drop);
+      return `社員モラール −${drop}`;
+    },
+  },
 ];
 
 function pickWeeklyEvent() {
