@@ -418,8 +418,12 @@ body {
 .island-sales      .island-hdr { color: #fbbf24; border-bottom-color: rgba(251,191,36,0.15); }
 .island-staffing   { border-top: 3px solid #38c8e8; background: rgba(56,200,232,0.04); }
 .island-staffing   .island-hdr { color: #38c8e8; border-bottom-color: rgba(56,200,232,0.15); }
+.island-dispatch   { border-top: 3px solid #a3e635; background: rgba(163,230,53,0.04); }
+.island-dispatch   .island-hdr { color: #a3e635; border-bottom-color: rgba(163,230,53,0.15); }
 .island-marketing  { border-top: 3px solid #fb923c; background: rgba(251,146,60,0.04); }
 .island-marketing  .island-hdr { color: #fb923c; border-bottom-color: rgba(251,146,60,0.15); }
+.island-strategy   { border-top: 3px solid #f472b6; background: rgba(244,114,182,0.04); }
+.island-strategy   .island-hdr { color: #f472b6; border-bottom-color: rgba(244,114,182,0.15); }
 .island-finance    { border-top: 3px solid #34d399; background: rgba(52,211,153,0.04); }
 .island-finance    .island-hdr { color: #34d399; border-bottom-color: rgba(52,211,153,0.15); }
 .island-global     { border-top: 3px solid #818cf8; background: rgba(129,140,248,0.04); }
@@ -441,7 +445,9 @@ body {
 /* 島行内のアクティブライン（左accent） */
 .island-sales     .island-row-active { border-left: 3px solid rgba(251,191,36,0.5); padding-left: 11px; }
 .island-staffing  .island-row-active { border-left: 3px solid rgba(56,200,232,0.5); padding-left: 11px; }
+.island-dispatch  .island-row-active { border-left: 3px solid rgba(163,230,53,0.5); padding-left: 11px; }
 .island-marketing .island-row-active { border-left: 3px solid rgba(251,146,60,0.5); padding-left: 11px; }
+.island-strategy  .island-row-active { border-left: 3px solid rgba(244,114,182,0.5); padding-left: 11px; }
 .island-finance   .island-row-active { border-left: 3px solid rgba(52,211,153,0.5); padding-left: 11px; }
 .island-global    .island-row-active { border-left: 3px solid rgba(129,140,248,0.5); padding-left: 11px; }
 
@@ -1511,7 +1517,9 @@ body {
 
 .dept-island.island-sales     { border-top: 2px solid rgba(251,191,36,0.7); }
 .dept-island.island-staffing  { border-top: 2px solid rgba(56,200,232,0.7); }
+.dept-island.island-dispatch  { border-top: 2px solid rgba(163,230,53,0.7); }
 .dept-island.island-marketing { border-top: 2px solid rgba(251,146,60,0.7); }
+.dept-island.island-strategy  { border-top: 2px solid rgba(244,114,182,0.7); }
 .dept-island.island-finance   { border-top: 2px solid rgba(52,211,153,0.7); }
 .dept-island.island-global    { border-top: 2px solid rgba(129,140,248,0.7); }
 .dept-island.island-exec      { border-top: 2px solid rgba(250,180,80,0.7); background: rgba(250,180,80,0.03); }
