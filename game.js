@@ -111,9 +111,8 @@ const EXEC_DEFS = [
     emoji: '🤵',
     role: '営業最適化担当',
     desc: 'モラール向上アクションの自動購入（週2回まで）・営業人数の自動最適化。各機能はON/OFF可能。',
-    cost: 1000000,
-    unlockAt: 3000000,
-    comingSoon: true,
+    cost: 5000000,
+    unlockAt: 10000000,
     actions: [
       { key: 'autoMorale', label: 'モラール自動最適化（週2アクション）', defaultOn: true },
       { key: 'autoSales',  label: '営業人数自動最適化', defaultOn: true },
@@ -167,9 +166,7 @@ const MANAGER_DEFS = [
 ];
 
 function getExecMonthlySalary() {
-  // 会社規模（ステージ）に応じた役員報酬
-  const tbl = [200000, 400000, 800000, 1500000, 3000000, 5000000, 8000000];
-  return tbl[Math.min(getCurrentStageIdx(), tbl.length - 1)];
+  return 1000000;
 }
 
 // ---- 週次イベント定義 ----
