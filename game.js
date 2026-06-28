@@ -148,20 +148,20 @@ const MANAGER_DEFS = [
     id: 'mgr_ses',
     name: 'SES部門マネージャー',
     emoji: '👔',
-    desc: 'FL採用確率＋15%・FL離脱率−1%。月給60万＋社保。',
-    hireCost: 500000,
-    monthlySalary: 600000,
-    unlockAt: 1000000,
+    desc: 'FL採用確率＋3%（追加1人ごとに×1.25倍）・FL離脱率−0.5%/人。月給70万＋社保。営業10人につき1人採用可。',
+    hireCost: 3000000,
+    monthlySalary: 700000,
+    unlockAt: 10000000,
     island: 'ses',
   },
   {
     id: 'mgr_staffing',
     name: '紹介部門マネージャー',
     emoji: '📋',
-    desc: '紹介発掘確率＋10%・成約率＋5%。月給65万＋社保。',
-    hireCost: 600000,
-    monthlySalary: 650000,
-    unlockAt: 5000000,
+    desc: '紹介発掘確率＋5%（追加1人ごとに×1.25倍）。月給75万＋社保。営業10人につき1人採用可。',
+    hireCost: 5000000,
+    monthlySalary: 750000,
+    unlockAt: 30000000,
     island: 'staffing',
   },
 ];
@@ -464,7 +464,8 @@ function getRecruitChance() {
   const seasonal    = getSESSeasonal();
   const empMorale   = state.morale?.employee || 90;
   const moraleBonus = (empMorale - 90) * 0.001;
-  const mgrBonus    = state.managers?.mgr_ses ? 0.15 : 0;
+  const mgrCount    = state.managers?.mgr_ses || 0;
+  const mgrBonus    = mgrCount > 0 ? 0.12 * (Math.pow(1.25, mgrCount) - 1) : 0;
   return Math.min(0.95, Math.max(0.01, (0.45 + hrBonus + mktBonus + seasonal + moraleBonus + mgrBonus) * salesMult));
 }
 
@@ -472,7 +473,8 @@ function getStaffingFindRate() {
   const staffingMult = state.deptMults['staffing'] || 1;
   const mktBonus     = (state.employees['marketing'] || 0) * 0.0005;
   const seasonal     = getStaffingSeasonal();
-  const mgrBonus     = state.managers?.mgr_staffing ? 0.10 : 0;
+  const mgrCount     = state.managers?.mgr_staffing || 0;
+  const mgrBonus     = mgrCount > 0 ? 0.20 * (Math.pow(1.25, mgrCount) - 1) : 0;
   return Math.min(0.80, Math.max(0.01, (0.10 + mktBonus + seasonal + mgrBonus) * staffingMult));
 }
 
@@ -739,8 +741,8 @@ function calcMonthlyExpenses() {
   if (hiredExecCount > 0) execSalary = getExecMonthlySalary() * hiredExecCount;
 
   const mgrSalary = MANAGER_DEFS
-    .filter(m => state.managers?.[m.id])
-    .reduce((s, m) => s + Math.ceil(m.monthlySalary * 1.15), 0);
+    .filter(m => (state.managers?.[m.id] || 0) > 0)
+    .reduce((s, m) => s + Math.ceil(m.monthlySalary * 1.15 * (state.managers[m.id] || 0)), 0);
 
   return {
     rent, utilities, supplies,
@@ -958,22 +960,36 @@ function toggleAutoClose(enabled) {
   state.autoCloseWeekly = enabled;
 }
 
+function syncNavTop() {
+  const hh = document.getElementById('header').offsetHeight;
+  document.getElementById('tab-nav').style.top = hh + 'px';
+  document.body.style.paddingTop = hh + 'px';
+}
+
 function hireManager(id) {
   const def = MANAGER_DEFS.find(m => m.id === id);
-  if (!def || state.managers?.[id]) return;
+  if (!def) return;
+  const salesCount   = state.employees?.['sales'] || 0;
+  const maxCount     = Math.floor(salesCount / 10);
+  const currentCount = state.managers?.[id] || 0;
+  if (currentCount >= maxCount) {
+    showToast(`⚠️ 営業${(currentCount + 1) * 10}名で${currentCount + 1}人目採用可`);
+    return;
+  }
   if (state.money < def.hireCost) { showToast('💸 資金不足'); return; }
   state.money -= def.hireCost;
   if (!state.managers) state.managers = {};
-  state.managers[id] = true;
-  showToast(`✅ ${def.name}を採用しました`);
+  state.managers[id] = currentCount + 1;
+  showToast(`✅ ${def.name}（${state.managers[id]}人目）を採用しました`);
   renderDepts();
   renderAll();
 }
 
 function fireManager(id) {
   const def = MANAGER_DEFS.find(m => m.id === id);
-  if (!def || !state.managers?.[id]) return;
-  delete state.managers[id];
+  if (!def || !(state.managers?.[id] > 0)) return;
+  state.managers[id] = (state.managers[id] || 1) - 1;
+  if (state.managers[id] === 0) delete state.managers[id];
   state.morale['employee'] = Math.max(10, (state.morale['employee'] || 90) - 5);
   showToast(`👋 ${def.name}をリストラ（社員モラール−5）`);
   renderDepts();
@@ -1233,7 +1249,7 @@ function renderExchange() {
   const flFavor    = m.freelance || 90;
   const empMorale  = m.employee || 90;
   const empPenaltyDisp = Math.max(0, (90 - empMorale) * 0.001);
-  const mgrQuitReduction = state.managers?.mgr_ses ? 0.01 : 0;
+  const mgrQuitReduction = (state.managers?.mgr_ses || 0) * 0.005;
   const departChance   = Math.min(0.55, Math.max(0, 0.02 + (100 - flFavor) * 0.002 + empPenaltyDisp - mgrQuitReduction));
   const empFlMult     = getEmpMoraleMult();
   const salaryMult    = getCeoSalaryMoraleMult();
@@ -1430,6 +1446,7 @@ function load() {
     if (!state.executives)                            state.executives = {};
     if (!state.execSettings)                          state.execSettings = {};
     if (!state.managers)                              state.managers = {};
+    Object.keys(state.managers).forEach(k => { if (state.managers[k] === true) state.managers[k] = 1; });
     EXEC_DEFS.forEach(e => {
       if (state.executives[e.id] && !state.execSettings[e.id]) {
         state.execSettings[e.id] = {};
@@ -1834,9 +1851,12 @@ function renderDepts() {
 }
 
 function _buildManagerCard(m) {
-  const hired     = !!state.managers?.[m.id];
-  const unlocked  = (state.totalEarned || 0) >= m.unlockAt;
-  const canAfford = state.money >= m.hireCost;
+  const count      = state.managers?.[m.id] || 0;
+  const salesCount = state.employees?.['sales'] || 0;
+  const maxCount   = Math.floor(salesCount / 10);
+  const unlocked   = (state.totalEarned || 0) >= m.unlockAt;
+  const canAfford  = state.money >= m.hireCost;
+  const canHire    = count < maxCount;
 
   if (!unlocked) {
     return `<div class="island-row exec-card exec-locked">
@@ -1847,25 +1867,45 @@ function _buildManagerCard(m) {
       </div>
     </div>`;
   }
-  if (hired) {
-    return `<div class="island-row island-row-active exec-card">
-      <div class="dept-emoji">${m.emoji}</div>
-      <div class="dept-info">
-        <div class="dept-name">${m.name} <span class="exec-badge active">在籍</span></div>
-        <div class="dept-desc">${m.desc}</div>
-        <div class="dept-margin"><span class="ml">月給 ${yen(Math.ceil(m.monthlySalary * 1.15))}（社保込）</span></div>
-      </div>
-      <button class="fire-btn" onclick="fireManager('${m.id}')">−</button>
-    </div>`;
+
+  const badge = count > 0
+    ? `<span class="exec-badge active">在籍 ${count}名</span>`
+    : `<span class="exec-badge" style="color:#888;background:#1a1a2e">空席</span>`;
+
+  const salaryLine = count > 0
+    ? `<div class="dept-margin"><span class="ml">月給合計 ${yen(Math.ceil(m.monthlySalary * 1.15 * count))}（${count}名・社保込）</span></div>`
+    : '';
+
+  let effectLine = '';
+  if (count > 0) {
+    if (m.island === 'ses') {
+      const recruitB = (0.12 * (Math.pow(1.25, count) - 1) * 100).toFixed(1);
+      const quitB    = (count * 0.5).toFixed(1);
+      effectLine = `<div class="dept-margin"><span class="ml" style="color:#a78bfa">効果: FL採用率+${recruitB}% / 離脱率−${quitB}%</span></div>`;
+    } else if (m.island === 'staffing') {
+      const findB = (0.20 * (Math.pow(1.25, count) - 1) * 100).toFixed(1);
+      effectLine = `<div class="dept-margin"><span class="ml" style="color:#a78bfa">効果: 発掘確率+${findB}%</span></div>`;
+    }
   }
-  return `<div class="island-row exec-card">
+
+  const nextNeedSales = (count + 1) * 10;
+  const limitLine = `<div class="dept-margin"><span class="ml" style="color:#555">採用上限: 営業${nextNeedSales}名で${count + 1}人目（現在${salesCount}名）</span></div>`;
+
+  const hireBtn = `<button class="hire-btn${(canHire && canAfford) ? '' : ' disabled'}" onclick="hireManager('${m.id}')">採用<br><small>${yen(m.hireCost)}</small></button>`;
+  const fireBtn = count > 0 ? `<button class="fire-btn" onclick="fireManager('${m.id}')">−</button>` : '';
+
+  return `<div class="island-row exec-card${count > 0 ? ' island-row-active' : ''}">
     <div class="dept-emoji">${m.emoji}</div>
     <div class="dept-info">
-      <div class="dept-name">${m.name} <span class="exec-badge" style="color:#888;background:#1a1a2e">空席</span></div>
+      <div class="dept-name">${m.name} ${badge}</div>
       <div class="dept-desc">${m.desc}</div>
+      ${salaryLine}
+      ${effectLine}
+      ${limitLine}
     </div>
     <div class="dept-btn-group">
-      <button class="hire-btn${canAfford ? '' : ' disabled'}" onclick="hireManager('${m.id}')">採用<br><small>${yen(m.hireCost)}</small></button>
+      ${fireBtn}
+      ${hireBtn}
     </div>
   </div>`;
 }
@@ -3102,7 +3142,7 @@ function gameLoop(ts) {
         const flFavor    = state.morale.freelance || 90;
         const empMor     = state.morale.employee  || 90;
         const empPenalty = Math.max(0, (90 - empMor) * 0.001);
-        const mgrQuitR   = state.managers?.mgr_ses ? 0.01 : 0;
+        const mgrQuitR   = (state.managers?.mgr_ses || 0) * 0.005;
         const quitRate   = Math.min(0.55, Math.max(0, 0.02 + (100 - flFavor) * 0.002 + empPenalty - mgrQuitR));
         for (let i = state.flData.length - 1; i >= 0; i--) {
           if (Math.random() < quitRate) {
@@ -3365,9 +3405,11 @@ window.addEventListener('DOMContentLoaded', () => {
   }
   renderAll();
   initOCV();
+  syncNavTop();
   requestAnimationFrame(gameLoop);
   // 最初のユーザー操作でBGM開始（ブラウザのAutoPlay制限対応）
   const startBgm = () => bgmStart();
   document.addEventListener('click',      startBgm, { once: true });
   document.addEventListener('touchstart', startBgm, { once: true });
 });
+window.addEventListener('resize', syncNavTop);
