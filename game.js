@@ -370,7 +370,8 @@ let state = {
   gameSpeed: 1,         // 倍速（1x / 2x / 4x）
   ceoSalary: 300000,    // 社長月次報酬
   reportHistory: [],    // 週次レポート履歴（最大52件）
-  staffingOpened: false, // 紹介事業部（累計売上1億で自動解放）
+  staffingOpened: false,       // 紹介事業部（累計売上1億で自動解放）
+  dispatchOpened: false,       // 派遣事業部（2期目利益率20%以上で解放）
   dispatchCount: 0,      // 派遣スタッフ数
   dispatchSales: 0,      // 派遣事業部の営業人数
   contractDev: [],       // 受託開発 [{ type, startWeek, durationWeeks, mult, marginPct }]
@@ -1202,6 +1203,15 @@ function processCorpTax() {
   const revenue    = state.periodEarned     || 0;
   const costs      = state.periodDeductible || 0;
   const netIncome  = revenue - costs;
+
+  // 派遣事業部解放判定（2期目以降・利益率20%以上で決算を迎えた場合）
+  if (!state.dispatchOpened && getGameTime().period >= 2 && revenue > 0) {
+    const profitRate = netIncome / revenue;
+    if (profitRate >= 0.20) {
+      state.dispatchOpened = true;
+      showToast('🏭 派遣事業部が解放されました！');
+    }
+  }
   const taxable    = Math.max(0, netIncome);
   state.periodEarned     = 0;
   state.periodDeductible = 0;
@@ -1669,6 +1679,7 @@ function load() {
     if (state.staffingOpened === undefined)           state.staffingOpened = true;
     if (state.dispatchSales === undefined)            state.dispatchSales = 0;
     if (!Array.isArray(state.contractDev))            state.contractDev = state.contractDev ? [state.contractDev] : [];
+    if (state.dispatchOpened === undefined)           state.dispatchOpened = (state.dispatchCount || 0) > 0;
     if (state.stocks === undefined)                   state.stocks = null;
     // 資産運用スタッフが既にいてstocksが未初期化の場合は初期化
     if ((state.employees?.['investment'] || 0) >= 1 && !state.stocks) initStocks();
@@ -2111,7 +2122,7 @@ function renderDepts() {
   // 固定表示順（SES → 紹介 → 派遣 → 財務 → マーケ → グローバル）
   const _curPeriod       = getGameTime().period;
   const staffingUnlocked = _curPeriod >= 2 || (state.employees?.staffing || 0) > 0 || state.staffingOpened === true;
-  const dispatchUnlocked = _curPeriod >= 3 || (state.dispatchCount || 0) > 0;
+  const dispatchUnlocked = state.dispatchOpened === true || (state.dispatchCount || 0) > 0;
 
   // 紹介事業部
   html += `<div class="dept-island island-staffing">
@@ -2127,7 +2138,7 @@ function renderDepts() {
     <div class="island-hdr"><span class="island-icon">🏭</span><span>派遣事業部</span></div>
     ${dispatchUnlocked
       ? _buildDispatchCard()
-      : `<div class="island-row island-row-locked"><div class="dept-emoji" style="font-size:24px;opacity:0.4">🔒</div><div class="dept-info"><div class="dept-name" style="opacity:0.5">派遣事業部</div><div class="dept-unlock">3期目に解放</div></div></div>`
+      : `<div class="island-row island-row-locked"><div class="dept-emoji" style="font-size:24px;opacity:0.4">🔒</div><div class="dept-info"><div class="dept-name" style="opacity:0.5">派遣事業部</div><div class="dept-unlock">2期目以降・年度決算で利益率20%以上を達成すると解放</div></div></div>`
     }
   </div>`;
 
@@ -3261,7 +3272,7 @@ function renderOfficeScene() {
     const contractCount = (state.contractDev || []).length;
     const _p               = getGameTime().period;
     const staffingUnlocked = _p >= 2 || staffingCount > 0 || state.staffingOpened === true;
-    const dispatchUnlocked = _p >= 3 || dispatchCount > 0;
+    const dispatchUnlocked = state.dispatchOpened === true || dispatchCount > 0;
     const morClass = mor >= 80 ? 'green' : mor >= 55 ? 'amber' : 'red';
 
     let rows = `<div class="hs-row">
