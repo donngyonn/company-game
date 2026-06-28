@@ -1818,6 +1818,9 @@ function renderSlots() {
       }
     }
   }
+  html += `<div class="danger-zone">
+    <button class="reset-btn" onclick="resetGame()">🗑️ データをリセット</button>
+  </div>`;
   container.innerHTML = html;
 }
 
@@ -2525,9 +2528,6 @@ function renderLabor() {
     </div>`;
     })()}
 
-    <div class="danger-zone">
-      <button class="reset-btn" onclick="resetGame()">🗑️ データをリセット</button>
-    </div>
   `;
 }
 
