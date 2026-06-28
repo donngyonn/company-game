@@ -2109,15 +2109,16 @@ function renderDepts() {
   </div>`;
 
   // 固定表示順（SES → 紹介 → 派遣 → 財務 → マーケ → グローバル）
-  const staffingUnlocked = state.totalEarned >= 30000000 || (state.employees?.staffing || 0) > 0 || state.staffingOpened === true;
-  const dispatchUnlocked = state.totalEarned >= 60000000 || (state.dispatchCount || 0) > 0;
+  const _curPeriod       = getGameTime().period;
+  const staffingUnlocked = _curPeriod >= 2 || (state.employees?.staffing || 0) > 0 || state.staffingOpened === true;
+  const dispatchUnlocked = _curPeriod >= 3 || (state.dispatchCount || 0) > 0;
 
   // 紹介事業部
   html += `<div class="dept-island island-staffing">
     <div class="island-hdr"><span class="island-icon">🤝</span><span>人材紹介事業部</span></div>
     ${staffingUnlocked
       ? _buildDeptRow('staffing') + MANAGER_DEFS.filter(m => m.island === 'staffing').map(m => _buildManagerCard(m)).join('')
-      : `<div class="island-row island-row-locked"><div class="dept-emoji" style="font-size:24px;opacity:0.4">🔒</div><div class="dept-info"><div class="dept-name" style="opacity:0.5">人材紹介事業部</div><div class="dept-unlock">累計売上 ${yen(30000000)} で自動解放</div></div></div>`
+      : `<div class="island-row island-row-locked"><div class="dept-emoji" style="font-size:24px;opacity:0.4">🔒</div><div class="dept-info"><div class="dept-name" style="opacity:0.5">人材紹介事業部</div><div class="dept-unlock">2期目に自動解放</div></div></div>`
     }
   </div>`;
 
@@ -2126,7 +2127,7 @@ function renderDepts() {
     <div class="island-hdr"><span class="island-icon">🏭</span><span>派遣事業部</span></div>
     ${dispatchUnlocked
       ? _buildDispatchCard()
-      : `<div class="island-row island-row-locked"><div class="dept-emoji" style="font-size:24px;opacity:0.4">🔒</div><div class="dept-info"><div class="dept-name" style="opacity:0.5">派遣事業部</div><div class="dept-unlock">累計売上 ${yen(60000000)} で解放</div></div></div>`
+      : `<div class="island-row island-row-locked"><div class="dept-emoji" style="font-size:24px;opacity:0.4">🔒</div><div class="dept-info"><div class="dept-name" style="opacity:0.5">派遣事業部</div><div class="dept-unlock">3期目に解放</div></div></div>`
     }
   </div>`;
 
@@ -3258,8 +3259,9 @@ function renderOfficeScene() {
     const staffingCount = state.employees['staffing'] || 0;
     const dispatchCount = state.dispatchCount || 0;
     const contractCount = (state.contractDev || []).length;
-    const staffingUnlocked = state.totalEarned >= 30000000 || staffingCount > 0 || state.staffingOpened === true;
-    const dispatchUnlocked = state.totalEarned >= 60000000 || dispatchCount > 0;
+    const _p               = getGameTime().period;
+    const staffingUnlocked = _p >= 2 || staffingCount > 0 || state.staffingOpened === true;
+    const dispatchUnlocked = _p >= 3 || dispatchCount > 0;
     const morClass = mor >= 80 ? 'green' : mor >= 55 ? 'amber' : 'red';
 
     let rows = `<div class="hs-row">
