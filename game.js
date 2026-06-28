@@ -2011,6 +2011,7 @@ function renderSlots() {
   }
   html += `<div class="danger-zone">
     <button class="reset-btn" onclick="resetGame()">🗑️ データをリセット</button>
+    <button class="reset-btn" style="margin-top:8px;background:#0f2027;border-color:#38bdf8;color:#38bdf8" onclick="if(confirm('スロット含む全データを削除して最初からやり直しますか？'))restartGame()">🔄 初めから</button>
   </div>`;
   container.innerHTML = html;
 }
