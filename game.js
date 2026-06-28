@@ -1810,6 +1810,10 @@ function save() {
 }
 
 function load() {
+  if (sessionStorage.getItem('__freshStart')) {
+    sessionStorage.removeItem('__freshStart');
+    return;
+  }
   const raw = localStorage.getItem(SAVE_KEY);
   if (!raw) return;
   try {
@@ -1921,6 +1925,7 @@ function resetGame() {
 function startNewGame() {
   if (!confirm('進行中のデータをリセットして最初からスタートしますか？\n（スロットセーブは残ります）')) return;
   localStorage.removeItem(SAVE_KEY);
+  sessionStorage.setItem('__freshStart', '1');
   location.reload();
 }
 
