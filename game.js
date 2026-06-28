@@ -1918,6 +1918,12 @@ function resetGame() {
   location.reload();
 }
 
+function startNewGame() {
+  if (!confirm('進行中のデータをリセットして最初からスタートしますか？\n（スロットセーブは残ります）')) return;
+  localStorage.removeItem(SAVE_KEY);
+  location.reload();
+}
+
 // ---- セーブスロット ----
 
 function saveToSlot(n) {
@@ -2011,7 +2017,7 @@ function renderSlots() {
   }
   html += `<div class="danger-zone">
     <button class="reset-btn" onclick="resetGame()">🗑️ データをリセット</button>
-    <button class="reset-btn" style="margin-top:8px;background:#0f2027;border-color:#38bdf8;color:#38bdf8" onclick="if(confirm('進行中のデータをリセットして最初からスタートしますか？\n（スロットセーブは残ります）')){localStorage.removeItem(SAVE_KEY);location.reload();}">🔄 初めから</button>
+    <button class="reset-btn" style="margin-top:8px;background:#0f2027;border-color:#38bdf8;color:#38bdf8" onclick="startNewGame()">🔄 初めから</button>
   </div>`;
   container.innerHTML = html;
 }
