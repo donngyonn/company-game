@@ -13,45 +13,41 @@
 
   <!-- ヘッダー（固定） -->
   <header id="header">
+    <!-- 行1: ステージ名 + 日付 + 速度ボタン -->
     <div id="header-top">
       <div id="company-stage">🧑‍💻 個人事業</div>
       <div id="week-label" class="week-label">第1年 第1週</div>
-    </div>
-    <div id="money-display">¥0</div>
-    <div id="income-display">¥0/秒</div>
-    <div id="header-sub">
-      <span id="total-earned">累計売上 ¥0</span>
-      <span id="market-cap">時価総額 ¥0</span>
-    </div>
-    <!-- 倍速ボタン & 週の進捗バー -->
-    <div class="speed-wrap">
-      <button class="speed-btn active" data-speed="1" onclick="setGameSpeed(1)">1x</button>
-      <button class="speed-btn" data-speed="4" onclick="setGameSpeed(4)">4x</button>
-      <button class="speed-btn" data-speed="10" onclick="setGameSpeed(10)">10x</button>
-      <button class="speed-btn" id="pause-btn" onclick="togglePause()">⏸</button>
-      <button class="speed-btn" id="bgm-btn" onclick="bgmToggle()">🔊</button>
-      <div class="week-bar-wrap" style="flex:1">
-        <div id="week-progress" style="width:0%"></div>
+      <div class="speed-btns">
+        <button class="speed-btn active" data-speed="1" onclick="setGameSpeed(1)">1x</button>
+        <button class="speed-btn" data-speed="4" onclick="setGameSpeed(4)">4x</button>
+        <button class="speed-btn" data-speed="10" onclick="setGameSpeed(10)">10x</button>
+        <button class="speed-btn" id="pause-btn" onclick="togglePause()">⏸</button>
+        <button class="speed-btn" id="bgm-btn" onclick="bgmToggle()">🔊</button>
       </div>
     </div>
-    <div class="report-toggle-wrap">
-      <label class="report-toggle-label">
-        <input type="checkbox" id="hide-weekly-report" onchange="toggleWeeklyReport(this.checked)">
-        <span>週次レポートを非表示（月次は常に表示）</span>
-      </label>
+    <!-- 行2: 所持金（大） + 週次収益 -->
+    <div id="header-money">
+      <div id="money-display">¥0</div>
+      <div id="income-display">¥0/週</div>
+    </div>
+    <!-- 行3: 累計売上 + 時価総額 -->
+    <div id="header-sub">
+      <span id="total-earned">累計 ¥0</span>
+      <span id="market-cap">時価総額 ¥0</span>
     </div>
     <!-- ステージ進捗バー -->
     <div class="progress-wrap">
       <div id="stage-progress" style="width:0%"></div>
     </div>
     <div id="stage-label">次: 🧑‍💻 個人事業レベル まで ¥300万</div>
+    <!-- 週進捗バー -->
+    <div class="week-bar-wrap">
+      <div id="week-progress" style="width:0%"></div>
+    </div>
+    <!-- 行4: KPI 5項目 -->
     <div id="hero-stats">
       <div class="hero-stat">
-        <div class="hs-label">週次収益</div>
-        <div class="hs-val green" id="hs-weekly">¥0</div>
-      </div>
-      <div class="hero-stat">
-        <div class="hs-label">FL在籍</div>
+        <div class="hs-label">FL</div>
         <div class="hs-val cyan" id="hs-fl">0名</div>
       </div>
       <div class="hero-stat">
@@ -60,13 +56,22 @@
       </div>
       <div class="hero-stat">
         <div class="hs-label">モラール</div>
-        <div class="hs-val amber" id="hs-morale">70</div>
+        <div class="hs-val amber" id="hs-morale">90</div>
       </div>
       <div class="hero-stat">
         <div class="hs-label">今期紹介</div>
         <div class="hs-val cyan" id="hs-staffing-count">0件</div>
       </div>
+      <div class="hero-stat">
+        <div class="hs-label">週収益</div>
+        <div class="hs-val green" id="hs-weekly">¥0</div>
+      </div>
     </div>
+    <!-- レポート非表示トグル（コンパクト） -->
+    <label class="report-toggle-label">
+      <input type="checkbox" id="hide-weekly-report" onchange="toggleWeeklyReport(this.checked)">
+      <span>週次レポート非表示</span>
+    </label>
   </header>
 
   <!-- ヒーローダッシュボード -->
