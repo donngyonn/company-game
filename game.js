@@ -45,23 +45,13 @@ const DEPT_DEFS = [
     baseCost: 700000, costMult: 1.22, unlockAt: 0,
   },
   {
-    id: 'hr',
-    name: '人材育成部',
-    emoji: '🎓',
-    desc: '1マネージャー＝10名の営業を管理。毎週自動採用＋交流会を自動化。採用コスト削減（−3%/人）・FL採用確率＋3%/人。月給70〜75万＋社保15%。',
-    incomePerSec: 0, marginRate: null, salaryLabel: '人件費',
-    monthlySalary: 725000, insuranceRate: 0.15,
-    baseCost: 10000000, costMult: 1.20, unlockAt: 50000000,
-    special: 'costReduction', specialValue: 0.03,
-  },
-  {
     id: 'staffing',
     name: '営業',
     emoji: '🤝',
     desc: '求職者と企業をマッチング。週10%で人材発掘し年収35%の紹介料を得る。高年収ほど成約難度UP。月給35〜40万＋社保15%。',
     incomePerSec: 0, marginRate: null, salaryLabel: '人件費',
     monthlySalary: 375000, insuranceRate: 0.15,
-    baseCost: 1200000, costMult: 1.25, unlockAt: 100000000,
+    baseCost: 1200000, costMult: 1.25, unlockAt: 30000000,
     special: 'staffingSales',
   },
   {
@@ -71,7 +61,7 @@ const DEPT_DEFS = [
     desc: '採用広告・ブランディングで認知向上。1人でSES採用率+0.1%・FL利益率+0.1%、紹介採用率+0.05%・紹介利益率+0.05%。月給45〜50万＋社保15%。',
     incomePerSec: 0, marginRate: null, salaryLabel: '人件費',
     monthlySalary: 475000, insuranceRate: 0.15,
-    baseCost: 1800000, costMult: 1.28, unlockAt: 500000000,
+    baseCost: 1800000, costMult: 1.28, unlockAt: 120000000,
     special: 'marketing',
   },
   {
@@ -91,7 +81,7 @@ const DEPT_DEFS = [
     desc: '海外大型SES案件を直接受注。圧倒的な直接収益源。',
     incomePerSec: 5000000,
     marginRate: 0.80, salaryLabel: '人件費', monthlySalary: null,
-    baseCost: 10000000000, costMult: 1.15, unlockAt: 30000000000,
+    baseCost: 10000000000, costMult: 1.15, unlockAt: 10000000000,
   },
 ];
 
@@ -164,14 +154,22 @@ const DISPATCH_WEEKLY_GROSS   = 103500; // 月額×1.2÷4 ≈ 10.35万/週/人
 const DISPATCH_HIRE_COST      = 1500000; // 採用費/人（年収の約35%）
 const DISPATCH_QUIT_RATE      = 0.03;   // 週次離脱率
 
-// 受託開発
-const CONTRACT_WORKERS    = 10;   // 必要な派遣スタッフ数
-const CONTRACT_MIN_WEEKS  = 12;   // 最短リードタイム
-const CONTRACT_MAX_WEEKS  = 24;   // 最長リードタイム
-const CONTRACT_MULT_MIN   = 1.2;  // 12週時 売上倍率（月額コスト×months×1.2）
-const CONTRACT_MULT_MAX   = 1.6;  // 24週時 売上倍率
-const CONTRACT_MARGIN_MIN = 50;   // 12週時 想定利益率(%)
-const CONTRACT_MARGIN_MAX = 60;   // 24週時 想定利益率(%)
+// 受託開発（1件あたり CONTRACT_WORKERS 名を専任）
+const CONTRACT_WORKERS      = 10;
+// 小型案件（8〜12週、利益率35〜45%）
+const CONTRACT_S_MIN_WEEKS  = 8;
+const CONTRACT_S_MAX_WEEKS  = 12;
+const CONTRACT_S_MULT_MIN   = 1.54; // margin 35%: 1/(1-0.35)
+const CONTRACT_S_MULT_MAX   = 1.82; // margin 45%: 1/(1-0.45)
+const CONTRACT_S_MARGIN_MIN = 35;
+const CONTRACT_S_MARGIN_MAX = 45;
+// 大型案件（16〜24週、利益率55〜65%）
+const CONTRACT_L_MIN_WEEKS  = 16;
+const CONTRACT_L_MAX_WEEKS  = 24;
+const CONTRACT_L_MULT_MIN   = 2.22; // margin 55%: 1/(1-0.55)
+const CONTRACT_L_MULT_MAX   = 2.86; // margin 65%: 1/(1-0.65)
+const CONTRACT_L_MARGIN_MIN = 55;
+const CONTRACT_L_MARGIN_MAX = 65;
 
 function getExecMonthlySalary() {
   return 1000000;
@@ -296,9 +294,6 @@ const UPGRADE_DEFS = [
   { id: 'u_niche',      name: 'ニッチ技術特化戦略',          emoji: '🔬', cost: 45000000,     dept: 'freelancer', mult: 1.25, req: { sales: 5 } },
   { id: 'u_prime',      name: 'プライム案件専任体制',        emoji: '🥇', cost: 450000000,    dept: 'freelancer', mult: 1.25, req: { sales: 10 } },
   { id: 'u_aidev',      name: 'AI・クラウド専門化',          emoji: '🤖', cost: 4500000000,   dept: 'freelancer', mult: 1.25, req: { sales: 20 } },
-  // ---- 人材育成部：HR効果UP ----
-  { id: 'u_training',   name: '体系的研修プログラム',        emoji: '📚', cost: 200000000,    dept: 'hr',         mult: 1.25, req: { hr: 1 } },
-  { id: 'u_culture',    name: 'エンゲージメント施策強化',    emoji: '💡', cost: 2000000000,   dept: 'hr',         mult: 1.25, req: { hr: 5 } },
   // ---- 人材紹介営業：発掘・成約率UP ----
   { id: 'u_talent_db',  name: '人材データベース構築',        emoji: '🗄️', cost: 5000000,      dept: 'staffing',   mult: 1.25, req: { staffing: 1 } },
   { id: 'u_headhunt',   name: '積極的ヘッドハンティング',    emoji: '🎯', cost: 50000000,     dept: 'staffing',   mult: 1.25, req: { staffing: 5 } },
@@ -362,7 +357,7 @@ let state = {
   staffingOpened: false, // 紹介事業部（累計売上1億で自動解放）
   dispatchCount: 0,      // 派遣スタッフ数
   dispatchSales: 0,      // 派遣事業部の営業人数
-  contractDev: null,     // 受託開発 { startWeek, durationWeeks, mult, marginPct } | null
+  contractDev: [],       // 受託開発 [{ type, startWeek, durationWeeks, mult, marginPct }]
   bankUnlocked: false,   // 銀行タブ解放フラグ（財務タブで審査通過後）
   periodStaffingPlacements: 0, // 今期紹介人数（年度末リセット）
   hideWeeklyReport: false,     // 週次レポート非表示フラグ
@@ -428,8 +423,7 @@ function getGlobalMultiplier() {
 }
 
 function getCostReduction() {
-  const hr = DEPT_DEFS.find(d => d.id === 'hr');
-  return Math.max(0.1, 1 - hr.specialValue * (state.employees['hr'] || 0));
+  return 1;
 }
 
 function getCurrentMonthOfYear() {
@@ -467,14 +461,13 @@ function getStaffingSeasonalLabel() {
 
 function getRecruitChance() {
   const salesMult   = state.deptMults['sales'] || 1;
-  const hrBonus     = (state.employees['hr'] || 0) * 0.03;
   const mktBonus    = (state.employees['marketing'] || 0) * 0.001;
   const seasonal    = getSESSeasonal();
   const empMorale   = state.morale?.employee || 90;
   const moraleBonus = (empMorale - 90) * 0.001;
   const mgrCount    = state.managers?.mgr_ses || 0;
   const mgrBonus    = mgrCount > 0 ? 0.12 * (Math.pow(1.25, mgrCount) - 1) : 0;
-  return Math.min(0.95, Math.max(0.01, (0.45 + hrBonus + mktBonus + seasonal + moraleBonus + mgrBonus) * salesMult));
+  return Math.min(0.95, Math.max(0.01, (0.45 + mktBonus + seasonal + moraleBonus + mgrBonus) * salesMult));
 }
 
 function getStaffingFindRate() {
@@ -737,10 +730,6 @@ function calcMonthlyExpenses() {
   const mktCount      = state.employees['marketing'] || 0;
   const marketingSalary = mktCount * (mktDef.monthlySalary || 475000) * (1 + (mktDef.insuranceRate || 0.15));
 
-  const hrDef       = DEPT_DEFS.find(d => d.id === 'hr');
-  const hrCount     = state.employees['hr'] || 0;
-  const hrSalary    = hrCount * (hrDef.monthlySalary || 725000) * (1 + (hrDef.insuranceRate || 0.15));
-
   const loanPay   = state.loans.reduce((a, l) => a + Math.min(l.remaining, l.monthlyPayment), 0);
   const ceoSalary = state.ceoSalary || 0;
 
@@ -760,9 +749,9 @@ function calcMonthlyExpenses() {
 
   return {
     rent, utilities, supplies,
-    salesperson, staffingSalary, marketingSalary, hrSalary, financeSalary,
+    salesperson, staffingSalary, marketingSalary, financeSalary,
     dispatchSalary, loanPay, ceoSalary, execSalary, mgrSalary,
-    total: rent + utilities + supplies + salesperson + staffingSalary + marketingSalary + hrSalary
+    total: rent + utilities + supplies + salesperson + staffingSalary + marketingSalary
          + financeSalary + dispatchSalary
          + loanPay + ceoSalary + execSalary + mgrSalary,
   };
@@ -774,7 +763,6 @@ function showExpenseModal(exp, before) {
   if (exp.utilities > 0)       rows += `<div class="expense-row"><span>💡 水道光熱費</span><span>−${yen(exp.utilities)}</span></div>`;
   if (exp.supplies > 0)        rows += `<div class="expense-row"><span>📦 備品・消耗品</span><span>−${yen(exp.supplies)}</span></div>`;
   if (exp.salesperson > 0)     rows += `<div class="expense-row"><span>💼 SES営業 人件費＋社保</span><span>−${yen(exp.salesperson)}</span></div>`;
-  if (exp.hrSalary > 0)        rows += `<div class="expense-row"><span>🎓 マネージャー 人件費＋社保</span><span>−${yen(exp.hrSalary)}</span></div>`;
   if (exp.staffingSalary > 0)  rows += `<div class="expense-row"><span>🤝 紹介営業 人件費＋社保</span><span>−${yen(exp.staffingSalary)}</span></div>`;
   if (exp.marketingSalary > 0) rows += `<div class="expense-row"><span>📣 マーケター 人件費＋社保</span><span>−${yen(exp.marketingSalary)}</span></div>`;
   if (exp.ceoSalary > 0)       rows += `<div class="expense-row"><span>🤵 社長報酬</span><span>−${yen(exp.ceoSalary)}</span></div>`;
@@ -841,7 +829,6 @@ function _renderWeeklyModalContent(idx) {
     if (mExp.utilities > 0)      html += `<div class="expense-row"><span>💡 水道光熱費</span><span>−${yen(mExp.utilities)}</span></div>`;
     if (mExp.supplies > 0)       html += `<div class="expense-row"><span>📦 備品・消耗品</span><span>−${yen(mExp.supplies)}</span></div>`;
     if (mExp.salesperson > 0)    html += `<div class="expense-row"><span>👔 SES営業 人件費</span><span>−${yen(mExp.salesperson)}</span></div>`;
-    if (mExp.hrSalary > 0)       html += `<div class="expense-row"><span>🎓 マネージャー 人件費</span><span>−${yen(mExp.hrSalary)}</span></div>`;
     if (mExp.execSalary > 0)     html += `<div class="expense-row"><span>🤵 役員報酬</span><span>−${yen(mExp.execSalary)}</span></div>`;
     if (mExp.mgrSalary > 0)      html += `<div class="expense-row"><span>👔 部門マネージャー 人件費＋社保</span><span>−${yen(mExp.mgrSalary)}</span></div>`;
     if (mExp.staffingSalary > 0) html += `<div class="expense-row"><span>🤝 紹介営業 人件費</span><span>−${yen(mExp.staffingSalary)}</span></div>`;
@@ -1007,8 +994,9 @@ function hireDispatch() {
 }
 
 function fireDispatch() {
-  if (state.contractDev && (state.dispatchCount || 0) <= CONTRACT_WORKERS) {
-    showToast('⚠️ 受託プロジェクト中は削減できません');
+  const locked = (state.contractDev?.length || 0) * CONTRACT_WORKERS;
+  if ((state.dispatchCount || 0) <= locked) {
+    showToast(locked > 0 ? '⚠️ 受託プロジェクト中のスタッフは削減できません' : '⚠️ 派遣スタッフがいません');
     return;
   }
   if (!(state.dispatchCount > 0)) return;
@@ -1018,21 +1006,32 @@ function fireDispatch() {
   renderDepts();
 }
 
-function startContractDev() {
-  if (state.contractDev) { showToast('⚠️ 受託プロジェクト進行中です'); return; }
-  const count = state.dispatchCount || 0;
-  if (count < CONTRACT_WORKERS) {
-    showToast(`⚠️ 派遣スタッフ${CONTRACT_WORKERS}名が必要（現在${count}名）`);
+function startContractDev(type) {
+  const count  = state.dispatchCount || 0;
+  const locked = (state.contractDev?.length || 0) * CONTRACT_WORKERS;
+  const free   = count - locked;
+  if (free < CONTRACT_WORKERS) {
+    showToast(`⚠️ フリーな派遣スタッフ${CONTRACT_WORKERS}名が必要（現在${free}名）`);
     return;
   }
-  const weeks = CONTRACT_MIN_WEEKS + Math.floor(Math.random() * (CONTRACT_MAX_WEEKS - CONTRACT_MIN_WEEKS + 1));
-  const t     = (weeks - CONTRACT_MIN_WEEKS) / (CONTRACT_MAX_WEEKS - CONTRACT_MIN_WEEKS);
-  const mult  = CONTRACT_MULT_MIN + t * (CONTRACT_MULT_MAX - CONTRACT_MULT_MIN);
-  const marginPct = Math.round(CONTRACT_MARGIN_MIN + t * (CONTRACT_MARGIN_MAX - CONTRACT_MARGIN_MIN));
+  const isLarge = type === 'large';
+  const minW  = isLarge ? CONTRACT_L_MIN_WEEKS  : CONTRACT_S_MIN_WEEKS;
+  const maxW  = isLarge ? CONTRACT_L_MAX_WEEKS  : CONTRACT_S_MAX_WEEKS;
+  const minMl = isLarge ? CONTRACT_L_MULT_MIN   : CONTRACT_S_MULT_MIN;
+  const maxMl = isLarge ? CONTRACT_L_MULT_MAX   : CONTRACT_S_MULT_MAX;
+  const minMg = isLarge ? CONTRACT_L_MARGIN_MIN : CONTRACT_S_MARGIN_MIN;
+  const maxMg = isLarge ? CONTRACT_L_MARGIN_MAX : CONTRACT_S_MARGIN_MAX;
+
+  const weeks = minW + Math.floor(Math.random() * (maxW - minW + 1));
+  const t     = (weeks - minW) / (maxW - minW);
+  const mult  = minMl + t * (maxMl - minMl);
+  const marginPct = Math.round(minMg + t * (maxMg - minMg));
   const currentWeek = Math.floor(state.elapsedSeconds / WEEK_SEC);
-  state.contractDev = { startWeek: currentWeek, durationWeeks: weeks, mult, marginPct };
+
+  state.contractDev.push({ type, startWeek: currentWeek, durationWeeks: weeks, mult, marginPct });
   const expectedRev = Math.round(DISPATCH_MONTHLY_SALARY * CONTRACT_WORKERS * mult * (weeks / 4));
-  showToast(`🏗️ 受託開発開始！${weeks}週プロジェクト 完了時売上 ${yen(expectedRev)}（想定利益率${marginPct}%）`);
+  const label = isLarge ? '大型' : '小型';
+  showToast(`🏗️ ${label}受託開始！${weeks}週 完了時売上 ${yen(expectedRev)}（利益率${marginPct}%）`);
   renderDepts();
 }
 
@@ -1060,7 +1059,7 @@ function applyBankReview() {
 function updateTabVisibility() {
   const laborBtn = document.getElementById('labor-tab-btn');
   if (laborBtn) {
-    const unlocked = (state.totalEarned || 0) >= 100000000;
+    const unlocked = (state.employees?.['finance'] || 0) >= 1;
     laborBtn.disabled  = !unlocked;
     laborBtn.innerHTML = unlocked ? '📊 財務' : '🔒 財務';
   }
@@ -1536,7 +1535,7 @@ function load() {
     if (state.flGrossRevenue === undefined)           state.flGrossRevenue = 0;
     if (state.staffingOpened === undefined)           state.staffingOpened = true;
     if (state.dispatchSales === undefined)            state.dispatchSales = 0;
-    if (state.contractDev === undefined)              state.contractDev = null;
+    if (!Array.isArray(state.contractDev))            state.contractDev = state.contractDev ? [state.contractDev] : [];
     if (state.periodStaffingPlacements === undefined) state.periodStaffingPlacements = 0;
     if (state.hideWeeklyReport === undefined)         state.hideWeeklyReport = false;
     if (state.autoCloseWeekly === undefined)          state.autoCloseWeekly = true;
@@ -1793,50 +1792,62 @@ function _buildFLCard() {
   </div>`;
 }
 
+
 function _buildDispatchCard() {
-  const count    = state.dispatchCount || 0;
-  const cap      = getDispatchCapacity();
-  const atCap    = cap > 0 && count >= cap;
-  const contract = state.contractDev;
-  const locked   = contract ? Math.min(CONTRACT_WORKERS, count) : 0;
-  const freeCount= Math.max(0, count - locked);
+  const contracts  = state.contractDev || [];
+  const count      = state.dispatchCount || 0;
+  const cap        = getDispatchCapacity();
+  const atCap      = cap > 0 && count >= cap;
+  const lockedCnt  = Math.min(contracts.length * CONTRACT_WORKERS, count);
+  const freeCount  = Math.max(0, count - lockedCnt);
+  const salesCount = state.employees?.['sales'] || 0;
+  const canHire    = !atCap && state.money >= DISPATCH_HIRE_COST;
+  const canFire    = count > lockedCnt;
 
   const weeklyGross = freeCount * DISPATCH_WEEKLY_GROSS;
   const weeklyCost  = count * DISPATCH_MONTHLY_SALARY / 4;
   const weeklyNet   = weeklyGross - weeklyCost;
 
-  const salesCount    = state.employees?.['sales'] || 0;
-  const canHire       = !atCap && state.money >= DISPATCH_HIRE_COST && !contract;
-
-  // 受託開発エリア
-  let contractHtml = '';
-  if (contract) {
-    const currentWeek = Math.floor(state.elapsedSeconds / WEEK_SEC);
-    const elapsed   = currentWeek - contract.startWeek;
-    const remaining = Math.max(0, contract.durationWeeks - elapsed);
-    const progress  = Math.min(100, elapsed / contract.durationWeeks * 100).toFixed(0);
-    const expectRev = Math.round(DISPATCH_MONTHLY_SALARY * CONTRACT_WORKERS * contract.mult * (contract.durationWeeks / 4));
-    contractHtml = `<div class="island-row island-row-active" style="border-left:3px solid #f59e0b;background:rgba(245,158,11,0.06);padding-left:11px">
+  const currentWeek = Math.floor(state.elapsedSeconds / WEEK_SEC);
+  const contractRows = contracts.map(c => {
+    const elapsed   = currentWeek - c.startWeek;
+    const remaining = Math.max(0, c.durationWeeks - elapsed);
+    const progress  = Math.min(100, elapsed / c.durationWeeks * 100).toFixed(0);
+    const expectRev = Math.round(DISPATCH_MONTHLY_SALARY * CONTRACT_WORKERS * c.mult * (c.durationWeeks / 4));
+    const label     = c.type === 'large' ? '大型' : '小型';
+    const color     = c.type === 'large' ? '#f59e0b' : '#60a5fa';
+    const bgColor   = c.type === 'large' ? 'rgba(245,158,11,0.06)' : 'rgba(96,165,250,0.06)';
+    const barColor  = c.type === 'large' ? '#f59e0b' : '#60a5fa';
+    const bgBadge   = c.type === 'large' ? '#78350f' : '#1e3a5f';
+    return `<div class="island-row island-row-active" style="border-left:3px solid ${color};background:${bgColor};padding-left:11px">
       <div class="dept-emoji">🏗️</div>
       <div class="dept-info">
-        <div class="dept-name" style="color:#fbbf24">受託開発 進行中 <span class="emp-count" style="background:#78350f">${elapsed}/${contract.durationWeeks}週</span></div>
-        <div class="dept-desc">スタッフ${locked}名専任　残り${remaining}週で完了</div>
-        <div style="margin:4px 0 2px;background:#1f2937;border-radius:4px;height:5px"><div style="height:5px;background:#f59e0b;width:${progress}%;border-radius:4px"></div></div>
-        <div class="dept-margin"><span class="ml">完了時一括: ${yen(expectRev)} 計上（想定利益率${contract.marginPct}%）</span></div>
+        <div class="dept-name" style="color:${color}">${label}受託 進行中 <span class="emp-count" style="background:${bgBadge}">${elapsed}/${c.durationWeeks}週</span></div>
+        <div class="dept-desc">スタッフ${CONTRACT_WORKERS}名専任　残り${remaining}週で完了</div>
+        <div style="margin:4px 0 2px;background:#1f2937;border-radius:4px;height:5px"><div style="height:5px;background:${barColor};width:${progress}%;border-radius:4px"></div></div>
+        <div class="dept-margin"><span class="ml">完了時一括: ${yen(expectRev)} 計上（想定利益率${c.marginPct}%）</span></div>
       </div>
     </div>`;
-  } else if (count >= CONTRACT_WORKERS) {
-    const minRev = Math.round(DISPATCH_MONTHLY_SALARY * CONTRACT_WORKERS * CONTRACT_MULT_MIN * (CONTRACT_MIN_WEEKS / 4));
-    const maxRev = Math.round(DISPATCH_MONTHLY_SALARY * CONTRACT_WORKERS * CONTRACT_MULT_MAX * (CONTRACT_MAX_WEEKS / 4));
-    contractHtml = `<div class="island-row">
+  }).join('');
+
+  const freeSlots = Math.floor(freeCount / CONTRACT_WORKERS);
+  let newContractHtml = '';
+  if (freeSlots >= 1) {
+    const sMinRev = Math.round(DISPATCH_MONTHLY_SALARY * CONTRACT_WORKERS * CONTRACT_S_MULT_MIN * (CONTRACT_S_MIN_WEEKS / 4));
+    const sMaxRev = Math.round(DISPATCH_MONTHLY_SALARY * CONTRACT_WORKERS * CONTRACT_S_MULT_MAX * (CONTRACT_S_MAX_WEEKS / 4));
+    const lMinRev = Math.round(DISPATCH_MONTHLY_SALARY * CONTRACT_WORKERS * CONTRACT_L_MULT_MIN * (CONTRACT_L_MIN_WEEKS / 4));
+    const lMaxRev = Math.round(DISPATCH_MONTHLY_SALARY * CONTRACT_WORKERS * CONTRACT_L_MULT_MAX * (CONTRACT_L_MAX_WEEKS / 4));
+    newContractHtml = `<div class="island-row">
       <div class="dept-emoji">🏗️</div>
       <div class="dept-info">
-        <div class="dept-name" style="color:#fbbf24">受託開発</div>
-        <div class="dept-desc">スタッフ${CONTRACT_WORKERS}名を専任し受託案件を受注。リードタイム${CONTRACT_MIN_WEEKS}〜${CONTRACT_MAX_WEEKS}週（ランダム）、長いほど高利益。</div>
-        <div class="dept-margin"><span class="ml">完了時売上 ${yen(minRev)}〜${yen(maxRev)}（利益率${CONTRACT_MARGIN_MIN}〜${CONTRACT_MARGIN_MAX}%）　期間中は通常収益なし</span></div>
+        <div class="dept-name" style="color:#fbbf24">受託開発受注 <span style="font-size:10px;color:#a3e635;margin-left:4px">スロット×${freeSlots}</span></div>
+        <div class="dept-desc">フリースタッフ10名につき1件受注可能。期間中は通常収益なし。</div>
+        <div class="dept-margin"><span class="ml">小型: ${CONTRACT_S_MIN_WEEKS}〜${CONTRACT_S_MAX_WEEKS}週 売上${yen(sMinRev)}〜${yen(sMaxRev)}（利益率${CONTRACT_S_MARGIN_MIN}〜${CONTRACT_S_MARGIN_MAX}%）</span></div>
+        <div class="dept-margin"><span class="ml">大型: ${CONTRACT_L_MIN_WEEKS}〜${CONTRACT_L_MAX_WEEKS}週 売上${yen(lMinRev)}〜${yen(lMaxRev)}（利益率${CONTRACT_L_MARGIN_MIN}〜${CONTRACT_L_MARGIN_MAX}%）</span></div>
       </div>
       <div class="dept-btn-group">
-        <button class="hire-btn" onclick="startContractDev()">受注<br><small>開始</small></button>
+        <button class="hire-btn" style="background:#1e3a5f;border-color:#60a5fa;color:#93c5fd" onclick="startContractDev('small')">小型<br><small>受注</small></button>
+        <button class="hire-btn" style="background:#3d1f00;border-color:#f59e0b;color:#fbbf24" onclick="startContractDev('large')">大型<br><small>受注</small></button>
       </div>
     </div>`;
   }
@@ -1847,7 +1858,7 @@ function _buildDispatchCard() {
       <div class="dept-info">
         <div class="dept-name" style="color:#86efac">派遣スタッフ
           <span class="emp-count" style="background:#14532d">${count}名</span>
-          ${locked > 0 ? `<span style="font-size:10px;color:#f59e0b;margin-left:4px">受託${locked}名拘束</span>` : ''}
+          ${lockedCnt > 0 ? `<span style="font-size:10px;color:#f59e0b;margin-left:4px">受託${lockedCnt}名拘束</span>` : ''}
           ${atCap ? '<span style="font-size:10px;color:#f87171;margin-left:4px">上限</span>' : ''}
         </div>
         <div class="dept-desc">${count > 0
@@ -1857,13 +1868,16 @@ function _buildDispatchCard() {
         <div class="dept-margin"><span class="ml">上限 ${cap}名（SES営業${salesCount}名×20）　離脱率 ${(DISPATCH_QUIT_RATE*100).toFixed(0)}%/週</span></div>
       </div>
       <div class="dept-btn-group">
-        ${count > 0 && !contract ? `<button class="fire-btn" onclick="fireDispatch()">−</button>` : ''}
-        <button class="hire-btn${canHire ? '' : ' disabled'}" onclick="hireDispatch()">${cap === 0 ? '要営業' : contract ? '受託中' : atCap ? '上限' : '採用'}<br><small>${canHire ? yen(DISPATCH_HIRE_COST) : ''}</small></button>
+        ${canFire ? `<button class="fire-btn" onclick="fireDispatch()">−</button>` : ''}
+        <button class="hire-btn${canHire ? '' : ' disabled'}" onclick="hireDispatch()">${cap === 0 ? '要営業' : atCap ? '上限' : '採用'}<br><small>${canHire ? yen(DISPATCH_HIRE_COST) : ''}</small></button>
       </div>
     </div>
-    ${contractHtml}
+    ${contractRows}
+    ${newContractHtml}
   `;
 }
+
+
 
 function _buildDeptRow(id) {
   const def      = DEPT_DEFS.find(d => d.id === id);
@@ -1959,28 +1973,28 @@ function renderDepts() {
   </div>`;
 
   // ソート対象の島（解放済みが上）
-  const staffingUnlocked = state.totalEarned >= 100000000 || (state.employees?.staffing || 0) > 0 || state.staffingOpened === true;
-  const dispatchUnlocked = state.totalEarned >= 300000000 || (state.dispatchCount || 0) > 0;
+  const staffingUnlocked = state.totalEarned >= 30000000 || (state.employees?.staffing || 0) > 0 || state.staffingOpened === true;
+  const dispatchUnlocked = state.totalEarned >= 60000000 || (state.dispatchCount || 0) > 0;
   const sortable = [
-    // 紹介事業部（累計1億で自動解放）
+    // 紹介事業部（累計3,000万で自動解放）
     {
-      score: staffingUnlocked ? (1e15 - 100000000) : -100000000,
+      score: staffingUnlocked ? (1e15 - 30000000) : -30000000,
       build: () => `<div class="dept-island island-staffing">
         <div class="island-hdr"><span class="island-icon">🤝</span><span>紹介事業部</span></div>
         ${staffingUnlocked
           ? _buildDeptRow('staffing') + MANAGER_DEFS.filter(m => m.island === 'staffing').map(m => _buildManagerCard(m)).join('')
-          : `<div class="island-row island-row-locked"><div class="dept-emoji" style="font-size:24px;opacity:0.4">🔒</div><div class="dept-info"><div class="dept-name" style="opacity:0.5">紹介事業部</div><div class="dept-unlock">累計売上 ${yen(100000000)} で自動解放</div></div></div>`
+          : `<div class="island-row island-row-locked"><div class="dept-emoji" style="font-size:24px;opacity:0.4">🔒</div><div class="dept-info"><div class="dept-name" style="opacity:0.5">紹介事業部</div><div class="dept-unlock">累計売上 ${yen(30000000)} で自動解放</div></div></div>`
         }
       </div>`,
     },
-    // 派遣事業部（累計3億で解放）
+    // 派遣事業部（累計6,000万で解放）
     {
-      score: dispatchUnlocked ? (1e15 - 300000000) : -300000000,
+      score: dispatchUnlocked ? (1e15 - 60000000) : -60000000,
       build: () => `<div class="dept-island island-dispatch">
         <div class="island-hdr"><span class="island-icon">🏭</span><span>派遣事業部</span></div>
         ${dispatchUnlocked
           ? _buildDispatchCard()
-          : `<div class="island-row island-row-locked"><div class="dept-emoji" style="font-size:24px;opacity:0.4">🔒</div><div class="dept-info"><div class="dept-name" style="opacity:0.5">派遣事業部</div><div class="dept-unlock">累計売上 ${yen(300000000)} で解放</div></div></div>`
+          : `<div class="island-row island-row-locked"><div class="dept-emoji" style="font-size:24px;opacity:0.4">🔒</div><div class="dept-info"><div class="dept-name" style="opacity:0.5">派遣事業部</div><div class="dept-unlock">累計売上 ${yen(60000000)} で解放</div></div></div>`
         }
       </div>`,
     },
@@ -2153,7 +2167,6 @@ function renderUpgrades() {
   const GROUPS = [
     { key: 'sales',      label: '💼 SES営業',       effectLabel: 'FL採用確率UP' },
     { key: 'freelancer', label: '👨‍💻 フリーランス',    effectLabel: 'FL単価UP' },
-    { key: 'hr',         label: '🎓 人材育成部',     effectLabel: 'HR効果UP' },
     { key: 'staffing',   label: '🤝 人材紹介営業',   effectLabel: '発掘・成約率UP' },
     { key: 'marketing',  label: '📣 マーケティング部', effectLabel: '採用率UP効果UP' },
     { key: 'finance',    label: '📊 財務部',         effectLabel: '収益UP' },
@@ -2352,6 +2365,34 @@ function renderLabor() {
            <button class="hire-btn${(state.reportHistory||[]).length >= 4 ? '' : ' disabled'}" onclick="applyBankReview()">審査を申請する</button>`
       }
     </div>
+
+    ${(() => {
+      const exp = calcMonthlyExpenses();
+      const rows = [
+        exp.rent          > 0 ? `<div class="expense-row"><span>🏢 事務所家賃</span><span>−${yen(exp.rent)}</span></div>` : '',
+        exp.utilities     > 0 ? `<div class="expense-row"><span>💡 水道光熱費</span><span>−${yen(exp.utilities)}</span></div>` : '',
+        exp.supplies      > 0 ? `<div class="expense-row"><span>📦 備品・消耗品</span><span>−${yen(exp.supplies)}</span></div>` : '',
+        exp.salesperson   > 0 ? `<div class="expense-row"><span>💼 SES営業 人件費＋社保</span><span>−${yen(exp.salesperson)}</span></div>` : '',
+        exp.staffingSalary > 0 ? `<div class="expense-row"><span>🤝 紹介営業 人件費＋社保</span><span>−${yen(exp.staffingSalary)}</span></div>` : '',
+        exp.marketingSalary > 0 ? `<div class="expense-row"><span>📣 マーケター 人件費＋社保</span><span>−${yen(exp.marketingSalary)}</span></div>` : '',
+        exp.ceoSalary     > 0 ? `<div class="expense-row"><span>🤵 社長報酬</span><span>−${yen(exp.ceoSalary)}</span></div>` : '',
+        exp.execSalary    > 0 ? `<div class="expense-row"><span>🤵 役員報酬</span><span>−${yen(exp.execSalary)}</span></div>` : '',
+        exp.mgrSalary     > 0 ? `<div class="expense-row"><span>👔 部門マネージャー 人件費＋社保</span><span>−${yen(exp.mgrSalary)}</span></div>` : '',
+        exp.financeSalary > 0 ? `<div class="expense-row"><span>📊 財務スタッフ 人件費＋社保</span><span>−${yen(exp.financeSalary)}</span></div>` : '',
+        exp.dispatchSalary > 0 ? `<div class="expense-row"><span>🏭 派遣スタッフ 給与＋社保</span><span>−${yen(exp.dispatchSalary)}</span></div>` : '',
+        exp.loanPay       > 0 ? `<div class="expense-row" style="color:#f87171"><span>🏦 ローン返済</span><span>−${yen(exp.loanPay)}</span></div>` : '',
+      ].join('');
+      return `
+    <div class="labor-section">
+      <div class="labor-section-title">📋 次回月次費用予測</div>
+      <div class="expense-preview">
+        ${rows || '<div class="expense-row" style="color:#94a3b8">費用なし</div>'}
+        <div class="expense-row" style="font-weight:700;border-top:1px solid #334155;margin-top:4px;padding-top:6px">
+          <span>合計</span><span style="color:#f87171">−${yen(exp.total)}</span>
+        </div>
+      </div>
+    </div>`;
+    })()}
 
     <div class="danger-zone">
       <button class="reset-btn" onclick="resetGame()">🗑️ データをリセット</button>
@@ -2598,7 +2639,7 @@ function ocvDeptIslands(ctx, mor) {
     { label: '営業部', col: 1, row: 0, total: state.employees['sales'] || 0 },
     { label: 'FL',     col: 2, row: 0, total: state.freelancers || 0 },
     { label: '財務部', col: 0, row: 1, total: state.employees['finance'] || 0 },
-    { label: '人材育成', col: 1, row: 1, total: state.employees['hr'] || 0 },
+    { label: '派遣', col: 1, row: 1, total: state.dispatchCount || 0 },
     { label: 'GBL',    col: 2, row: 1, total: state.employees['global'] || 0 },
   ];
 
@@ -3265,8 +3306,7 @@ function gameLoop(ts) {
           // 損金積算（家賃・全給与・社長報酬）
           state.periodDeductible = (state.periodDeductible || 0)
             + (monthlyExp.rent || 0) + (monthlyExp.utilities || 0) + (monthlyExp.supplies || 0)
-            + (monthlyExp.salesperson || 0) + (monthlyExp.hrSalary || 0)
-            + (monthlyExp.staffingSalary || 0) + (monthlyExp.marketingSalary || 0)
+            + (monthlyExp.salesperson || 0) + (monthlyExp.staffingSalary || 0) + (monthlyExp.marketingSalary || 0)
             + (monthlyExp.ceoSalary || 0) + (monthlyExp.execSalary || 0);
         }
       }
@@ -3439,27 +3479,34 @@ function gameLoop(ts) {
       // 派遣事業部 週次処理
       let weeklyDispatchGross = 0;
 
-      // 受託開発 完了チェック
-      if (state.contractDev) {
-        const weeksElapsed = currentWeekNum - state.contractDev.startWeek;
-        if (weeksElapsed >= state.contractDev.durationWeeks) {
-          const months  = state.contractDev.durationWeeks / 4;
-          const lump    = Math.round(DISPATCH_MONTHLY_SALARY * CONTRACT_WORKERS * state.contractDev.mult * months);
-          state.money       += lump;
-          state.totalEarned += lump;
-          state.periodEarned = (state.periodEarned || 0) + lump;
-          state.deptRevenue['dispatch'] = (state.deptRevenue['dispatch'] || 0) + lump;
-          weeklyDispatchGross += lump;
-          weeklyLog.push({ emoji: '🎉', text: `受託開発完了！${state.contractDev.durationWeeks}週プロジェクト 売上 ${yen(lump)} 一括計上` });
-          state.contractDev = null;
+      // 受託開発 完了チェック（配列を後ろから削除）
+      {
+        const completedIdx = [];
+        (state.contractDev || []).forEach((c, i) => {
+          const weeksElapsed = currentWeekNum - c.startWeek;
+          if (weeksElapsed >= c.durationWeeks) {
+            const months = c.durationWeeks / 4;
+            const lump   = Math.round(DISPATCH_MONTHLY_SALARY * CONTRACT_WORKERS * c.mult * months);
+            state.money       += lump;
+            state.totalEarned += lump;
+            state.periodEarned = (state.periodEarned || 0) + lump;
+            state.deptRevenue['dispatch'] = (state.deptRevenue['dispatch'] || 0) + lump;
+            weeklyDispatchGross += lump;
+            const label = c.type === 'large' ? '大型' : '小型';
+            weeklyLog.push({ emoji: '🎉', text: `${label}受託完了！${c.durationWeeks}週 売上 ${yen(lump)} 一括計上` });
+            completedIdx.push(i);
+          }
+        });
+        if (completedIdx.length > 0) {
+          state.contractDev = state.contractDev.filter((_, i) => !completedIdx.includes(i));
           renderDepts();
         }
       }
 
-      // 3. 派遣スタッフ通常収益 & 離脱チェック
+      // 派遣スタッフ通常収益 & 離脱チェック
       const dispatchCountNow = state.dispatchCount || 0;
       if (dispatchCountNow > 0) {
-        const contractLocked = state.contractDev ? Math.min(CONTRACT_WORKERS, dispatchCountNow) : 0;
+        const contractLocked = Math.min((state.contractDev?.length || 0) * CONTRACT_WORKERS, dispatchCountNow);
         const freeWorkers    = dispatchCountNow - contractLocked;
         // 離脱はフリースタッフのみ
         if (freeWorkers > 0) {
