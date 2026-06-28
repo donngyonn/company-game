@@ -15,7 +15,7 @@ const YEAR_MONTHS  = 12;   // 1期 = 12ヶ月
 const YEAR_WEEKS   = MONTH_WEEKS * YEAR_MONTHS;  // 48週
 const EXPENSE_WEEK = MONTH_WEEKS; // 毎月末（4週ごと）に引き落とし
 
-const LOAN_RATE = 1.05;  // 借入利率（元本×5%一括、12回均等返済）
+const LOAN_FEE_RATE = 0.03;  // 借入手数料（即時3%）
 
 // ---- 事務所レベル ----
 // level 0 = 事務所なし（初期状態）
@@ -71,7 +71,7 @@ const DEPT_DEFS = [
     desc: '単価交渉・CF管理で全体収益UP（＋8%/人）。月給90万＋社保15%。',
     incomePerSec: 0, marginRate: null, salaryLabel: '人件費',
     monthlySalary: 900000, insuranceRate: 0.15,
-    baseCost: 50000000, costMult: 1.20, unlockAt: 100000000,
+    baseCost: 3800000, costMult: 1.20, unlockAt: 100000000,
     special: 'multiplier', specialValue: 0.08,
   },
   {
@@ -1203,20 +1203,32 @@ function toggleExecSetting(execId, key, val) {
 
 // ---- 銀行借入 ----
 
+// { amount, months, monthlyRate, label }
 const LOAN_OPTIONS = [
-  { amount: 1000000   },
-  { amount: 5000000   },
-  { amount: 20000000  },
-  { amount: 100000000 },
-  { amount: 500000000 },
+  { amount: 3000000,   months: 12, monthlyRate: 0.025, label: '小口融資' },
+  { amount: 30000000,  months: 24, monthlyRate: 0.04,  label: '中口融資' },
+  { amount: 200000000, months: 36, monthlyRate: 0.06,  label: '大口融資' },
 ];
 
-function takeLoan(amount) {
-  const totalRepay     = Math.ceil(amount * LOAN_RATE);
-  const monthlyPayment = Math.ceil(totalRepay / 12);
-  state.loans.push({ id: Date.now(), remaining: totalRepay, monthlyPayment });
-  state.money += amount;
-  showToast(`🏦 ${yen(amount)}の融資実行！月次返済${yen(monthlyPayment)}×12回`);
+function takeLoan(amount, months, monthlyRate) {
+  const fee = Math.ceil(amount * LOAN_FEE_RATE);
+  const interest = Math.ceil(amount * monthlyRate * months);
+  const totalRepay = amount + interest;
+  const monthlyPayment = Math.ceil(totalRepay / months);
+  state.loans.push({ id: Date.now(), remaining: totalRepay, monthlyPayment, months, monthlyRate });
+  state.money += amount - fee;
+  showToast(`🏦 ${yen(amount)}融資実行！手数料${yen(fee)}差引　月返済${yen(monthlyPayment)}×${months}回`);
+  renderBank();
+  renderHeader();
+}
+
+function repayLoanFull(loanId) {
+  const loan = state.loans.find(l => l.id === loanId);
+  if (!loan) return;
+  if (state.money < loan.remaining) { showToast('⚠️ 残高不足で一括返済できません'); return; }
+  state.money -= loan.remaining;
+  state.loans = state.loans.filter(l => l.id !== loanId);
+  showToast(`✅ ${yen(loan.remaining)} 一括返済完了！`);
   renderBank();
   renderHeader();
 }
@@ -1244,17 +1256,22 @@ function renderBank() {
   const loanListHtml = state.loans.length > 0
     ? state.loans.map(l => `
         <div class="loan-item">
-          <div><span class="loan-remaining">残 ${yen(l.remaining)}</span></div>
-          <div class="loan-monthly">月返済 ${yen(l.monthlyPayment)}</div>
+          <div>
+            <span class="loan-remaining">残 ${yen(l.remaining)}</span>
+            <span style="font-size:10px;color:#94a3b8;margin-left:6px">月${yen(l.monthlyPayment)}</span>
+          </div>
+          <button class="hire-btn" onclick="repayLoanFull(${l.id})" style="font-size:10px;padding:4px 8px;flex-shrink:0">一括返済</button>
         </div>`).join('')
     : '<p class="no-loan">現在ローンなし</p>';
 
   const loanBtnsHtml = LOAN_OPTIONS.map(opt => {
-    const repay   = Math.ceil(opt.amount * LOAN_RATE);
-    const monthly = Math.ceil(repay / 12);
-    return `<button class="loan-btn" onclick="takeLoan(${opt.amount})">
-      <span class="loan-amount">${yen(opt.amount)}</span>
-      <div class="loan-detail">利率5% · 月返済 ${yen(monthly)} × 12回</div>
+    const fee     = Math.ceil(opt.amount * LOAN_FEE_RATE);
+    const interest = Math.ceil(opt.amount * opt.monthlyRate * opt.months);
+    const monthly = Math.ceil((opt.amount + interest) / opt.months);
+    const rateLabel = (opt.monthlyRate * 100).toFixed(1);
+    return `<button class="loan-btn" onclick="takeLoan(${opt.amount},${opt.months},${opt.monthlyRate})">
+      <span class="loan-amount">${opt.label} ${yen(opt.amount)}</span>
+      <div class="loan-detail">月利${rateLabel}% · ${opt.months}回払 · 月${yen(monthly)} · 手数料${yen(fee)}</div>
     </button>`;
   }).join('');
 
@@ -1972,68 +1989,45 @@ function renderDepts() {
     ${MANAGER_DEFS.filter(m => m.island === 'ses').map(m => _buildManagerCard(m)).join('')}
   </div>`;
 
-  // ソート対象の島（解放済みが上）
+  // 固定表示順（SES → 紹介 → 派遣 → 財務 → マーケ → グローバル）
   const staffingUnlocked = state.totalEarned >= 30000000 || (state.employees?.staffing || 0) > 0 || state.staffingOpened === true;
   const dispatchUnlocked = state.totalEarned >= 60000000 || (state.dispatchCount || 0) > 0;
-  const sortable = [
-    // 紹介事業部（累計3,000万で自動解放）
-    {
-      score: staffingUnlocked ? (1e15 - 30000000) : -30000000,
-      build: () => `<div class="dept-island island-staffing">
-        <div class="island-hdr"><span class="island-icon">🤝</span><span>紹介事業部</span></div>
-        ${staffingUnlocked
-          ? _buildDeptRow('staffing') + MANAGER_DEFS.filter(m => m.island === 'staffing').map(m => _buildManagerCard(m)).join('')
-          : `<div class="island-row island-row-locked"><div class="dept-emoji" style="font-size:24px;opacity:0.4">🔒</div><div class="dept-info"><div class="dept-name" style="opacity:0.5">紹介事業部</div><div class="dept-unlock">累計売上 ${yen(30000000)} で自動解放</div></div></div>`
-        }
-      </div>`,
-    },
-    // 派遣事業部（累計6,000万で解放）
-    {
-      score: dispatchUnlocked ? (1e15 - 60000000) : -60000000,
-      build: () => `<div class="dept-island island-dispatch">
-        <div class="island-hdr"><span class="island-icon">🏭</span><span>派遣事業部</span></div>
-        ${dispatchUnlocked
-          ? _buildDispatchCard()
-          : `<div class="island-row island-row-locked"><div class="dept-emoji" style="font-size:24px;opacity:0.4">🔒</div><div class="dept-info"><div class="dept-name" style="opacity:0.5">派遣事業部</div><div class="dept-unlock">累計売上 ${yen(60000000)} で解放</div></div></div>`
-        }
-      </div>`,
-    },
-    // 役員室
-    {
-      score: _execIslandScore(),
-      build: () => `<div class="dept-island island-exec">
-        <div class="island-hdr"><span class="island-icon">🏛️</span><span>役員室</span></div>
-        ${EXEC_DEFS.map(e => _buildExecCard(e)).join('')}
-      </div>`,
-    },
-    // マーケティング部（累計5億で解放）
-    {
-      score: _deptUnlockScore('marketing'),
-      build: () => `<div class="dept-island island-marketing">
-        <div class="island-hdr"><span class="island-icon">📣</span><span>マーケティング部</span></div>
-        ${_buildDeptRow('marketing')}
-      </div>`,
-    },
-    // 財務部
-    {
-      score: _deptUnlockScore('finance'),
-      build: () => `<div class="dept-island island-finance">
-        <div class="island-hdr"><span class="island-icon">💹</span><span>財務部</span></div>
-        ${_buildDeptRow('finance')}
-      </div>`,
-    },
-    // グローバル部
-    {
-      score: _deptUnlockScore('global'),
-      build: () => `<div class="dept-island island-global">
-        <div class="island-hdr"><span class="island-icon">🌐</span><span>グローバル部</span></div>
-        ${_buildDeptRow('global')}
-      </div>`,
-    },
-  ];
 
-  sortable.sort((a, b) => b.score - a.score);
-  sortable.forEach(s => { html += s.build(); });
+  // 紹介事業部
+  html += `<div class="dept-island island-staffing">
+    <div class="island-hdr"><span class="island-icon">🤝</span><span>人材紹介事業部</span></div>
+    ${staffingUnlocked
+      ? _buildDeptRow('staffing') + MANAGER_DEFS.filter(m => m.island === 'staffing').map(m => _buildManagerCard(m)).join('')
+      : `<div class="island-row island-row-locked"><div class="dept-emoji" style="font-size:24px;opacity:0.4">🔒</div><div class="dept-info"><div class="dept-name" style="opacity:0.5">人材紹介事業部</div><div class="dept-unlock">累計売上 ${yen(30000000)} で自動解放</div></div></div>`
+    }
+  </div>`;
+
+  // 派遣事業部
+  html += `<div class="dept-island island-dispatch">
+    <div class="island-hdr"><span class="island-icon">🏭</span><span>派遣事業部</span></div>
+    ${dispatchUnlocked
+      ? _buildDispatchCard()
+      : `<div class="island-row island-row-locked"><div class="dept-emoji" style="font-size:24px;opacity:0.4">🔒</div><div class="dept-info"><div class="dept-name" style="opacity:0.5">派遣事業部</div><div class="dept-unlock">累計売上 ${yen(60000000)} で解放</div></div></div>`
+    }
+  </div>`;
+
+  // 財務部
+  html += `<div class="dept-island island-finance">
+    <div class="island-hdr"><span class="island-icon">💹</span><span>財務部</span></div>
+    ${_buildDeptRow('finance')}
+  </div>`;
+
+  // マーケティング部
+  html += `<div class="dept-island island-marketing">
+    <div class="island-hdr"><span class="island-icon">📣</span><span>マーケティング部</span></div>
+    ${_buildDeptRow('marketing')}
+  </div>`;
+
+  // グローバル部
+  html += `<div class="dept-island island-global">
+    <div class="island-hdr"><span class="island-icon">🌐</span><span>グローバル部</span></div>
+    ${_buildDeptRow('global')}
+  </div>`;
 
   container.innerHTML = html;
 }
@@ -2284,10 +2278,14 @@ function renderLabor() {
   </tr>` : '';
 
   document.getElementById('labor-content').innerHTML = `
-    <div class="labor-section">
-      <div class="labor-section-title">🤵 社長報酬設定</div>
-      <div class="labor-ceo-current">現在: <strong>${yen(ceoSalary)}/月</strong>　次回月末経費に反映</div>
-      <div class="salary-btn-group">${salaryBtns}</div>
+    <div class="dept-island island-exec" style="margin-bottom:12px">
+      <div class="island-hdr"><span class="island-icon">🏛️</span><span>役員室</span></div>
+      <div style="padding:10px 12px 4px">
+        <div class="labor-section-title" style="margin-bottom:6px">🤵 社長報酬設定</div>
+        <div class="labor-ceo-current">現在: <strong>${yen(ceoSalary)}/月</strong>　次回月末経費に反映</div>
+        <div class="salary-btn-group">${salaryBtns}</div>
+      </div>
+      ${EXEC_DEFS.map(e => _buildExecCard(e)).join('')}
     </div>
 
     <div class="stats-grid">
@@ -3131,19 +3129,40 @@ function renderOfficeScene() {
   const m = state.morale || { ceo:90, employee:90, freelance:90 };
   const mor = Math.round((m.ceo + m.employee + m.freelance) / 3);
 
-  const wEl = document.getElementById('hs-weekly');
-  const fEl = document.getElementById('hs-fl');
-  const sEl = document.getElementById('hs-sales');
-  const mEl = document.getElementById('hs-morale');
-  const pEl = document.getElementById('hs-staffing-count');
-  if (wEl) wEl.textContent = yen(getDisplayWeeklyIncome());
-  if (fEl) fEl.textContent = (state.freelancers || 0) + '名';
-  if (sEl) sEl.textContent = (state.employees['sales'] || 0) + '人';
-  if (mEl) {
-    mEl.textContent = mor;
-    mEl.className = 'hs-val ' + (mor >= 80 ? 'green' : mor >= 55 ? 'amber' : 'red');
+  const statsEl = document.getElementById('hero-stats');
+  if (statsEl) {
+    const fl            = state.freelancers || 0;
+    const activeFL      = getFlActiveCount();
+    const salesCount    = state.employees['sales'] || 0;
+    const staffingCount = state.employees['staffing'] || 0;
+    const dispatchCount = state.dispatchCount || 0;
+    const contractCount = (state.contractDev || []).length;
+    const staffingUnlocked = state.totalEarned >= 30000000 || staffingCount > 0 || state.staffingOpened === true;
+    const dispatchUnlocked = state.totalEarned >= 60000000 || dispatchCount > 0;
+    const morClass = mor >= 80 ? 'green' : mor >= 55 ? 'amber' : 'red';
+
+    let rows = `<div class="hs-row">
+      <span class="hs-dept">💼 SES</span>
+      <span class="hs-kpi">FL <b>${fl}</b>名${activeFL !== fl ? `<span style="font-size:9px;color:#60a5fa">稼働${activeFL}</span>` : ''}</span>
+      <span class="hs-kpi">営業 <b>${salesCount}</b>名</span>
+      <span class="hs-kpi ${morClass}">士気 <b>${mor}</b></span>
+    </div>`;
+    if (staffingUnlocked) {
+      rows += `<div class="hs-row">
+        <span class="hs-dept">🤝 紹介</span>
+        <span class="hs-kpi">スタッフ <b>${staffingCount}</b>名</span>
+        <span class="hs-kpi">今期 <b>${state.periodStaffingPlacements || 0}</b>件</span>
+      </div>`;
+    }
+    if (dispatchUnlocked) {
+      rows += `<div class="hs-row">
+        <span class="hs-dept">🏭 派遣</span>
+        <span class="hs-kpi">スタッフ <b>${dispatchCount}</b>名</span>
+        ${contractCount > 0 ? `<span class="hs-kpi">案件 <b>${contractCount}</b>件</span>` : ''}
+      </div>`;
+    }
+    statsEl.innerHTML = rows;
   }
-  if (pEl) pEl.textContent = (state.periodStaffingPlacements || 0) + '件';
 
   const descEl = document.getElementById('office-desc');
   if (!descEl) return;
