@@ -3507,7 +3507,7 @@ function gameLoop(ts) {
         const empMor     = state.morale.employee  || 90;
         const empPenalty = Math.max(0, (90 - empMor) * 0.001);
         const mgrQuitR   = (state.managers?.mgr_ses || 0) * 0.005;
-        const quitRate   = Math.min(0.55, Math.max(0, 0.02 + (100 - flFavor) * 0.002 + empPenalty - mgrQuitR));
+        const quitRate   = Math.min(0.55, Math.max(0, 0.04 + (100 - flFavor) * 0.002 + empPenalty - mgrQuitR));
         for (let i = state.flData.length - 1; i >= 0; i--) {
           if (Math.random() < quitRate) {
             state.flData.splice(i, 1);
