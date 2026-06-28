@@ -53,7 +53,15 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2px;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.speed-btns {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
 }
 
 #company-stage {
@@ -74,8 +82,15 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+#header-money {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 2px;
+}
+
 #money-display {
-  font-size: 36px;
+  font-size: 30px;
   font-weight: 900;
   color: #fff;
   line-height: 1.05;
@@ -89,17 +104,14 @@ body {
   font-size: 13px;
   font-weight: 600;
   color: var(--green);
-  margin-top: 0px;
   letter-spacing: 0.3px;
   text-shadow: 0 0 8px rgba(57,217,127,0.4);
 }
 
 #header-sub {
   display: flex;
-  gap: 16px;
-  margin-top: 3px;
-  padding-top: 3px;
-  border-top: 1px solid rgba(255,255,255,0.04);
+  gap: 14px;
+  margin-bottom: 4px;
 }
 
 #total-earned {
@@ -114,13 +126,7 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-.speed-wrap {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  margin-top: 6px;
-  margin-bottom: 2px;
-}
+.speed-wrap { display: none; } /* 旧クラス・非表示 */
 
 .speed-btn {
   background: rgba(255,255,255,0.04);
@@ -146,12 +152,12 @@ body {
 }
 
 .week-bar-wrap {
-  height: 4px;
+  height: 3px;
   background: rgba(255,255,255,0.06);
   border-radius: 2px;
   overflow: hidden;
-  align-self: center;
-  flex: 1;
+  margin-top: 3px;
+  margin-bottom: 3px;
 }
 
 #week-progress {
@@ -162,19 +168,18 @@ body {
   box-shadow: 0 0 6px rgba(56,200,232,0.5);
 }
 
-.report-toggle-wrap {
-  margin-top: 4px;
-  margin-bottom: 2px;
-}
+.report-toggle-wrap { display: none; } /* 旧クラス */
 
 .report-toggle-label {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   cursor: pointer;
-  font-size: 10px;
+  font-size: 9px;
   color: var(--dim);
   user-select: none;
+  margin-top: 4px;
+  opacity: 0.6;
 }
 
 .report-toggle-label input[type="checkbox"] {
@@ -244,12 +249,10 @@ body {
 #hero-stats {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 5px;
+  gap: 4px;
   position: relative;
   z-index: 2;
-  margin-top: 6px;
-  padding-top: 6px;
-  border-top: 1px solid rgba(255,255,255,0.07);
+  margin-top: 4px;
 }
 
 .hero-stat {
