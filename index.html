@@ -67,11 +67,6 @@
         <div class="hs-val green" id="hs-weekly">¥0</div>
       </div>
     </div>
-    <!-- レポート非表示トグル（コンパクト） -->
-    <label class="report-toggle-label">
-      <input type="checkbox" id="hide-weekly-report" onchange="toggleWeeklyReport(this.checked)">
-      <span>週次レポート非表示</span>
-    </label>
   </header>
 
   <!-- ヒーローダッシュボード -->
@@ -81,6 +76,18 @@
       <div id="ov-fx"></div>
     </div>
     <div id="office-desc">資本金 ¥10,000,000。個人事業主として客先常駐で稼ごう！</div>
+  </div>
+
+  <!-- レポートトグルバー -->
+  <div class="report-toggle-bar">
+    <label class="report-toggle-label">
+      <input type="checkbox" id="hide-weekly-report" onchange="toggleWeeklyReport(this.checked)">
+      <span>週次レポート非表示</span>
+    </label>
+    <label class="report-toggle-label">
+      <input type="checkbox" id="auto-close-report" checked onchange="toggleAutoClose(this.checked)">
+      <span>レポート自動閉じ</span>
+    </label>
   </div>
 
   <!-- タブナビ -->
