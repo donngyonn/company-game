@@ -1074,6 +1074,50 @@ body {
 .loan-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .loan-amount { font-size: 16px; font-weight: 700; color: var(--green); }
 .loan-detail { font-size: 11px; color: var(--dim); margin-top: 2px; text-align: right; }
+
+/* 証券取引所 */
+.stock-card {
+  background: #0f172a;
+  border: 1px solid #1e3a5f;
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+}
+.stock-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.stock-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #e2e8f0;
+  flex: 1;
+}
+.stock-type-badge {
+  font-size: 9px;
+  color: #64748b;
+  background: #1e293b;
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+.stock-price {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--cyan);
+  font-variant-numeric: tabular-nums;
+}
+.stock-hold {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-bottom: 6px;
+}
+.stock-btns {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
 .expense-preview {
   background: #1a1a35;
   border: 1px solid var(--border);
