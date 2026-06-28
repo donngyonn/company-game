@@ -173,8 +173,8 @@ body {
 .report-toggle-bar {
   display: flex;
   gap: 14px;
-  padding: 5px 16px;
-  background: rgba(9,9,26,0.97);
+  padding: 6px 16px;
+  background: rgba(9,9,26,0.95);
   border-bottom: 1px solid var(--border);
 }
 
@@ -327,17 +327,12 @@ body {
 /* ---- タブナビ ---- */
 #tab-nav {
   display: flex;
-  flex-direction: column;
   background: rgba(9,9,26,0.97);
   backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--border);
   position: sticky;
-  top: 210px;
+  top: 210px; /* syncNavTop() でJS上書き */
   z-index: 150;
-}
-
-.tab-btn-row {
-  display: flex;
 }
 
 .tab-btn {
