@@ -112,12 +112,13 @@ const EXEC_DEFS = [
     name: '営業部役員',
     emoji: '🤵',
     role: '営業最適化担当',
-    desc: 'モラール向上アクションの自動購入（週2回まで）・営業人数の自動最適化。各機能はON/OFF可能。',
+    desc: 'モラール向上アクションの自動購入（週2回まで）・営業人数の自動最適化・強化の自動購入（週1件・安い順）。各機能はON/OFF可能。',
     cost: 5000000,
     unlockAt: 10000000,
     actions: [
-      { key: 'autoMorale', label: 'モラール自動最適化（週2アクション）', defaultOn: true },
-      { key: 'autoSales',  label: '営業人数自動最適化', defaultOn: true },
+      { key: 'autoMorale',  label: 'モラール自動最適化（週2アクション）', defaultOn: true },
+      { key: 'autoSales',   label: '営業人数自動最適化', defaultOn: true },
+      { key: 'autoUpgrade', label: '強化の自動購入（週1件・安い順）', defaultOn: true },
     ],
   },
   {
@@ -1258,44 +1259,33 @@ function renderBank() {
 // ---- 交流タブ（精神状況） ----
 
 const EXCHANGE_ACTIONS = [
-  // ---- 社長（固定費用・gain比例） ----
-  { id: 'ex_ceo_golf',   group: 'ceo', name: '⛳ ゴルフ接待',         desc: 'ゴルフで人脈強化。社長がリフレッシュ。',            cost: () => Math.max(30000,  getTotalIncome() * 30),  targets: ['ceo'],            gain: 5,  color: '#86efac' },
-  { id: 'ex_ceo_round',  group: 'ceo', name: '☕ 社長懇談会',         desc: '社長が社員と直接対話。社長・社員の好感度UP',        cost: () => Math.max(60000,  getTotalIncome() * 60),  targets: ['ceo','employee'], gain: 8,  color: '#a78bfa' },
-  { id: 'ex_ceo_onsen',  group: 'ceo', name: '♨️ 経営合宿（温泉地）', desc: '温泉地で経営の振り返り。社長のモラールが大幅回復。',  cost: () => Math.max(100000, getTotalIncome() * 100), targets: ['ceo'],            gain: 12, color: '#7dd3fc' },
-  { id: 'ex_ceo_mentor', group: 'ceo', name: '🎙️ 経営メンター面談',   desc: '著名な経営者から助言。社長の士気が高まる。',         cost: () => Math.max(150000, getTotalIncome() * 150), targets: ['ceo'],            gain: 16, color: '#c084fc' },
-  { id: 'ex_client',     group: 'ceo', name: '🥂 クライアント接待',   desc: '得意先を接待し商談を深める。社長の好感度が大幅UP',   cost: () => Math.max(200000, getTotalIncome() * 200), targets: ['ceo'],            gain: 20, color: '#fbbf24' },
-  { id: 'ex_ceo_media',  group: 'ceo', name: '📺 メディア取材対応',   desc: '経済誌に掲載。自社PRと社長の達成感がUP。',          cost: () => Math.max(300000, getTotalIncome() * 300), targets: ['ceo'],            gain: 25, color: '#f97316' },
+  // ---- 社長 ----
+  { id: 'ex_ceo_round',  group: 'ceo', name: '☕ 社長懇談会',         desc: '社長が社員と直接対話。社長・社員の好感度UP',        cost: () => Math.max(150000,  getTotalIncome() * 120), targets: ['ceo','employee'], gain: 4,  color: '#a78bfa' },
+  { id: 'ex_ceo_onsen',  group: 'ceo', name: '♨️ 経営合宿（温泉地）', desc: '温泉地で経営の振り返り。社長のモラールが大幅回復。',  cost: () => Math.max(400000,  getTotalIncome() * 300), targets: ['ceo'],            gain: 7,  color: '#7dd3fc' },
+  { id: 'ex_ceo_media',  group: 'ceo', name: '📺 メディア取材対応',   desc: '経済誌に掲載。自社PRと社長の達成感がUP。',          cost: () => Math.max(1000000, getTotalIncome() * 700), targets: ['ceo'],            gain: 12, color: '#f97316' },
   // ---- 社員（社員1人あたりの費用） ----
   { id: 'ex_seminar', group: 'employee', name: '📚 研修・セミナー開催', desc: '社員のスキルアップと充実感を高める',
     perHead: () => Math.max(1, getEmployeeCount()),
-    cost: () => Math.max(3000,  getTotalIncome() * 3)  * Math.max(1, getEmployeeCount()),
-    targets: ['employee'], gain: 8, color: '#60a5fa' },
+    cost: () => Math.max(10000,  getTotalIncome() * 8)  * Math.max(1, getEmployeeCount()),
+    targets: ['employee'], gain: 4, color: '#60a5fa' },
   { id: 'ex_bonus', group: 'employee', name: '💴 特別ボーナス支給', desc: '社員・FLへの臨時ボーナスで大幅改善',
     perHead: () => Math.max(1, getEmployeeCount() + (state.freelancers||0)),
-    cost: () => Math.max(15000, getTotalIncome() * 15) * Math.max(1, getEmployeeCount() + (state.freelancers||0)),
-    targets: ['employee','freelance'], gain: 20, color: '#ec4899' },
+    cost: () => Math.max(50000, getTotalIncome() * 40) * Math.max(1, getEmployeeCount() + (state.freelancers||0)),
+    targets: ['employee','freelance'], gain: 10, color: '#ec4899' },
   // ---- 全体（社員+FL 1人あたりの費用） ----
   { id: 'ex_party', group: 'all', name: '🍻 社内交流会', desc: '社員・FLの好感度を上げる懇親会',
     perHead: () => Math.max(1, getEmployeeCount() + (state.freelancers||0)),
-    cost: () => Math.max(1000,  getTotalIncome() * 1)  * Math.max(1, getEmployeeCount() + (state.freelancers||0)),
-    targets: ['employee','freelance'], gain: 5, color: '#4ade80' },
-  { id: 'ex_retreat', group: 'all', name: '🏔️ 合宿・チームビルディング', desc: '全員参加の泊まり込み合宿。全好感度UP',
-    perHead: () => Math.max(1, getEmployeeCount() + (state.freelancers||0)),
-    cost: () => Math.max(8000,  getTotalIncome() * 8)  * Math.max(1, getEmployeeCount() + (state.freelancers||0)),
-    targets: ['ceo','employee','freelance'], gain: 12, color: '#f97316' },
+    cost: () => Math.max(3000,  getTotalIncome() * 3)  * Math.max(1, getEmployeeCount() + (state.freelancers||0)),
+    targets: ['employee','freelance'], gain: 2, color: '#4ade80' },
   // ---- FL（FL1人あたりの費用） ----
-  { id: 'ex_fl_lunch', group: 'fl', name: '🍱 FL懇親ランチ', desc: 'FLと昼食をともにする。FL好感度UP',
+  { id: 'ex_fl_visit', group: 'fl', name: '🏢 FL常駐先への差し入れ', desc: '常駐先へ差し入れ訪問。FL好感度UP',
     perHead: () => Math.max(1, state.freelancers||0),
-    cost: () => Math.max(500,  getTotalIncome() * 0.5) * Math.max(1, state.freelancers||0),
-    targets: ['freelance'], gain: 6,  color: '#93c5fd' },
-  { id: 'ex_fl_visit', group: 'fl', name: '🏢 FL常駐先への差し入れ', desc: '常駐先へ差し入れ訪問。FL好感度が大幅UP',
-    perHead: () => Math.max(1, state.freelancers||0),
-    cost: () => Math.max(2000, getTotalIncome() * 2)   * Math.max(1, state.freelancers||0),
-    targets: ['freelance'], gain: 12, color: '#7dd3fc' },
+    cost: () => Math.max(5000, getTotalIncome() * 6)   * Math.max(1, state.freelancers||0),
+    targets: ['freelance'], gain: 6, color: '#7dd3fc' },
   { id: 'ex_fl_event', group: 'fl', name: '🎉 FL専用交流イベント', desc: 'FL限定の感謝イベント。離脱率が激減',
     perHead: () => Math.max(1, state.freelancers||0),
-    cost: () => Math.max(8000, getTotalIncome() * 8)   * Math.max(1, state.freelancers||0),
-    targets: ['freelance'], gain: 22, color: '#a78bfa' },
+    cost: () => Math.max(20000, getTotalIncome() * 20) * Math.max(1, state.freelancers||0),
+    targets: ['freelance'], gain: 12, color: '#a78bfa' },
 ];
 
 function doExchangeAction(actionId) {
@@ -3223,7 +3213,7 @@ function gameLoop(ts) {
       const ceoMorBefore = state.morale.ceo || 90;
       const empMorBefore = state.morale.employee || 90;
       const flMorBefore  = state.morale.freelance || 90;
-      const baseDecay    = 3;
+      const baseDecay    = 1;
       const extraDecay   = Math.max(0, Math.floor((90 - ceoMorBefore) / 15));
       state.morale.ceo      = Math.max(10, ceoMorBefore - baseDecay);
       state.morale.employee = Math.max(10, empMorBefore - baseDecay - extraDecay);
@@ -3319,6 +3309,24 @@ function gameLoop(ts) {
               state.employees['sales'] = curSales + 1;
               state.deptCost['sales'] = (state.deptCost['sales'] || 0) + hireCost;
               weeklyLog.push({ emoji: '👔', text: `営業部役員が営業1名を自動採用（計${state.employees['sales']}名）` });
+            }
+          }
+        }
+        // 強化自動購入（安い順に週1件・所持金の50%以上残す）
+        if (eSettings.autoUpgrade !== false) {
+          const available = UPGRADE_DEFS.filter(def => {
+            if (state.upgrades?.[def.id]) return false;
+            return Object.entries(def.req || {}).every(([k, v]) => (state.employees?.[k] || 0) >= v);
+          }).sort((a, b) => a.cost - b.cost);
+          if (available.length > 0) {
+            const upg = available[0];
+            if (state.money >= upg.cost * 2) {
+              state.money -= upg.cost;
+              const currentWeek2 = Math.floor(state.elapsedSeconds / WEEK_SEC);
+              state.upgrades[upg.id] = { week: currentWeek2 };
+              state.deptCost[upg.dept] = (state.deptCost[upg.dept] || 0) + upg.cost;
+              recalcMults();
+              weeklyLog.push({ emoji: '⬆️', text: `営業部役員が「${upg.name}」を自動購入（${yen(upg.cost)}）` });
             }
           }
         }
