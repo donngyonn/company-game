@@ -2987,19 +2987,22 @@ function gameLoop(ts) {
         weeklyLog.push({ emoji: '📋', text: `FL採用なし（採用確率 ${(recruitChance * 100).toFixed(0)}%）${sesSsnLabel ? ' ' + sesSsnLabel : ''}` });
       }
 
-      // FL 自動離脱チェック（モラール連動・ニュースとは独立）
+      // FL 自動離脱チェック（全体プールに対する割合で計算）
       let lostFL = 0;
       if (state.flData.length > 0) {
-        const flFavor  = state.morale.freelance || 90;
-        const empMor   = state.morale.employee  || 90;
-        const empPenalty = Math.max(0, (90 - empMor) * 0.001);  // 社員モラール90未満で離職率増加
-        const quitRate = Math.min(0.55, 0.02 + (100 - flFavor) * 0.002 + empPenalty);
-        for (let i = state.flData.length - 1; i >= 0; i--) {
-          if (Math.random() < quitRate) { state.flData.splice(i, 1); lostFL++; }
+        const flFavor    = state.morale.freelance || 90;
+        const empMor     = state.morale.employee  || 90;
+        const empPenalty = Math.max(0, (90 - empMor) * 0.001);
+        const quitRate   = Math.min(0.55, 0.02 + (100 - flFavor) * 0.002 + empPenalty);
+        // 個別判定ではなくプール全体に対する期待値で計算（表示%と体感を一致させる）
+        const expected = state.flData.length * quitRate;
+        lostFL = Math.floor(expected) + (Math.random() < (expected % 1) ? 1 : 0);
+        if (lostFL > 0) {
+          state.flData.splice(-lostFL, lostFL);
         }
         state.freelancers = state.flData.length;
         if (lostFL > 0) {
-          weeklyLog.push({ emoji: '😞', text: `FL ${lostFL}名が離脱（在籍 ${state.freelancers}名・離脱率 ${(quitRate * 100).toFixed(0)}%）`, bad: true });
+          weeklyLog.push({ emoji: '😞', text: `FL ${lostFL}名が離脱（在籍 ${state.freelancers}名・離脱率 ${(quitRate * 100).toFixed(1)}%）`, bad: true });
         }
       }
 
@@ -3096,20 +3099,20 @@ setInterval(save, 5000);
 // ==================== BGM ====================
 // フェーズ別のスケール・メロディ・パッドを定義
 const BGM_DEF = [
-  // 0: 個人事業 - ソロカフェ (C pentatonic, 72bpm)
-  { bpm:72,  root:261.63, scale:[0,2,4,7,9,12],    mel:[0,2,1,3,2,0,4,2,1,3,0,2],           pad:[-12,0,7],    baseSt:-24, melVol:0.10, padVol:0.05, bassVol:0.08, melW:'sine',     padW:'sine'     },
-  // 1: 零細SES - 希望の芽吹き (G major, 90bpm)
-  { bpm:90,  root:392.00, scale:[0,2,4,5,7,9,11],  mel:[0,2,4,2,5,3,4,2,3,1,2,0,4,6,5,3],  pad:[-12,0,4,7], baseSt:-24, melVol:0.10, padVol:0.06, bassVol:0.09, melW:'triangle', padW:'sine'     },
-  // 2: 中小SES - 安定成長 (F major, 108bpm)
-  { bpm:108, root:349.23, scale:[0,2,4,5,7,9,11],  mel:[0,4,2,5,3,6,4,2,3,5,4,2,1,3,2,4],  pad:[-12,0,4,7], baseSt:-24, melVol:0.11, padVol:0.06, bassVol:0.10, melW:'triangle', padW:'sine'     },
-  // 3: 成長SES - ドライブ (D major, 122bpm)
-  { bpm:122, root:293.66, scale:[0,2,4,5,7,9,11,12],mel:[0,2,4,7,5,4,2,5,4,6,7,5,4,2,3,5], pad:[-12,0,4,7,11],baseSt:-24,melVol:0.12,padVol:0.06,bassVol:0.11,melW:'square',   padW:'triangle' },
-  // 4: 大手SES - 威風堂々 (A major, 128bpm)
-  { bpm:128, root:220.00, scale:[0,2,4,5,7,9,11,12],mel:[0,4,7,4,5,7,5,4,2,4,6,7,6,4,5,7], pad:[-12,0,4,7,11],baseSt:-24,melVol:0.13,padVol:0.07,bassVol:0.12,melW:'sawtooth', padW:'triangle' },
-  // 5: 上場準備中 - 緊迫のマイナー (A minor, 116bpm)
-  { bpm:116, root:220.00, scale:[0,2,3,5,7,8,10,12],mel:[0,3,5,7,5,3,0,2,3,5,7,6,5,3,2,0], pad:[-12,0,3,7,10],baseSt:-24,melVol:0.13,padVol:0.07,bassVol:0.12,melW:'sawtooth', padW:'sine'     },
-  // 6: 上場直前 - 凱旋 (C major, 140bpm)
-  { bpm:140, root:261.63, scale:[0,2,4,5,7,9,11,12,14],mel:[0,4,7,4,8,7,5,4,7,8,6,4,5,7,8,7],pad:[-12,0,4,7,12],baseSt:-24,melVol:0.14,padVol:0.08,bassVol:0.13,melW:'sawtooth',padW:'triangle'},
+  // 0: 個人事業 - のんびりポップ (C major pentatonic, 88bpm)
+  { bpm:88,  root:261.63, scale:[0,2,4,7,9,12],     mel:[0,2,4,2,3,4,2,0,2,4,3,2,4,2,0,2],   pad:[-12,0,4,7],    baseSt:-24, melVol:0.10, padVol:0.05, bassVol:0.08, melW:'triangle', padW:'sine'     },
+  // 1: 零細SES - はじまりのポップ (G major, 100bpm)
+  { bpm:100, root:392.00, scale:[0,2,4,5,7,9,11],   mel:[0,2,4,5,4,2,4,7,5,4,2,5,4,2,3,4],   pad:[-12,0,4,7],    baseSt:-24, melVol:0.10, padVol:0.06, bassVol:0.09, melW:'triangle', padW:'sine'     },
+  // 2: 中小SES - 軽快アップテンポ (F major, 112bpm)
+  { bpm:112, root:349.23, scale:[0,2,4,5,7,9,11],   mel:[0,4,5,4,2,4,7,5,4,5,4,2,3,4,5,4],   pad:[-12,0,4,7],    baseSt:-24, melVol:0.11, padVol:0.06, bassVol:0.10, melW:'triangle', padW:'sine'     },
+  // 3: 成長SES - ハッピードライブ (D major, 120bpm)
+  { bpm:120, root:293.66, scale:[0,2,4,5,7,9,11,12], mel:[0,4,7,5,4,2,4,5,7,9,7,5,4,5,4,2],  pad:[-12,0,4,7,11], baseSt:-24, melVol:0.12, padVol:0.06, bassVol:0.11, melW:'triangle', padW:'triangle' },
+  // 4: 大手SES - ポップファンク (A major, 126bpm)
+  { bpm:126, root:440.00, scale:[0,2,4,5,7,9,11,12], mel:[0,4,5,7,5,4,2,4,7,9,7,5,4,5,7,4],  pad:[-12,0,4,7,11], baseSt:-24, melVol:0.12, padVol:0.07, bassVol:0.11, melW:'triangle', padW:'triangle' },
+  // 5: 上場準備中 - わくわくポップ (E major, 118bpm)
+  { bpm:118, root:329.63, scale:[0,2,4,5,7,9,11,12], mel:[0,4,7,5,7,9,7,5,4,5,7,4,2,4,5,7],  pad:[-12,0,4,7,11], baseSt:-24, melVol:0.13, padVol:0.07, bassVol:0.12, melW:'triangle', padW:'sine'     },
+  // 6: 上場直前 - お祭りポップ (C major, 138bpm)
+  { bpm:138, root:261.63, scale:[0,2,4,5,7,9,11,12,14],mel:[0,4,7,9,7,5,4,7,9,12,9,7,5,7,9,7],pad:[-12,0,4,7,12],baseSt:-24,melVol:0.13,padVol:0.08,bassVol:0.12,melW:'triangle',padW:'triangle'},
 ];
 
 let bgmCtx      = null;
