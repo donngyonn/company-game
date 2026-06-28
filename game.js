@@ -83,6 +83,22 @@ const DEPT_DEFS = [
     marginRate: 0.80, salaryLabel: '人件費', monthlySalary: null,
     baseCost: 10000000000, costMult: 1.15, unlockAt: 10000000000,
   },
+  {
+    id: 'investment',
+    name: '資産運用スタッフ',
+    emoji: '📉',
+    desc: '株式市場への投資運用を担当。採用すると銀行タブの証券取引所が解放される。月給100万＋社保15%。',
+    incomePerSec: 0, marginRate: null, salaryLabel: '人件費',
+    monthlySalary: 1000000, insuranceRate: 0.15,
+    baseCost: 4200000, costMult: 1.20, unlockAt: 100000000,
+  },
+];
+
+// ---- 証券定義 ----
+const STOCK_DEFS = [
+  { id: 'mfg', name: '東栄重工',      type: '製造業', emoji: '🏭', volatility: 0.03, trendBias: 0.001 },
+  { id: 'it',  name: 'テックビジョン', type: 'IT',    emoji: '💻', volatility: 0.10, trendBias: 0.003 },
+  { id: 'con', name: 'ストラテジークス', type: 'コンサル', emoji: '📊', volatility: 0.06, trendBias: 0.002 },
 ];
 
 // ---- 経営企画部 役員定義 ----
@@ -365,6 +381,7 @@ let state = {
   executives: {},              // 役員雇用状態 { exec_sales_dir: true }
   execSettings: {},            // 役員行動設定 { exec_sales_dir: { autoMorale: true, autoSales: true } }
   managers: {},                // 部門マネージャー { mgr_ses: true, mgr_staffing: true }
+  stocks: null,                // 証券取引所 { mfg: {price,shares,avgCost,history}, ... }
 };
 
 DEPT_DEFS.forEach(d => {
@@ -598,8 +615,56 @@ function hire(deptId) {
   state.money -= cost;
   state.employees[deptId] = (state.employees[deptId] || 0) + 1;
   state.deptCost[deptId] = (state.deptCost[deptId] || 0) + cost;
+  // 資産運用スタッフ初回採用で証券取引所を解放
+  if (deptId === 'investment' && state.employees['investment'] === 1) {
+    initStocks();
+    showToast('📈 証券取引所が解放されました！銀行タブから株取引が可能になります');
+  }
   renderDepts();
   renderUpgrades();
+}
+
+function initStocks() {
+  if (state.stocks) return;
+  state.stocks = {};
+  STOCK_DEFS.forEach(def => {
+    const scale = Math.max(1, Math.floor(state.totalEarned / 100000000));
+    const base  = Math.round((800 + scale * 400 + Math.random() * 600) / 100) * 100;
+    state.stocks[def.id] = { price: base, shares: 0, avgCost: 0, history: [base] };
+  });
+}
+
+function buyStock(id, qty) {
+  const s = state.stocks?.[id];
+  if (!s) return;
+  const cost = s.price * qty;
+  if (state.money < cost) { showToast('⚠️ 資金不足'); return; }
+  const prev = s.shares || 0;
+  s.avgCost = prev > 0 ? Math.round((s.avgCost * prev + cost) / (prev + qty)) : s.price;
+  s.shares = prev + qty;
+  state.money -= cost;
+  showToast(`📈 ${STOCK_DEFS.find(d => d.id === id).name} ${qty}株 購入 ${yen(cost)}`);
+  renderBank();
+  renderHeader();
+}
+
+function sellStock(id, qty) {
+  const s = state.stocks?.[id];
+  if (!s || (s.shares || 0) < qty) { showToast('⚠️ 保有株数不足'); return; }
+  const proceeds = s.price * qty;
+  const profit   = Math.round((s.price - (s.avgCost || 0)) * qty);
+  state.money += proceeds;
+  if (profit > 0) {
+    state.totalEarned = (state.totalEarned || 0) + profit;
+    state.periodEarned = (state.periodEarned || 0) + profit;
+  }
+  s.shares -= qty;
+  if (s.shares === 0) s.avgCost = 0;
+  const def = STOCK_DEFS.find(d => d.id === id);
+  const sign = profit >= 0 ? '+' : '';
+  showToast(`📉 ${def.name} ${qty}株 売却 ${yen(proceeds)}　損益 ${sign}${yen(profit)}`);
+  renderBank();
+  renderHeader();
 }
 
 function fire(deptId) {
@@ -745,14 +810,18 @@ function calcMonthlyExpenses() {
   const financeCount  = state.employees['finance'] || 0;
   const financeSalary = financeCount * (financeDef.monthlySalary || 900000) * (1 + (financeDef.insuranceRate || 0.15));
 
+  const investDef     = DEPT_DEFS.find(d => d.id === 'investment');
+  const investCount   = state.employees['investment'] || 0;
+  const investmentSalary = investCount * (investDef.monthlySalary || 1000000) * (1 + (investDef.insuranceRate || 0.15));
+
   const dispatchSalary = (state.dispatchCount || 0) * DISPATCH_MONTHLY_SALARY;
 
   return {
     rent, utilities, supplies,
-    salesperson, staffingSalary, marketingSalary, financeSalary,
+    salesperson, staffingSalary, marketingSalary, financeSalary, investmentSalary,
     dispatchSalary, loanPay, ceoSalary, execSalary, mgrSalary,
     total: rent + utilities + supplies + salesperson + staffingSalary + marketingSalary
-         + financeSalary + dispatchSalary
+         + financeSalary + investmentSalary + dispatchSalary
          + loanPay + ceoSalary + execSalary + mgrSalary,
   };
 }
@@ -768,9 +837,10 @@ function showExpenseModal(exp, before) {
   if (exp.ceoSalary > 0)       rows += `<div class="expense-row"><span>🤵 社長報酬</span><span>−${yen(exp.ceoSalary)}</span></div>`;
   if (exp.execSalary > 0)      rows += `<div class="expense-row"><span>🤵 役員報酬</span><span>−${yen(exp.execSalary)}</span></div>`;
   if (exp.mgrSalary > 0)       rows += `<div class="expense-row"><span>👔 部門マネージャー 人件費＋社保</span><span>−${yen(exp.mgrSalary)}</span></div>`;
-  if (exp.financeSalary > 0)   rows += `<div class="expense-row"><span>📊 財務スタッフ 人件費＋社保</span><span>−${yen(exp.financeSalary)}</span></div>`;
-  if (exp.dispatchSalary > 0)  rows += `<div class="expense-row"><span>🏭 派遣スタッフ 給与＋社保</span><span>−${yen(exp.dispatchSalary)}</span></div>`;
-  if (exp.loanPay > 0)         rows += `<div class="expense-row" style="color:#f87171"><span>🏦 ローン返済</span><span>−${yen(exp.loanPay)}</span></div>`;
+  if (exp.financeSalary > 0)    rows += `<div class="expense-row"><span>📊 財務スタッフ 人件費＋社保</span><span>−${yen(exp.financeSalary)}</span></div>`;
+  if (exp.investmentSalary > 0) rows += `<div class="expense-row"><span>📉 資産運用スタッフ 人件費＋社保</span><span>−${yen(exp.investmentSalary)}</span></div>`;
+  if (exp.dispatchSalary > 0)   rows += `<div class="expense-row"><span>🏭 派遣スタッフ 給与＋社保</span><span>−${yen(exp.dispatchSalary)}</span></div>`;
+  if (exp.loanPay > 0)          rows += `<div class="expense-row" style="color:#f87171"><span>🏦 ローン返済</span><span>−${yen(exp.loanPay)}</span></div>`;
 
   const after = before - exp.total;
   document.getElementById('expense-detail').innerHTML = rows;
@@ -833,8 +903,9 @@ function _renderWeeklyModalContent(idx) {
     if (mExp.mgrSalary > 0)      html += `<div class="expense-row"><span>👔 部門マネージャー 人件費＋社保</span><span>−${yen(mExp.mgrSalary)}</span></div>`;
     if (mExp.staffingSalary > 0) html += `<div class="expense-row"><span>🤝 紹介営業 人件費</span><span>−${yen(mExp.staffingSalary)}</span></div>`;
     if (mExp.marketingSalary > 0) html += `<div class="expense-row"><span>📣 マーケター 人件費</span><span>−${yen(mExp.marketingSalary)}</span></div>`;
-    if (mExp.financeSalary > 0)  html += `<div class="expense-row"><span>📊 財務スタッフ 人件費＋社保</span><span>−${yen(mExp.financeSalary)}</span></div>`;
-    if (mExp.dispatchSalary > 0) html += `<div class="expense-row"><span>🏭 派遣スタッフ 給与＋社保</span><span>−${yen(mExp.dispatchSalary)}</span></div>`;
+    if (mExp.financeSalary > 0)    html += `<div class="expense-row"><span>📊 財務スタッフ 人件費＋社保</span><span>−${yen(mExp.financeSalary)}</span></div>`;
+    if (mExp.investmentSalary > 0) html += `<div class="expense-row"><span>📉 資産運用スタッフ 人件費＋社保</span><span>−${yen(mExp.investmentSalary)}</span></div>`;
+    if (mExp.dispatchSalary > 0)   html += `<div class="expense-row"><span>🏭 派遣スタッフ 給与＋社保</span><span>−${yen(mExp.dispatchSalary)}</span></div>`;
     if (mExp.ceoSalary > 0)      html += `<div class="expense-row"><span>🤵 社長報酬</span><span>−${yen(mExp.ceoSalary)}</span></div>`;
     if (mExp.loanPay > 0)        html += `<div class="expense-row" style="color:#f87171"><span>🏦 ローン返済</span><span>−${yen(mExp.loanPay)}</span></div>`;
     html += `<div class="expense-row" style="font-weight:700;color:#f87171;border-top:2px solid #2a2a50;padding-top:8px;margin-top:4px"><span>支出合計</span><span>−${yen(mExp.total)}</span></div>`;
@@ -1298,7 +1369,52 @@ function renderBank() {
         ${exp.loanPay > 0 ? `<div class="expense-row" style="color:#f87171"><span>🏦 ローン返済</span><span>${yen(exp.loanPay)}</span></div>` : ''}
         <div class="expense-row" style="font-weight:700"><span>合計</span><span>${yen(exp.total)}</span></div>
       </div>
-    </div>`;
+    </div>
+    ${(() => {
+      const investCount = state.employees?.['investment'] || 0;
+      if (!investCount) {
+        return `<div class="bank-section" style="opacity:0.45">
+          <div class="bank-subheader">🔒 証券取引所</div>
+          <p class="no-loan" style="font-size:11px">財務部の資産運用スタッフを採用すると解放されます</p>
+        </div>`;
+      }
+      if (!state.stocks) {
+        return `<div class="bank-section">
+          <div class="bank-subheader">📈 証券取引所</div>
+          <p class="no-loan">初期化中...</p>
+        </div>`;
+      }
+      const stockCards = STOCK_DEFS.map(def => {
+        const s = state.stocks[def.id];
+        if (!s) return '';
+        const gain      = s.shares > 0 ? Math.round((s.price - s.avgCost) * s.shares) : 0;
+        const gainColor = gain > 0 ? '#4ade80' : gain < 0 ? '#f87171' : '#94a3b8';
+        const gainSign  = gain > 0 ? '+' : '';
+        const hist = (s.history || [s.price]);
+        const prevPrice = hist.length >= 2 ? hist[hist.length - 2] : s.price;
+        const weekChg   = prevPrice > 0 ? ((s.price - prevPrice) / prevPrice * 100).toFixed(1) : '0.0';
+        const chgColor  = parseFloat(weekChg) >= 0 ? '#4ade80' : '#f87171';
+        const chgSign   = parseFloat(weekChg) >= 0 ? '+' : '';
+        return `<div class="stock-card">
+          <div class="stock-header">
+            <span class="stock-name">${def.emoji} ${def.name}</span>
+            <span class="stock-type-badge">${def.type}</span>
+            <span class="stock-price">${yen(s.price)}<span style="font-size:9px;color:${chgColor};margin-left:4px">${chgSign}${weekChg}%</span></span>
+          </div>
+          ${s.shares > 0 ? `<div class="stock-hold">保有 <b>${s.shares}</b>株　取得単価 ${yen(Math.round(s.avgCost))}　評価損益 <span style="color:${gainColor};font-weight:700">${gainSign}${yen(gain)}</span></div>` : ''}
+          <div class="stock-btns">
+            <button class="loan-btn" style="flex:1;font-size:11px" onclick="buyStock('${def.id}',100)">100株 買 ${yen(s.price * 100)}</button>
+            <button class="loan-btn" style="flex:1;font-size:11px" onclick="buyStock('${def.id}',500)">500株 買 ${yen(s.price * 500)}</button>
+            ${s.shares >= 100 ? `<button class="loan-btn" style="flex:1;font-size:11px;border-color:#f87171;color:#f87171" onclick="sellStock('${def.id}',100)">100株 売</button>` : ''}
+            ${s.shares > 0 ? `<button class="loan-btn" style="flex:1;font-size:11px;border-color:#f87171;color:#f87171" onclick="sellStock('${def.id}',${s.shares})">全売</button>` : ''}
+          </div>
+        </div>`;
+      }).join('');
+      return `<div class="bank-section">
+        <div class="bank-subheader">📈 証券取引所</div>
+        ${stockCards}
+      </div>`;
+    })()}`;
 }
 
 // ---- 交流タブ（精神状況） ----
@@ -1553,6 +1669,9 @@ function load() {
     if (state.staffingOpened === undefined)           state.staffingOpened = true;
     if (state.dispatchSales === undefined)            state.dispatchSales = 0;
     if (!Array.isArray(state.contractDev))            state.contractDev = state.contractDev ? [state.contractDev] : [];
+    if (state.stocks === undefined)                   state.stocks = null;
+    // 資産運用スタッフが既にいてstocksが未初期化の場合は初期化
+    if ((state.employees?.['investment'] || 0) >= 1 && !state.stocks) initStocks();
     if (state.periodStaffingPlacements === undefined) state.periodStaffingPlacements = 0;
     if (state.hideWeeklyReport === undefined)         state.hideWeeklyReport = false;
     if (state.autoCloseWeekly === undefined)          state.autoCloseWeekly = true;
@@ -2015,6 +2134,7 @@ function renderDepts() {
   html += `<div class="dept-island island-finance">
     <div class="island-hdr"><span class="island-icon">💹</span><span>財務部</span></div>
     ${_buildDeptRow('finance')}
+    ${_buildDeptRow('investment')}
   </div>`;
 
   // マーケティング部
@@ -2377,6 +2497,7 @@ function renderLabor() {
         exp.execSalary    > 0 ? `<div class="expense-row"><span>🤵 役員報酬</span><span>−${yen(exp.execSalary)}</span></div>` : '',
         exp.mgrSalary     > 0 ? `<div class="expense-row"><span>👔 部門マネージャー 人件費＋社保</span><span>−${yen(exp.mgrSalary)}</span></div>` : '',
         exp.financeSalary > 0 ? `<div class="expense-row"><span>📊 財務スタッフ 人件費＋社保</span><span>−${yen(exp.financeSalary)}</span></div>` : '',
+        exp.investmentSalary > 0 ? `<div class="expense-row"><span>📉 資産運用スタッフ 人件費＋社保</span><span>−${yen(exp.investmentSalary)}</span></div>` : '',
         exp.dispatchSalary > 0 ? `<div class="expense-row"><span>🏭 派遣スタッフ 給与＋社保</span><span>−${yen(exp.dispatchSalary)}</span></div>` : '',
         exp.loanPay       > 0 ? `<div class="expense-row" style="color:#f87171"><span>🏦 ローン返済</span><span>−${yen(exp.loanPay)}</span></div>` : '',
       ].join('');
@@ -3326,7 +3447,8 @@ function gameLoop(ts) {
           state.periodDeductible = (state.periodDeductible || 0)
             + (monthlyExp.rent || 0) + (monthlyExp.utilities || 0) + (monthlyExp.supplies || 0)
             + (monthlyExp.salesperson || 0) + (monthlyExp.staffingSalary || 0) + (monthlyExp.marketingSalary || 0)
-            + (monthlyExp.ceoSalary || 0) + (monthlyExp.execSalary || 0);
+            + (monthlyExp.ceoSalary || 0) + (monthlyExp.execSalary || 0)
+            + (monthlyExp.financeSalary || 0) + (monthlyExp.investmentSalary || 0);
         }
       }
 
@@ -3549,6 +3671,19 @@ function gameLoop(ts) {
           weeklyDispatchGross += normalGross;
           weeklyLog.push({ emoji: '🏭', text: `派遣${normalWorkers}名　請求${yen(normalGross)}（給与は月次精算）` });
         }
+      }
+
+      // 株価更新（毎週）
+      if (state.stocks) {
+        STOCK_DEFS.forEach(def => {
+          const s = state.stocks[def.id];
+          if (!s) return;
+          const change = (Math.random() * 2 - 1) * def.volatility + def.trendBias;
+          s.price = Math.max(100, Math.round(s.price * (1 + change)));
+          if (!s.history) s.history = [];
+          s.history.push(s.price);
+          if (s.history.length > 24) s.history.shift();
+        });
       }
 
       // 週次サマリーモーダル表示
