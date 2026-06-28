@@ -993,15 +993,15 @@ function showExpenseModal(exp, before) {
   if (exp.rent > 0)            rows += `<div class="expense-row"><span>🏢 事務所家賃</span><span>−${yen(exp.rent)}</span></div>`;
   if (exp.utilities > 0)       rows += `<div class="expense-row"><span>💡 水道光熱費</span><span>−${yen(exp.utilities)}</span></div>`;
   if (exp.supplies > 0)        rows += `<div class="expense-row"><span>📦 備品・消耗品</span><span>−${yen(exp.supplies)}</span></div>`;
-  if (exp.salesperson > 0)     rows += `<div class="expense-row"><span>💼 SES営業 人件費＋社保</span><span>−${yen(exp.salesperson)}</span></div>`;
-  if (exp.staffingSalary > 0)  rows += `<div class="expense-row"><span>🤝 紹介営業 人件費＋社保</span><span>−${yen(exp.staffingSalary)}</span></div>`;
-  if (exp.marketingSalary > 0) rows += `<div class="expense-row"><span>📣 マーケター 人件費＋社保</span><span>−${yen(exp.marketingSalary)}</span></div>`;
+  if (exp.salesperson > 0)     rows += `<div class="expense-row"><span>💼 SES営業（${state.employees['sales']||0}名）人件費＋社保</span><span>−${yen(exp.salesperson)}</span></div>`;
+  if (exp.staffingSalary > 0)  rows += `<div class="expense-row"><span>🤝 紹介営業（${state.employees['staffing']||0}名）人件費＋社保</span><span>−${yen(exp.staffingSalary)}</span></div>`;
+  if (exp.marketingSalary > 0) rows += `<div class="expense-row"><span>📣 マーケター（${state.employees['marketing']||0}名）人件費＋社保</span><span>−${yen(exp.marketingSalary)}</span></div>`;
   if (exp.ceoSalary > 0)       rows += `<div class="expense-row"><span>🤵 社長報酬</span><span>−${yen(exp.ceoSalary)}</span></div>`;
   if (exp.execSalary > 0)      rows += `<div class="expense-row"><span>🤵 役員報酬</span><span>−${yen(exp.execSalary)}</span></div>`;
   if (exp.mgrSalary > 0)       rows += `<div class="expense-row"><span>👔 部門マネージャー 人件費＋社保</span><span>−${yen(exp.mgrSalary)}</span></div>`;
-  if (exp.financeSalary > 0)    rows += `<div class="expense-row"><span>📊 財務スタッフ 人件費＋社保</span><span>−${yen(exp.financeSalary)}</span></div>`;
-  if (exp.investmentSalary > 0) rows += `<div class="expense-row"><span>📉 資産運用スタッフ 人件費＋社保</span><span>−${yen(exp.investmentSalary)}</span></div>`;
-  if (exp.dispatchSalary > 0)   rows += `<div class="expense-row"><span>🏭 派遣スタッフ 給与＋社保</span><span>−${yen(exp.dispatchSalary)}</span></div>`;
+  if (exp.financeSalary > 0)    rows += `<div class="expense-row"><span>📊 財務スタッフ（${state.employees['finance']||0}名）人件費＋社保</span><span>−${yen(exp.financeSalary)}</span></div>`;
+  if (exp.investmentSalary > 0) rows += `<div class="expense-row"><span>📉 資産運用スタッフ（${state.employees['investment']||0}名）人件費＋社保</span><span>−${yen(exp.investmentSalary)}</span></div>`;
+  if (exp.dispatchSalary > 0)   rows += `<div class="expense-row"><span>🏭 派遣スタッフ（${state.dispatchCount||0}名）給与＋社保</span><span>−${yen(exp.dispatchSalary)}</span></div>`;
   if (exp.loanPay > 0)          rows += `<div class="expense-row" style="color:#f87171"><span>🏦 ローン返済</span><span>−${yen(exp.loanPay)}</span></div>`;
 
   const after = before - exp.total;
@@ -1052,6 +1052,24 @@ function _renderWeeklyModalContent(idx) {
   }
   const totalIncome = Math.floor(r.deptIncome) + Math.floor(r.flIncome) + (r.staffingFees || 0) + (r.dispatchIncome || 0);
   html += `<div class="expense-row" style="font-weight:700;color:#4ade80;border-top:2px solid #2a2a50;padding-top:8px;margin-top:4px"><span>収入合計</span><span>＋${yen(totalIncome)}</span></div>`;
+
+  // ---- 在籍人員 ----
+  if (r.empSnap) {
+    const e = r.empSnap;
+    const rows = [
+      e.sales      > 0 ? `<span>💼 SES営業 <b>${e.sales}</b>名</span>` : '',
+      e.staffing   > 0 ? `<span>🤝 紹介営業 <b>${e.staffing}</b>名</span>` : '',
+      e.marketing  > 0 ? `<span>📣 マーケ <b>${e.marketing}</b>名</span>` : '',
+      e.finance    > 0 ? `<span>📊 財務 <b>${e.finance}</b>名</span>` : '',
+      e.investment > 0 ? `<span>📉 資産運用 <b>${e.investment}</b>名</span>` : '',
+      e.dispatch   > 0 ? `<span>🏭 派遣 <b>${e.dispatch}</b>名</span>` : '',
+      e.fl         > 0 ? `<span>👨‍💻 FL <b>${e.fl}</b>名</span>` : '',
+    ].filter(Boolean);
+    if (rows.length > 0) {
+      html += `<div class="weekly-section-title">👥 在籍人員</div>`;
+      html += `<div style="display:flex;flex-wrap:wrap;gap:6px 12px;padding:4px 0 8px;font-size:12px;color:#cbd5e1">${rows.join('')}</div>`;
+    }
+  }
 
   // ---- 月次経費 ----
   if (r.monthlyExp) {
@@ -1145,6 +1163,15 @@ function showWeeklyModal(weekNum, deptIncome, flWeeklyIncome, flGross, flCost, m
     staffingFees: staffingFees || 0,
     dispatchIncome: dispatchIncome || 0,
     weeklyLog: weeklyLog || [],
+    empSnap: {
+      sales:      state.employees['sales']      || 0,
+      staffing:   state.employees['staffing']   || 0,
+      marketing:  state.employees['marketing']  || 0,
+      finance:    state.employees['finance']    || 0,
+      investment: state.employees['investment'] || 0,
+      dispatch:   state.dispatchCount           || 0,
+      fl:         state.freelancers             || 0,
+    },
   });
   if (state.reportHistory.length > 52) state.reportHistory.shift();
 
@@ -2669,15 +2696,15 @@ function renderLabor() {
         exp.rent          > 0 ? `<div class="expense-row"><span>🏢 事務所家賃</span><span>−${yen(exp.rent)}</span></div>` : '',
         exp.utilities     > 0 ? `<div class="expense-row"><span>💡 水道光熱費</span><span>−${yen(exp.utilities)}</span></div>` : '',
         exp.supplies      > 0 ? `<div class="expense-row"><span>📦 備品・消耗品</span><span>−${yen(exp.supplies)}</span></div>` : '',
-        exp.salesperson   > 0 ? `<div class="expense-row"><span>💼 SES営業 人件費＋社保</span><span>−${yen(exp.salesperson)}</span></div>` : '',
-        exp.staffingSalary > 0 ? `<div class="expense-row"><span>🤝 紹介営業 人件費＋社保</span><span>−${yen(exp.staffingSalary)}</span></div>` : '',
-        exp.marketingSalary > 0 ? `<div class="expense-row"><span>📣 マーケター 人件費＋社保</span><span>−${yen(exp.marketingSalary)}</span></div>` : '',
+        exp.salesperson   > 0 ? `<div class="expense-row"><span>💼 SES営業（${state.employees['sales']||0}名）人件費＋社保</span><span>−${yen(exp.salesperson)}</span></div>` : '',
+        exp.staffingSalary > 0 ? `<div class="expense-row"><span>🤝 紹介営業（${state.employees['staffing']||0}名）人件費＋社保</span><span>−${yen(exp.staffingSalary)}</span></div>` : '',
+        exp.marketingSalary > 0 ? `<div class="expense-row"><span>📣 マーケター（${state.employees['marketing']||0}名）人件費＋社保</span><span>−${yen(exp.marketingSalary)}</span></div>` : '',
         exp.ceoSalary     > 0 ? `<div class="expense-row"><span>🤵 社長報酬</span><span>−${yen(exp.ceoSalary)}</span></div>` : '',
         exp.execSalary    > 0 ? `<div class="expense-row"><span>🤵 役員報酬</span><span>−${yen(exp.execSalary)}</span></div>` : '',
         exp.mgrSalary     > 0 ? `<div class="expense-row"><span>👔 部門マネージャー 人件費＋社保</span><span>−${yen(exp.mgrSalary)}</span></div>` : '',
-        exp.financeSalary > 0 ? `<div class="expense-row"><span>📊 財務スタッフ 人件費＋社保</span><span>−${yen(exp.financeSalary)}</span></div>` : '',
-        exp.investmentSalary > 0 ? `<div class="expense-row"><span>📉 資産運用スタッフ 人件費＋社保</span><span>−${yen(exp.investmentSalary)}</span></div>` : '',
-        exp.dispatchSalary > 0 ? `<div class="expense-row"><span>🏭 派遣スタッフ 給与＋社保</span><span>−${yen(exp.dispatchSalary)}</span></div>` : '',
+        exp.financeSalary > 0 ? `<div class="expense-row"><span>📊 財務スタッフ（${state.employees['finance']||0}名）人件費＋社保</span><span>−${yen(exp.financeSalary)}</span></div>` : '',
+        exp.investmentSalary > 0 ? `<div class="expense-row"><span>📉 資産運用スタッフ（${state.employees['investment']||0}名）人件費＋社保</span><span>−${yen(exp.investmentSalary)}</span></div>` : '',
+        exp.dispatchSalary > 0 ? `<div class="expense-row"><span>🏭 派遣スタッフ（${state.dispatchCount||0}名）給与＋社保</span><span>−${yen(exp.dispatchSalary)}</span></div>` : '',
         exp.loanPay       > 0 ? `<div class="expense-row" style="color:#f87171"><span>🏦 ローン返済</span><span>−${yen(exp.loanPay)}</span></div>` : '',
       ].join('');
       return `
