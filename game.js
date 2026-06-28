@@ -1309,8 +1309,7 @@ function syncNavTop() {
   nav.style.top = hh + 'px';
   document.body.style.paddingTop = hh + 'px';
   const navH = nav.offsetHeight;
-  const box  = document.querySelector('.exchange-morale-box');
-  if (box) box.style.top = (hh + navH) + 'px';
+  document.documentElement.style.setProperty('--morale-box-top', (hh + navH) + 'px');
 }
 
 function hireManager(id) {
@@ -3493,7 +3492,7 @@ function switchTab(tabId, btn) {
   if (tabId === 'labor')    renderLabor();
   if (tabId === 'slots')    renderSlots();
   if (tabId === 'bank')     renderBank();
-  if (tabId === 'exchange') { renderExchange(); requestAnimationFrame(syncNavTop); }
+  if (tabId === 'exchange') renderExchange();
 }
 
 // ---- モーダル ----
