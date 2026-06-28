@@ -169,10 +169,26 @@ const MANAGER_DEFS = [
 ];
 
 // ---- 派遣事業部 定数 ----
-const DISPATCH_WEEKLY_GROSS   = 160000; // クライアント請求/週/人
-const DISPATCH_MONTHLY_SALARY = 480000; // 給与+社保/月/人 (月12万/週)
+const DISPATCH_MONTHLY_SALARY = 345000; // 月収30万+社保15% = 34.5万/人
+const DISPATCH_WEEKLY_GROSS   = 103500; // 月額×1.2÷4 ≈ 10.35万/週/人
 const DISPATCH_HIRE_COST      = 200000; // 採用費/人
 const DISPATCH_QUIT_RATE      = 0.03;   // 週次離脱率
+const DISPATCH_RECRUIT_BASE   = 0.55;   // 発掘率（SES基本45%+10%）
+
+// 派遣事業部 営業
+const DISPATCH_SALES_MONTHLY  = 375000; // 月給（35-40万の中間）
+const DISPATCH_SALES_INS      = 0.15;   // 社保率
+const DISPATCH_SALES_HIRE     = 500000; // 採用費
+const DISPATCH_SALES_CAP      = 30;     // 営業1人あたりの派遣スタッフ上限
+
+// 受託開発
+const CONTRACT_WORKERS    = 10;   // 必要な派遣スタッフ数
+const CONTRACT_MIN_WEEKS  = 12;   // 最短リードタイム
+const CONTRACT_MAX_WEEKS  = 24;   // 最長リードタイム
+const CONTRACT_MULT_MIN   = 1.2;  // 12週時 売上倍率（月額コスト×months×1.2）
+const CONTRACT_MULT_MAX   = 1.6;  // 24週時 売上倍率
+const CONTRACT_MARGIN_MIN = 30;   // 12週時 想定利益率(%)
+const CONTRACT_MARGIN_MAX = 60;   // 24週時 想定利益率(%)
 
 function getExecMonthlySalary() {
   return 1000000;
@@ -363,6 +379,8 @@ let state = {
   reportHistory: [],    // 週次レポート履歴（最大52件）
   staffingOpened: false, // 紹介事業部（累計売上1億で自動解放）
   dispatchCount: 0,      // 派遣スタッフ数
+  dispatchSales: 0,      // 派遣事業部の営業人数
+  contractDev: null,     // 受託開発 { startWeek, durationWeeks, mult, marginPct } | null
   bankUnlocked: false,   // 銀行タブ解放フラグ（財務タブで審査通過後）
   periodStaffingPlacements: 0, // 今期紹介人数（年度末リセット）
   hideWeeklyReport: false,     // 週次レポート非表示フラグ
@@ -760,14 +778,16 @@ function calcMonthlyExpenses() {
   const financeCount  = state.employees['finance'] || 0;
   const financeSalary = financeCount * (financeDef.monthlySalary || 900000) * (1 + (financeDef.insuranceRate || 0.15));
 
-  const dispatchSalary = (state.dispatchCount || 0) * DISPATCH_MONTHLY_SALARY;
+  const dispatchSalary      = (state.dispatchCount || 0) * DISPATCH_MONTHLY_SALARY;
+  const dispatchSalesSalary = Math.round((state.dispatchSales || 0) * DISPATCH_SALES_MONTHLY * (1 + DISPATCH_SALES_INS));
 
   return {
     rent, utilities, supplies,
     salesperson, staffingSalary, marketingSalary, hrSalary, strategySalary, financeSalary,
-    dispatchSalary, loanPay, ceoSalary, execSalary, mgrSalary,
+    dispatchSalary, dispatchSalesSalary, loanPay, ceoSalary, execSalary, mgrSalary,
     total: rent + utilities + supplies + salesperson + staffingSalary + marketingSalary + hrSalary
-         + strategySalary + financeSalary + dispatchSalary + loanPay + ceoSalary + execSalary + mgrSalary,
+         + strategySalary + financeSalary + dispatchSalary + dispatchSalesSalary
+         + loanPay + ceoSalary + execSalary + mgrSalary,
   };
 }
 
@@ -785,7 +805,8 @@ function showExpenseModal(exp, before) {
   if (exp.mgrSalary > 0)       rows += `<div class="expense-row"><span>👔 部門マネージャー 人件費＋社保</span><span>−${yen(exp.mgrSalary)}</span></div>`;
   if (exp.strategySalary > 0)  rows += `<div class="expense-row"><span>🎯 経営企画部員 人件費＋社保</span><span>−${yen(exp.strategySalary)}</span></div>`;
   if (exp.financeSalary > 0)   rows += `<div class="expense-row"><span>📊 財務スタッフ 人件費＋社保</span><span>−${yen(exp.financeSalary)}</span></div>`;
-  if (exp.dispatchSalary > 0)  rows += `<div class="expense-row"><span>🏭 派遣スタッフ 給与＋社保</span><span>−${yen(exp.dispatchSalary)}</span></div>`;
+  if (exp.dispatchSalesSalary > 0) rows += `<div class="expense-row"><span>👔 派遣営業 人件費＋社保</span><span>−${yen(exp.dispatchSalesSalary)}</span></div>`;
+  if (exp.dispatchSalary > 0)      rows += `<div class="expense-row"><span>🏭 派遣スタッフ 給与＋社保</span><span>−${yen(exp.dispatchSalary)}</span></div>`;
   if (exp.loanPay > 0)         rows += `<div class="expense-row" style="color:#f87171"><span>🏦 ローン返済</span><span>−${yen(exp.loanPay)}</span></div>`;
 
   const after = before - exp.total;
@@ -852,7 +873,8 @@ function _renderWeeklyModalContent(idx) {
     if (mExp.marketingSalary > 0) html += `<div class="expense-row"><span>📣 マーケター 人件費</span><span>−${yen(mExp.marketingSalary)}</span></div>`;
     if (mExp.strategySalary > 0) html += `<div class="expense-row"><span>🎯 経営企画部員 人件費＋社保</span><span>−${yen(mExp.strategySalary)}</span></div>`;
     if (mExp.financeSalary > 0)  html += `<div class="expense-row"><span>📊 財務スタッフ 人件費＋社保</span><span>−${yen(mExp.financeSalary)}</span></div>`;
-    if (mExp.dispatchSalary > 0) html += `<div class="expense-row"><span>🏭 派遣スタッフ 給与＋社保</span><span>−${yen(mExp.dispatchSalary)}</span></div>`;
+    if (mExp.dispatchSalesSalary > 0) html += `<div class="expense-row"><span>👔 派遣営業 人件費＋社保</span><span>−${yen(mExp.dispatchSalesSalary)}</span></div>`;
+    if (mExp.dispatchSalary > 0)      html += `<div class="expense-row"><span>🏭 派遣スタッフ 給与＋社保</span><span>−${yen(mExp.dispatchSalary)}</span></div>`;
     if (mExp.ceoSalary > 0)      html += `<div class="expense-row"><span>🤵 社長報酬</span><span>−${yen(mExp.ceoSalary)}</span></div>`;
     if (mExp.loanPay > 0)        html += `<div class="expense-row" style="color:#f87171"><span>🏦 ローン返済</span><span>−${yen(mExp.loanPay)}</span></div>`;
     html += `<div class="expense-row" style="font-weight:700;color:#f87171;border-top:2px solid #2a2a50;padding-top:8px;margin-top:4px"><span>支出合計</span><span>−${yen(mExp.total)}</span></div>`;
@@ -991,12 +1013,16 @@ function toggleAutoClose(enabled) {
 }
 
 // ---- 派遣事業部 ----
+function getDispatchCapacity() {
+  return (state.dispatchSales || 0) * DISPATCH_SALES_CAP;
+}
+
 function hireDispatch() {
-  const salesCount  = state.employees?.['sales'] || 0;
-  const maxDispatch = salesCount * 20;
-  const current     = state.dispatchCount || 0;
-  if (current >= maxDispatch) {
-    showToast(`⚠️ 上限 ${maxDispatch}名（営業${salesCount}名×20）`);
+  const cap     = getDispatchCapacity();
+  const current = state.dispatchCount || 0;
+  if (cap === 0) { showToast('⚠️ 先に派遣営業を採用してください'); return; }
+  if (current >= cap) {
+    showToast(`⚠️ 上限 ${cap}名（派遣営業${state.dispatchSales}名×${DISPATCH_SALES_CAP}）`);
     return;
   }
   if (state.money < DISPATCH_HIRE_COST) { showToast('💸 資金不足'); return; }
@@ -1008,10 +1034,49 @@ function hireDispatch() {
 }
 
 function fireDispatch() {
+  if (state.contractDev && (state.dispatchCount || 0) <= CONTRACT_WORKERS) {
+    showToast('⚠️ 受託プロジェクト中は削減できません');
+    return;
+  }
   if (!(state.dispatchCount > 0)) return;
   state.dispatchCount--;
   state.morale['employee'] = Math.max(10, (state.morale['employee'] || 90) - 2);
-  showToast(`👋 派遣スタッフを1名削減（社員モラール−2）`);
+  showToast('👋 派遣スタッフを1名削減（社員モラール−2）');
+  renderDepts();
+}
+
+function hireDispatchSales() {
+  if (state.money < DISPATCH_SALES_HIRE) { showToast('💸 資金不足'); return; }
+  state.money -= DISPATCH_SALES_HIRE;
+  state.dispatchSales = (state.dispatchSales || 0) + 1;
+  state.deptCost['dispatch'] = (state.deptCost['dispatch'] || 0) + DISPATCH_SALES_HIRE;
+  showToast(`✅ 派遣営業を採用（計${state.dispatchSales}名）`);
+  renderDepts();
+}
+
+function fireDispatchSales() {
+  if (!(state.dispatchSales > 0)) return;
+  state.dispatchSales--;
+  state.morale['employee'] = Math.max(10, (state.morale['employee'] || 90) - 5);
+  showToast('👋 派遣営業をリストラ（社員モラール−5）');
+  renderDepts();
+}
+
+function startContractDev() {
+  if (state.contractDev) { showToast('⚠️ 受託プロジェクト進行中です'); return; }
+  const count = state.dispatchCount || 0;
+  if (count < CONTRACT_WORKERS) {
+    showToast(`⚠️ 派遣スタッフ${CONTRACT_WORKERS}名が必要（現在${count}名）`);
+    return;
+  }
+  const weeks = CONTRACT_MIN_WEEKS + Math.floor(Math.random() * (CONTRACT_MAX_WEEKS - CONTRACT_MIN_WEEKS + 1));
+  const t     = (weeks - CONTRACT_MIN_WEEKS) / (CONTRACT_MAX_WEEKS - CONTRACT_MIN_WEEKS);
+  const mult  = CONTRACT_MULT_MIN + t * (CONTRACT_MULT_MAX - CONTRACT_MULT_MIN);
+  const marginPct = Math.round(CONTRACT_MARGIN_MIN + t * (CONTRACT_MARGIN_MAX - CONTRACT_MARGIN_MIN));
+  const currentWeek = Math.floor(state.elapsedSeconds / WEEK_SEC);
+  state.contractDev = { startWeek: currentWeek, durationWeeks: weeks, mult, marginPct };
+  const expectedRev = Math.round(DISPATCH_MONTHLY_SALARY * CONTRACT_WORKERS * mult * (weeks / 4));
+  showToast(`🏗️ 受託開発開始！${weeks}週プロジェクト 完了時売上 ${yen(expectedRev)}（想定利益率${marginPct}%）`);
   renderDepts();
 }
 
@@ -1513,6 +1578,8 @@ function load() {
       state.freelancers = state.flData.length; }
     if (state.flGrossRevenue === undefined)           state.flGrossRevenue = 0;
     if (state.staffingOpened === undefined)           state.staffingOpened = true;
+    if (state.dispatchSales === undefined)            state.dispatchSales = 0;
+    if (state.contractDev === undefined)              state.contractDev = null;
     if (state.periodStaffingPlacements === undefined) state.periodStaffingPlacements = 0;
     if (state.hideWeeklyReport === undefined)         state.hideWeeklyReport = false;
     if (state.autoCloseWeekly === undefined)          state.autoCloseWeekly = true;
@@ -1770,30 +1837,89 @@ function _buildFLCard() {
 }
 
 function _buildDispatchCard() {
-  const count       = state.dispatchCount || 0;
-  const salesCount  = state.employees?.['sales'] || 0;
-  const maxDispatch = salesCount * 20;
-  const atCap       = count >= maxDispatch;
-  const weeklyGross = count * DISPATCH_WEEKLY_GROSS;
+  const dsales   = state.dispatchSales || 0;
+  const count    = state.dispatchCount || 0;
+  const cap      = dsales * DISPATCH_SALES_CAP;
+  const atCap    = cap > 0 && count >= cap;
+  const contract = state.contractDev;
+  const locked   = contract ? Math.min(CONTRACT_WORKERS, count) : 0;
+  const freeCount= Math.max(0, count - locked);
+
+  const weeklyGross = freeCount * DISPATCH_WEEKLY_GROSS;
   const weeklyCost  = count * DISPATCH_MONTHLY_SALARY / 4;
   const weeklyNet   = weeklyGross - weeklyCost;
-  const canAfford   = state.money >= DISPATCH_HIRE_COST && !atCap;
 
-  return `<div class="island-row ${count > 0 ? 'island-row-active' : ''}">
-    <div class="dept-emoji">🏭</div>
-    <div class="dept-info">
-      <div class="dept-name" style="color:#a3e635">派遣スタッフ <span class="emp-count" style="background:#166534">${count}名</span>${atCap ? '<span style="font-size:10px;color:#f87171;margin-left:4px">上限</span>' : ''}</div>
-      <div class="dept-desc">${count > 0
-        ? `請求 ${yen(weeklyGross)}/週 − 月給等 ${yen(Math.round(weeklyCost))}/週 = 利益 ${yen(weeklyNet)}/週`
-        : '1名あたり: 請求¥160k/週 − 月給等¥120k/週 = 利益¥40k/週（利益率25%）'
-      }</div>
-      <div class="dept-margin"><span class="ml">上限 ${maxDispatch}名（営業${salesCount}名×20）　離脱率 ${(DISPATCH_QUIT_RATE*100).toFixed(0)}%/週　採用費 ${yen(DISPATCH_HIRE_COST)}/名</span></div>
+  const salesMonthly = Math.round(DISPATCH_SALES_MONTHLY * (1 + DISPATCH_SALES_INS));
+  const salesCanHire = state.money >= DISPATCH_SALES_HIRE;
+  const workerCanHire = dsales > 0 && !atCap && state.money >= DISPATCH_HIRE_COST && !contract;
+
+  // 受託開発エリア
+  let contractHtml = '';
+  if (contract) {
+    const currentWeek = Math.floor(state.elapsedSeconds / WEEK_SEC);
+    const elapsed   = currentWeek - contract.startWeek;
+    const remaining = Math.max(0, contract.durationWeeks - elapsed);
+    const progress  = Math.min(100, elapsed / contract.durationWeeks * 100).toFixed(0);
+    const expectRev = Math.round(DISPATCH_MONTHLY_SALARY * CONTRACT_WORKERS * contract.mult * (contract.durationWeeks / 4));
+    contractHtml = `<div class="island-row island-row-active" style="border-left:3px solid #f59e0b;background:rgba(245,158,11,0.06);padding-left:11px">
+      <div class="dept-emoji">🏗️</div>
+      <div class="dept-info">
+        <div class="dept-name" style="color:#fbbf24">受託開発 進行中 <span class="emp-count" style="background:#78350f">${elapsed}/${contract.durationWeeks}週</span></div>
+        <div class="dept-desc">スタッフ${locked}名専任　残り${remaining}週で完了</div>
+        <div style="margin:4px 0 2px;background:#1f2937;border-radius:4px;height:5px"><div style="height:5px;background:#f59e0b;width:${progress}%;border-radius:4px"></div></div>
+        <div class="dept-margin"><span class="ml">完了時一括: ${yen(expectRev)} 計上（想定利益率${contract.marginPct}%）</span></div>
+      </div>
+    </div>`;
+  } else if (count >= CONTRACT_WORKERS) {
+    const minRev = Math.round(DISPATCH_MONTHLY_SALARY * CONTRACT_WORKERS * CONTRACT_MULT_MIN * (CONTRACT_MIN_WEEKS / 4));
+    const maxRev = Math.round(DISPATCH_MONTHLY_SALARY * CONTRACT_WORKERS * CONTRACT_MULT_MAX * (CONTRACT_MAX_WEEKS / 4));
+    contractHtml = `<div class="island-row">
+      <div class="dept-emoji">🏗️</div>
+      <div class="dept-info">
+        <div class="dept-name" style="color:#fbbf24">受託開発</div>
+        <div class="dept-desc">スタッフ${CONTRACT_WORKERS}名を専任し受託案件を受注。リードタイム${CONTRACT_MIN_WEEKS}〜${CONTRACT_MAX_WEEKS}週（ランダム）、長いほど高利益。</div>
+        <div class="dept-margin"><span class="ml">完了時売上 ${yen(minRev)}〜${yen(maxRev)}（利益率${CONTRACT_MARGIN_MIN}〜${CONTRACT_MARGIN_MAX}%）　期間中は通常収益なし</span></div>
+      </div>
+      <div class="dept-btn-group">
+        <button class="hire-btn" onclick="startContractDev()">受注<br><small>開始</small></button>
+      </div>
+    </div>`;
+  }
+
+  return `
+    <div class="island-row ${dsales > 0 ? 'island-row-active' : ''}">
+      <div class="dept-emoji">👔</div>
+      <div class="dept-info">
+        <div class="dept-name" style="color:#a3e635">派遣営業 <span class="emp-count" style="background:#166534">${dsales}名</span></div>
+        <div class="dept-desc">月給37.5万+社保 ≈ ${yen(salesMonthly)}/月　管理上限 ${DISPATCH_SALES_CAP}名/人　発掘率 ${(DISPATCH_RECRUIT_BASE*100).toFixed(0)}%/週</div>
+        <div class="dept-margin"><span class="ml">採用費 ${yen(DISPATCH_SALES_HIRE)}　在籍${dsales}名 × ${DISPATCH_SALES_CAP} = 上限${cap}名</span></div>
+      </div>
+      <div class="dept-btn-group">
+        ${dsales > 0 ? `<button class="fire-btn" onclick="fireDispatchSales()">−</button>` : ''}
+        <button class="hire-btn${salesCanHire ? '' : ' disabled'}" onclick="hireDispatchSales()">採用<br><small>${yen(DISPATCH_SALES_HIRE)}</small></button>
+      </div>
     </div>
-    <div class="dept-btn-group">
-      ${count > 0 ? `<button class="fire-btn" onclick="fireDispatch()">−</button>` : ''}
-      <button class="hire-btn${canAfford ? '' : ' disabled'}" onclick="hireDispatch()">採用<br><small>${atCap ? '上限' : yen(DISPATCH_HIRE_COST)}</small></button>
+    <div class="island-row ${count > 0 ? 'island-row-active' : ''}">
+      <div class="dept-emoji">🏭</div>
+      <div class="dept-info">
+        <div class="dept-name" style="color:#86efac">派遣スタッフ
+          <span class="emp-count" style="background:#14532d">${count}名</span>
+          ${locked > 0 ? `<span style="font-size:10px;color:#f59e0b;margin-left:4px">受託${locked}名拘束</span>` : ''}
+          ${atCap ? '<span style="font-size:10px;color:#f87171;margin-left:4px">上限</span>' : ''}
+        </div>
+        <div class="dept-desc">${count > 0
+          ? `フリー${freeCount}名: 請求 ${yen(weeklyGross)}/週　全給与 −${yen(Math.round(weeklyCost))}/週　利益 ${yen(weeklyNet)}/週`
+          : '月収30万+社保=34.5万/月　請求=月額×1.2　採用費20万'
+        }</div>
+        <div class="dept-margin"><span class="ml">上限 ${cap}名（派遣営業${dsales}名×${DISPATCH_SALES_CAP}）　離脱率 ${(DISPATCH_QUIT_RATE*100).toFixed(0)}%/週</span></div>
+      </div>
+      <div class="dept-btn-group">
+        ${count > 0 && !contract ? `<button class="fire-btn" onclick="fireDispatch()">−</button>` : ''}
+        <button class="hire-btn${workerCanHire ? '' : ' disabled'}" onclick="hireDispatch()">${dsales === 0 ? '要営業' : contract ? '受託中' : atCap ? '上限' : '採用'}<br><small>${workerCanHire ? yen(DISPATCH_HIRE_COST) : ''}</small></button>
+      </div>
     </div>
-  </div>`;
+    ${contractHtml}
+  `;
 }
 
 function _buildDeptRow(id) {
@@ -3378,24 +3504,71 @@ function gameLoop(ts) {
 
       // 派遣事業部 週次処理
       let weeklyDispatchGross = 0;
+
+      // 1. 派遣営業による自動発掘（週次）
+      const dSalesNow = state.dispatchSales || 0;
+      if (dSalesNow > 0) {
+        const dCap = dSalesNow * DISPATCH_SALES_CAP;
+        let newWorkers = 0;
+        for (let i = 0; i < dSalesNow; i++) {
+          if ((state.dispatchCount || 0) + newWorkers >= dCap) break;
+          if (Math.random() < DISPATCH_RECRUIT_BASE) {
+            if (state.money >= DISPATCH_HIRE_COST) {
+              state.money -= DISPATCH_HIRE_COST;
+              state.deptCost['dispatch'] = (state.deptCost['dispatch'] || 0) + DISPATCH_HIRE_COST;
+              newWorkers++;
+            }
+          }
+        }
+        if (newWorkers > 0) {
+          state.dispatchCount = (state.dispatchCount || 0) + newWorkers;
+          weeklyLog.push({ emoji: '🏭', text: `派遣営業が派遣スタッフ${newWorkers}名を発掘（在籍${state.dispatchCount}名）` });
+        }
+      }
+
+      // 2. 受託開発 完了チェック
+      if (state.contractDev) {
+        const weeksElapsed = currentWeekNum - state.contractDev.startWeek;
+        if (weeksElapsed >= state.contractDev.durationWeeks) {
+          const months  = state.contractDev.durationWeeks / 4;
+          const lump    = Math.round(DISPATCH_MONTHLY_SALARY * CONTRACT_WORKERS * state.contractDev.mult * months);
+          state.money       += lump;
+          state.totalEarned += lump;
+          state.periodEarned = (state.periodEarned || 0) + lump;
+          state.deptRevenue['dispatch'] = (state.deptRevenue['dispatch'] || 0) + lump;
+          weeklyDispatchGross += lump;
+          weeklyLog.push({ emoji: '🎉', text: `受託開発完了！${state.contractDev.durationWeeks}週プロジェクト 売上 ${yen(lump)} 一括計上` });
+          state.contractDev = null;
+          renderDepts();
+        }
+      }
+
+      // 3. 派遣スタッフ通常収益 & 離脱チェック
       const dispatchCountNow = state.dispatchCount || 0;
       if (dispatchCountNow > 0) {
-        let dispatchQuit = 0;
-        for (let i = 0; i < dispatchCountNow; i++) {
-          if (Math.random() < DISPATCH_QUIT_RATE) dispatchQuit++;
+        const contractLocked = state.contractDev ? Math.min(CONTRACT_WORKERS, dispatchCountNow) : 0;
+        const freeWorkers    = dispatchCountNow - contractLocked;
+        // 離脱はフリースタッフのみ
+        if (freeWorkers > 0) {
+          let dispatchQuit = 0;
+          for (let i = 0; i < freeWorkers; i++) {
+            if (Math.random() < DISPATCH_QUIT_RATE) dispatchQuit++;
+          }
+          if (dispatchQuit > 0) {
+            state.dispatchCount = Math.max(contractLocked, dispatchCountNow - dispatchQuit);
+            weeklyLog.push({ emoji: '😞', text: `派遣スタッフ${dispatchQuit}名が離脱（残${state.dispatchCount}名）`, bad: true });
+          }
         }
-        if (dispatchQuit > 0) {
-          state.dispatchCount = Math.max(0, dispatchCountNow - dispatchQuit);
-          weeklyLog.push({ emoji: '😞', text: `派遣スタッフ ${dispatchQuit}名が離脱（残 ${state.dispatchCount}名）`, bad: true });
-        }
-        const activeDispatch = state.dispatchCount || 0;
-        if (activeDispatch > 0) {
-          weeklyDispatchGross = activeDispatch * DISPATCH_WEEKLY_GROSS;
-          state.money       += weeklyDispatchGross;
-          state.totalEarned += weeklyDispatchGross;
-          state.periodEarned = (state.periodEarned || 0) + weeklyDispatchGross;
-          state.deptRevenue['dispatch'] = (state.deptRevenue['dispatch'] || 0) + weeklyDispatchGross;
-          weeklyLog.push({ emoji: '🏭', text: `派遣 ${activeDispatch}名　請求 ${yen(weeklyDispatchGross)}（給与は月次精算）` });
+        // 通常収益（フリースタッフのみ）
+        const normalWorkers = Math.max(0, (state.dispatchCount || 0) - contractLocked);
+        if (normalWorkers > 0) {
+          const normalGross = normalWorkers * DISPATCH_WEEKLY_GROSS;
+          state.money       += normalGross;
+          state.totalEarned += normalGross;
+          state.periodEarned = (state.periodEarned || 0) + normalGross;
+          state.deptRevenue['dispatch'] = (state.deptRevenue['dispatch'] || 0) + normalGross;
+          weeklyDispatchGross += normalGross;
+          weeklyLog.push({ emoji: '🏭', text: `派遣${normalWorkers}名　請求${yen(normalGross)}（給与は月次精算）` });
         }
       }
 
