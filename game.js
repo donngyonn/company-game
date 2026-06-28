@@ -110,13 +110,38 @@ const EXEC_DEFS = [
     name: '営業部役員',
     emoji: '🤵',
     role: '営業最適化担当',
-    desc: 'モラールの自動改善・営業人数の自動最適化。各機能はON/OFF可能。',
+    desc: 'モラール向上アクションの自動購入（週2回まで）・営業人数の自動最適化。各機能はON/OFF可能。',
     cost: 1000000,
     unlockAt: 3000000,
+    comingSoon: true,
     actions: [
-      { key: 'autoMorale', label: 'モラール自動最適化', defaultOn: true },
+      { key: 'autoMorale', label: 'モラール自動最適化（週2アクション）', defaultOn: true },
       { key: 'autoSales',  label: '営業人数自動最適化', defaultOn: true },
     ],
+  },
+  {
+    id: 'exec_ses_dir',
+    name: 'SES事業部役員',
+    emoji: '👔',
+    role: 'SES最適化担当',
+    desc: '（近日実装）FL採用率向上・定着率改善を自動で担当。',
+    cost: 3000000,
+    unlockAt: 5000000,
+    comingSoon: true,
+    island: 'ses',
+    actions: [],
+  },
+  {
+    id: 'exec_staffing_dir',
+    name: '人材紹介部役員',
+    emoji: '🤝',
+    role: '人材紹介最適化担当',
+    desc: '（近日実装）成約率の自動最適化・案件発掘を担当。',
+    cost: 5000000,
+    unlockAt: 10000000,
+    comingSoon: true,
+    island: 'staffing',
+    actions: [],
   },
   {
     id: 'exec_finance_dir',
@@ -334,6 +359,7 @@ let state = {
   staffingOpened: true, // 人材紹介事業部開設フラグ（常時解放中）
   periodStaffingPlacements: 0, // 今期紹介人数（年度末リセット）
   hideWeeklyReport: false,     // 週次レポート非表示フラグ
+  autoCloseWeekly: true,       // 週次レポート自動閉じ
   executives: {},              // 役員雇用状態 { exec_sales_dir: true }
   execSettings: {},            // 役員行動設定 { exec_sales_dir: { autoMorale: true, autoSales: true } }
 };
@@ -887,14 +913,18 @@ function showWeeklyModal(weekNum, deptIncome, flWeeklyIncome, flGross, flCost, m
   const bar = document.getElementById('weekly-auto-close-bar');
   clearTimeout(weeklyAutoCloseTimer);
   weeklyAutoCloseTimer = null;
-  if (bar) {
-    bar.style.transition = 'none';
-    bar.style.width = '100%';
-    void bar.offsetWidth;
-    bar.style.transition = `width ${WEEKLY_MODAL_AUTO_CLOSE_SEC}s linear`;
-    bar.style.width = '0%';
+  if (state.autoCloseWeekly !== false) {
+    if (bar) {
+      bar.style.transition = 'none';
+      bar.style.width = '100%';
+      void bar.offsetWidth;
+      bar.style.transition = `width ${WEEKLY_MODAL_AUTO_CLOSE_SEC}s linear`;
+      bar.style.width = '0%';
+    }
+    weeklyAutoCloseTimer = setTimeout(() => closeWeeklyModal(), WEEKLY_MODAL_AUTO_CLOSE_SEC * 1000);
+  } else {
+    if (bar) { bar.style.transition = 'none'; bar.style.width = '0%'; }
   }
-  weeklyAutoCloseTimer = setTimeout(() => closeWeeklyModal(), WEEKLY_MODAL_AUTO_CLOSE_SEC * 1000);
 }
 
 function closeWeeklyModal() {
@@ -914,6 +944,10 @@ function weeklyModalOverlayClick() {
 
 function toggleWeeklyReport(hide) {
   state.hideWeeklyReport = hide;
+}
+
+function toggleAutoClose(enabled) {
+  state.autoCloseWeekly = enabled;
 }
 
 function triggerBankruptcy() {
@@ -1361,6 +1395,7 @@ function load() {
     if (state.staffingOpened === undefined)           state.staffingOpened = true;
     if (state.periodStaffingPlacements === undefined) state.periodStaffingPlacements = 0;
     if (state.hideWeeklyReport === undefined)         state.hideWeeklyReport = false;
+    if (state.autoCloseWeekly === undefined)          state.autoCloseWeekly = true;
     if (!state.executives)                            state.executives = {};
     if (!state.execSettings)                          state.execSettings = {};
     EXEC_DEFS.forEach(e => {
@@ -1375,6 +1410,8 @@ function load() {
     if (bgmBtn) bgmBtn.textContent = bgmMuted ? '🔇' : '🔊';
     const chk = document.getElementById('hide-weekly-report');
     if (chk) chk.checked = !!state.hideWeeklyReport;
+    const acChk = document.getElementById('auto-close-report');
+    if (acChk) acChk.checked = state.autoCloseWeekly !== false;
     if (offlineSec > 30) {
       const deptIncome     = getTotalIncome() * offlineSec;
       const offlineWeeks   = Math.floor(offlineSec / WEEK_SEC);
@@ -1699,6 +1736,7 @@ function renderDepts() {
     <div class="island-hdr"><span class="island-icon">💼</span><span>SES事業部</span></div>
     ${_buildDeptRow('sales')}
     ${_buildFLCard()}
+    ${EXEC_DEFS.filter(e => e.island === 'ses').map(e => _buildExecCard(e)).join('')}
   </div>`;
 
   // ソート対象の島（解放済みが上）
@@ -1711,6 +1749,7 @@ function renderDepts() {
           ? `<div class="dept-island island-staffing">
               <div class="island-hdr"><span class="island-icon">🤝</span><span>人材紹介事業部</span></div>
               ${_buildDeptRow('staffing')}
+              ${EXEC_DEFS.filter(e => e.island === 'staffing').map(e => _buildExecCard(e)).join('')}
              </div>`
           : `<div class="dept-island island-staffing">
               <div class="island-hdr"><span class="island-icon">🤝</span><span>人材紹介事業部</span></div>
@@ -2987,18 +3026,18 @@ function gameLoop(ts) {
         weeklyLog.push({ emoji: '📋', text: `FL採用なし（採用確率 ${(recruitChance * 100).toFixed(0)}%）${sesSsnLabel ? ' ' + sesSsnLabel : ''}` });
       }
 
-      // FL 自動離脱チェック（全体プールに対する割合で計算）
+      // FL 自動離脱チェック（各FLに個別確率判定）
       let lostFL = 0;
       if (state.flData.length > 0) {
         const flFavor    = state.morale.freelance || 90;
         const empMor     = state.morale.employee  || 90;
         const empPenalty = Math.max(0, (90 - empMor) * 0.001);
         const quitRate   = Math.min(0.55, 0.02 + (100 - flFavor) * 0.002 + empPenalty);
-        // 個別判定ではなくプール全体に対する期待値で計算（表示%と体感を一致させる）
-        const expected = state.flData.length * quitRate;
-        lostFL = Math.floor(expected) + (Math.random() < (expected % 1) ? 1 : 0);
-        if (lostFL > 0) {
-          state.flData.splice(-lostFL, lostFL);
+        for (let i = state.flData.length - 1; i >= 0; i--) {
+          if (Math.random() < quitRate) {
+            state.flData.splice(i, 1);
+            lostFL++;
+          }
         }
         state.freelancers = state.flData.length;
         if (lostFL > 0) {
@@ -3009,12 +3048,30 @@ function gameLoop(ts) {
       // 営業部役員 自動処理
       if (state.executives?.exec_sales_dir) {
         const eSettings = state.execSettings?.exec_sales_dir || {};
-        // モラール自動最適化
+        // モラール自動最適化（交流アクションを週最大2回自動購入）
         if (eSettings.autoMorale !== false) {
-          state.morale['ceo']      = Math.min(100, (state.morale['ceo']      || 90) + 3);
-          state.morale['employee'] = Math.min(100, (state.morale['employee'] || 90) + 5);
-          state.morale['freelance']= Math.min(100, (state.morale['freelance']|| 90) + 3);
-          weeklyLog.push({ emoji: '🤵', text: '営業部役員がモラールを最適化（社長+3、社員+5、FL+3）' });
+          const budget = state.money * 0.3;
+          const candidates = EXCHANGE_ACTIONS
+            .filter(a => {
+              const c = a.cost();
+              return c <= budget && c <= state.money && a.targets.some(t => (state.morale[t] || 90) < 100);
+            })
+            .map(a => {
+              const deficit = a.targets.reduce((s, t) => s + Math.max(0, 100 - (state.morale[t] || 90)), 0);
+              return { action: a, score: deficit * a.gain / a.cost() };
+            })
+            .sort((x, y) => y.score - x.score);
+          let bought = 0;
+          for (const { action } of candidates) {
+            if (bought >= 2) break;
+            const c = action.cost();
+            if (state.money >= c) {
+              state.money -= c;
+              action.targets.forEach(t => { state.morale[t] = Math.min(100, (state.morale[t] || 90) + action.gain); });
+              weeklyLog.push({ emoji: '🤵', text: `営業部役員が「${action.name}」を自動購入（${yen(c)}）` });
+              bought++;
+            }
+          }
         }
         // 営業人数自動最適化（定員の40%を目標）
         if (eSettings.autoSales !== false) {
