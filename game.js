@@ -1304,9 +1304,13 @@ function updateTabVisibility() {
 }
 
 function syncNavTop() {
-  const hh = document.getElementById('header').offsetHeight;
-  document.getElementById('tab-nav').style.top = hh + 'px';
+  const hh  = document.getElementById('header').offsetHeight;
+  const nav  = document.getElementById('tab-nav');
+  nav.style.top = hh + 'px';
   document.body.style.paddingTop = hh + 'px';
+  const navH = nav.offsetHeight;
+  const box  = document.querySelector('.exchange-morale-box');
+  if (box) box.style.top = (hh + navH) + 'px';
 }
 
 function hireManager(id) {
@@ -3489,7 +3493,7 @@ function switchTab(tabId, btn) {
   if (tabId === 'labor')    renderLabor();
   if (tabId === 'slots')    renderSlots();
   if (tabId === 'bank')     renderBank();
-  if (tabId === 'exchange') renderExchange();
+  if (tabId === 'exchange') { renderExchange(); requestAnimationFrame(syncNavTop); }
 }
 
 // ---- モーダル ----
