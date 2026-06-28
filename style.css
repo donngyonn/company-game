@@ -327,12 +327,17 @@ body {
 /* ---- タブナビ ---- */
 #tab-nav {
   display: flex;
+  flex-direction: column;
   background: rgba(9,9,26,0.97);
   backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--border);
   position: sticky;
-  top: 194px;
+  top: 210px;
   z-index: 150;
+}
+
+.tab-btn-row {
+  display: flex;
 }
 
 .tab-btn {
