@@ -160,10 +160,10 @@ const MANAGER_DEFS = [
     id: 'mgr_staffing',
     name: '紹介部門マネージャー',
     emoji: '📋',
-    desc: '紹介発掘確率＋5%（追加1人ごとに×1.25倍）。月給75万＋社保。営業10人につき1人採用可。',
-    hireCost: 5000000,
-    monthlySalary: 750000,
-    unlockAt: 30000000,
+    desc: '紹介発掘確率＋3%（追加1人ごとに×1.25倍）。月給70万＋社保。営業10人につき1人採用可。',
+    hireCost: 3000000,
+    monthlySalary: 700000,
+    unlockAt: 10000000,
     island: 'staffing',
   },
 ];
@@ -187,7 +187,7 @@ const CONTRACT_MIN_WEEKS  = 12;   // 最短リードタイム
 const CONTRACT_MAX_WEEKS  = 24;   // 最長リードタイム
 const CONTRACT_MULT_MIN   = 1.2;  // 12週時 売上倍率（月額コスト×months×1.2）
 const CONTRACT_MULT_MAX   = 1.6;  // 24週時 売上倍率
-const CONTRACT_MARGIN_MIN = 30;   // 12週時 想定利益率(%)
+const CONTRACT_MARGIN_MIN = 50;   // 12週時 想定利益率(%)
 const CONTRACT_MARGIN_MAX = 60;   // 24週時 想定利益率(%)
 
 function getExecMonthlySalary() {
@@ -500,7 +500,7 @@ function getStaffingFindRate() {
   const mktBonus     = (state.employees['marketing'] || 0) * 0.0005;
   const seasonal     = getStaffingSeasonal();
   const mgrCount     = state.managers?.mgr_staffing || 0;
-  const mgrBonus     = mgrCount > 0 ? 0.20 * (Math.pow(1.25, mgrCount) - 1) : 0;
+  const mgrBonus     = mgrCount > 0 ? 0.12 * (Math.pow(1.25, mgrCount) - 1) : 0;
   return Math.min(0.80, Math.max(0.01, (0.10 + mktBonus + seasonal + mgrBonus) * staffingMult));
 }
 
