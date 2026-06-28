@@ -90,7 +90,7 @@ const DEPT_DEFS = [
     desc: '株式市場への投資運用を担当。採用すると銀行タブの証券取引所が解放される。月給100万＋社保15%。',
     incomePerSec: 0, marginRate: null, salaryLabel: '人件費',
     monthlySalary: 1000000, insuranceRate: 0.15,
-    baseCost: 4200000, costMult: 1.20, unlockAt: 100000000,
+    baseCost: 4200000, costMult: 1.20, unlockAt: 200000000,
   },
 ];
 
