@@ -4508,8 +4508,44 @@ function bgmToggle() {
   if (btn) btn.textContent = bgmMuted ? '🔇' : '🔊';
 }
 
+function applyDevMode() {
+  state.money        = 10000000000;
+  state.totalEarned  = 35000000000;
+  state.periodEarned = 1000000000;
+  state.elapsedSeconds = WEEK_SEC * 4;
+
+  ['sales', 'staffing', 'marketing', 'finance', 'global', 'investment'].forEach(id => {
+    state.employees[id] = id === 'sales' ? 30 : 10;
+  });
+
+  for (let i = 0; i < 50; i++) {
+    state.flData.push({ gross: 700000 + Math.floor(Math.random() * 300001), profitRate: 0.15 + Math.random() * 0.10, hiredWeek: 0 });
+  }
+  state.freelancers = state.flData.length;
+
+  const allSkillIds = Object.values(SKILL_TREE).flat().map(s => s.id);
+  allSkillIds.forEach(id => { state.skills[id] = true; });
+  state.skillPoints = 10;
+
+  EXEC_DEFS.forEach(e => { state.executives[e.id] = true; });
+  MANAGER_DEFS.forEach(m => {
+    if (!state.managers) state.managers = {};
+    state.managers[m.id] = 2;
+  });
+
+  state.morale = { ceo: 100, employee: 100, freelance: 100 };
+  state.freelancerMult = 1;
+  state.ceoSalary = 1000000;
+
+  const badge = document.createElement('div');
+  badge.textContent = '🛠 DEV MODE';
+  badge.style.cssText = 'position:fixed;bottom:8px;right:8px;background:#f87171;color:#fff;font-size:11px;font-weight:700;padding:3px 8px;border-radius:4px;z-index:9999;pointer-events:none';
+  document.body.appendChild(badge);
+}
+
 window.addEventListener('DOMContentLoaded', () => {
   load();
+  if (new URLSearchParams(location.search).get('dev') === '1') applyDevMode();
   setGameSpeed(state.gameSpeed || 1);
   if (state.isPaused) {
     const pb = document.getElementById('pause-btn');
