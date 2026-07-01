@@ -1602,25 +1602,17 @@ function repayLoanFull(loanId) {
   renderHeader();
 }
 
-function renderBank() {
-  const container = document.getElementById('bank-content');
-  if (!container) return;
-
-  updateTabVisibility();
-
+function buildBankHtml() {
   if (!state.bankUnlocked) {
-    container.innerHTML = `
-      <div class="bank-locked">
-        <div class="bank-lock-icon">🔒</div>
-        <div class="bank-locked-title">銀行取引は利用できません</div>
-        <p class="bank-locked-desc">財務タブで銀行審査に通過すると取引口座が開設されます</p>
-      </div>`;
-    return;
+    return `<div class="labor-section">
+      <div class="labor-section-title">🏦 銀行取引審査</div>
+      <div style="font-size:11px;color:#94a3b8;margin-bottom:8px">直近4週間の利益率が20%以上の場合、銀行取引が解放されます。</div>
+      <button class="hire-btn${(state.reportHistory||[]).length >= 4 ? '' : ' disabled'}" onclick="applyBankReview()">審査を申請する</button>
+    </div>`;
   }
 
-  const totalDebt   = state.loans.reduce((a, l) => a + l.remaining, 0);
+  const totalDebt    = state.loans.reduce((a, l) => a + l.remaining, 0);
   const monthlyRepay = state.loans.reduce((a, l) => a + l.monthlyPayment, 0);
-  const exp = calcMonthlyExpenses();
 
   const loanListHtml = state.loans.length > 0
     ? state.loans.map(l => `
@@ -1634,9 +1626,9 @@ function renderBank() {
     : '<p class="no-loan">現在ローンなし</p>';
 
   const loanBtnsHtml = LOAN_OPTIONS.map(opt => {
-    const fee     = Math.ceil(opt.amount * LOAN_FEE_RATE);
+    const fee      = Math.ceil(opt.amount * LOAN_FEE_RATE);
     const interest = Math.ceil(opt.amount * opt.monthlyRate * opt.months);
-    const monthly = Math.ceil((opt.amount + interest) / opt.months);
+    const monthly  = Math.ceil((opt.amount + interest) / opt.months);
     const rateLabel = (opt.monthlyRate * 100).toFixed(1);
     return `<button class="loan-btn" onclick="takeLoan(${opt.amount},${opt.months},${opt.monthlyRate})">
       <span class="loan-amount">${opt.label} ${yen(opt.amount)}</span>
@@ -1644,7 +1636,49 @@ function renderBank() {
     </button>`;
   }).join('');
 
-  container.innerHTML = `
+  const stockHtml = (() => {
+    const investCount = state.employees?.['investment'] || 0;
+    if (!investCount) return `<div class="bank-section" style="opacity:0.45">
+      <div class="bank-subheader">🔒 証券取引所</div>
+      <p class="no-loan" style="font-size:11px">財務部の資産運用スタッフを採用すると解放されます</p>
+    </div>`;
+    if (!state.stocks) return `<div class="bank-section">
+      <div class="bank-subheader">📈 証券取引所</div>
+      <p class="no-loan">初期化中...</p>
+    </div>`;
+    const stockCards = STOCK_DEFS.map(def => {
+      const s = state.stocks[def.id];
+      if (!s) return '';
+      const gain      = s.shares > 0 ? Math.round((s.price - s.avgCost) * s.shares) : 0;
+      const gainColor = gain > 0 ? '#4ade80' : gain < 0 ? '#f87171' : '#94a3b8';
+      const gainSign  = gain > 0 ? '+' : '';
+      const hist      = (s.history || [s.price]);
+      const prevPrice = hist.length >= 2 ? hist[hist.length - 2] : s.price;
+      const weekChg   = prevPrice > 0 ? ((s.price - prevPrice) / prevPrice * 100).toFixed(1) : '0.0';
+      const chgColor  = parseFloat(weekChg) >= 0 ? '#4ade80' : '#f87171';
+      const chgSign   = parseFloat(weekChg) >= 0 ? '+' : '';
+      return `<div class="stock-card">
+        <div class="stock-header">
+          <span class="stock-name">${def.emoji} ${def.name}</span>
+          <span class="stock-type-badge">${def.type}</span>
+          <span class="stock-price">${yen(s.price)}<span style="font-size:9px;color:${chgColor};margin-left:4px">${chgSign}${weekChg}%</span></span>
+        </div>
+        ${s.shares > 0 ? `<div class="stock-hold">保有 <b>${s.shares}</b>株　取得単価 ${yen(Math.round(s.avgCost))}　評価損益 <span style="color:${gainColor};font-weight:700">${gainSign}${yen(gain)}</span></div>` : ''}
+        <div class="stock-btns">
+          <button class="loan-btn" style="flex:1;font-size:11px" onclick="buyStock('${def.id}',100)">100株 買 ${yen(s.price * 100)}</button>
+          <button class="loan-btn" style="flex:1;font-size:11px" onclick="buyStock('${def.id}',500)">500株 買 ${yen(s.price * 500)}</button>
+          ${s.shares >= 100 ? `<button class="loan-btn" style="flex:1;font-size:11px;border-color:#f87171;color:#f87171" onclick="sellStock('${def.id}',100)">100株 売</button>` : ''}
+          ${s.shares > 0 ? `<button class="loan-btn" style="flex:1;font-size:11px;border-color:#f87171;color:#f87171" onclick="sellStock('${def.id}',${s.shares})">全売</button>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+    return `<div class="bank-section">
+      <div class="bank-subheader">📈 証券取引所</div>
+      ${stockCards}
+    </div>`;
+  })();
+
+  return `
     <div class="bank-section">
       <div class="bank-subheader">💳 借入状況</div>
       <div class="bank-debt-box">
@@ -1658,61 +1692,14 @@ function renderBank() {
       <div class="bank-subheader">💰 新規借入申請</div>
       ${loanBtnsHtml}
     </div>
-    <div class="bank-section">
-      <div class="bank-subheader">📋 次回月次費用予測</div>
-      <div class="expense-preview">
-        <div class="expense-row"><span>🏢 事務所費</span><span>${yen(exp.rent + exp.utilities + exp.supplies)}</span></div>
-        ${exp.salesperson > 0 ? `<div class="expense-row"><span>👔 営業部人件費</span><span>${yen(exp.salesperson)}</span></div>` : ''}
-        ${exp.ceoSalary > 0 ? `<div class="expense-row"><span>🤵 社長報酬</span><span>${yen(exp.ceoSalary)}</span></div>` : ''}
-        ${exp.loanPay > 0 ? `<div class="expense-row" style="color:#f87171"><span>🏦 ローン返済</span><span>${yen(exp.loanPay)}</span></div>` : ''}
-        <div class="expense-row" style="font-weight:700"><span>合計</span><span>${yen(exp.total)}</span></div>
-      </div>
-    </div>
-    ${(() => {
-      const investCount = state.employees?.['investment'] || 0;
-      if (!investCount) {
-        return `<div class="bank-section" style="opacity:0.45">
-          <div class="bank-subheader">🔒 証券取引所</div>
-          <p class="no-loan" style="font-size:11px">財務部の資産運用スタッフを採用すると解放されます</p>
-        </div>`;
-      }
-      if (!state.stocks) {
-        return `<div class="bank-section">
-          <div class="bank-subheader">📈 証券取引所</div>
-          <p class="no-loan">初期化中...</p>
-        </div>`;
-      }
-      const stockCards = STOCK_DEFS.map(def => {
-        const s = state.stocks[def.id];
-        if (!s) return '';
-        const gain      = s.shares > 0 ? Math.round((s.price - s.avgCost) * s.shares) : 0;
-        const gainColor = gain > 0 ? '#4ade80' : gain < 0 ? '#f87171' : '#94a3b8';
-        const gainSign  = gain > 0 ? '+' : '';
-        const hist = (s.history || [s.price]);
-        const prevPrice = hist.length >= 2 ? hist[hist.length - 2] : s.price;
-        const weekChg   = prevPrice > 0 ? ((s.price - prevPrice) / prevPrice * 100).toFixed(1) : '0.0';
-        const chgColor  = parseFloat(weekChg) >= 0 ? '#4ade80' : '#f87171';
-        const chgSign   = parseFloat(weekChg) >= 0 ? '+' : '';
-        return `<div class="stock-card">
-          <div class="stock-header">
-            <span class="stock-name">${def.emoji} ${def.name}</span>
-            <span class="stock-type-badge">${def.type}</span>
-            <span class="stock-price">${yen(s.price)}<span style="font-size:9px;color:${chgColor};margin-left:4px">${chgSign}${weekChg}%</span></span>
-          </div>
-          ${s.shares > 0 ? `<div class="stock-hold">保有 <b>${s.shares}</b>株　取得単価 ${yen(Math.round(s.avgCost))}　評価損益 <span style="color:${gainColor};font-weight:700">${gainSign}${yen(gain)}</span></div>` : ''}
-          <div class="stock-btns">
-            <button class="loan-btn" style="flex:1;font-size:11px" onclick="buyStock('${def.id}',100)">100株 買 ${yen(s.price * 100)}</button>
-            <button class="loan-btn" style="flex:1;font-size:11px" onclick="buyStock('${def.id}',500)">500株 買 ${yen(s.price * 500)}</button>
-            ${s.shares >= 100 ? `<button class="loan-btn" style="flex:1;font-size:11px;border-color:#f87171;color:#f87171" onclick="sellStock('${def.id}',100)">100株 売</button>` : ''}
-            ${s.shares > 0 ? `<button class="loan-btn" style="flex:1;font-size:11px;border-color:#f87171;color:#f87171" onclick="sellStock('${def.id}',${s.shares})">全売</button>` : ''}
-          </div>
-        </div>`;
-      }).join('');
-      return `<div class="bank-section">
-        <div class="bank-subheader">📈 証券取引所</div>
-        ${stockCards}
-      </div>`;
-    })()}`;
+    ${stockHtml}`;
+}
+
+function renderBank() {
+  const container = document.getElementById('bank-content');
+  if (!container) return;
+  updateTabVisibility();
+  container.innerHTML = buildBankHtml();
 }
 
 // ---- 交流タブ（精神状況） ----
@@ -1836,7 +1823,7 @@ function acquireClient(poolIdx) {
     totalWeeks,
   });
   showToast(`🤝 ${def.emoji} ${def.name} と契約！初期費用 ${yen(initCost)} 支払い（${totalWeeks}週間）`);
-  renderExchange();
+  renderUpgrades();
 }
 
 function processClients(currentWeekNum, weeklyLog) {
@@ -2060,64 +2047,6 @@ function renderExchange() {
     ? `<div style="font-size:11px;color:#f87171;margin-top:6px;padding:6px 8px;background:#f8717118;border-radius:6px;border:1px solid #f8717133">⚠️ 社長の士気が低下中。社員・FLの士気低下が加速しています。</div>`
     : '';
 
-  // 技術トレンド表示
-  const trendHtml = state.techTrend
-    ? `<div class="tech-trend-box"><span class="tech-trend-emoji">${state.techTrend.emoji}</span> <strong>${state.techTrend.name}</strong> トレンド中 — FL単価×${state.techTrend.mult.toFixed(2)}</div>`
-    : '';
-
-  // 競合他社状況
-  const rivalHtml = state.rival
-    ? `<div class="rival-box">
-        ${state.rival.emoji} <strong>競合「${state.rival.name}」出現中</strong>（残${state.rival.weeksLeft}週）— FL収益${(state.rival.strength*100).toFixed(0)}%低下
-        <button class="rival-counter-btn" onclick="counterRival()">対抗（${yen(Math.max(1000000, Math.floor(getFlWeeklyIncome() * 4)))}）</button>
-      </div>`
-    : '';
-
-  const salesCount = state.employees['sales'] || 0;
-
-  // クライアント管理
-  const availClients = getAvailableClients();
-  const activeClients = state.clients || [];
-  const clientActiveHtml = activeClients.length > 0
-    ? activeClients.map(c => {
-        const satColor = c.satisfaction >= 70 ? '#4ade80' : c.satisfaction >= 40 ? '#fbbf24' : '#f87171';
-        const income = Math.floor(c.weeklyValue * c.satisfaction / 100);
-        return `<div class="client-card">
-          <span class="client-emoji">${c.emoji}</span>
-          <div class="client-info">
-            <div class="client-name">${c.name} <span style="color:#666;font-size:10px">${c.industry}</span></div>
-            <div class="client-stats">
-              満足度 <span style="color:${satColor}">${c.satisfaction}</span>
-              　残${c.weeksLeft}週
-              　週収益 <span style="color:#4ade80">${yen(income)}</span>
-            </div>
-            <div class="morale-bar-wrap" style="margin-top:2px"><div class="morale-bar" style="width:${c.satisfaction}%;background:${satColor}"></div></div>
-          </div>
-        </div>`;
-      }).join('')
-    : `<div style="color:#555;font-size:12px;padding:6px 0">契約中のクライアントなし</div>`;
-
-  const clientAcquireHtml = availClients.length > 0
-    ? `<div class="client-acquire-list">
-        ${availClients.map((c, i) => {
-          const hasEnoughSales = salesCount >= c.minSales;
-          const canAffordClient = state.money >= (c.initCost || 0);
-          return `<button class="client-acquire-btn${hasEnoughSales && canAffordClient ? '' : ' disabled'}" onclick="acquireClient(${i})">
-            ${c.emoji} <strong>${c.name}</strong>（${c.industry}）
-            <span style="color:#fbbf24">${yen(c.weeklyValue)}/週</span>
-            <span style="color:#94a3b8;font-size:10px">　契約費 ${yen(c.initCost || 0)}</span>
-            ${!hasEnoughSales ? `<span style="color:#f87171">　要営業${c.minSales}名</span>` : !canAffordClient ? `<span style="color:#f87171">　資金不足</span>` : ''}
-          </button>`;
-        }).join('')}
-      </div>`
-    : `<div style="color:#555;font-size:12px;padding:6px 0">現在契約可能なクライアントなし（営業を増やすか、全社と契約済み）</div>`;
-
-  const clientHtml = `<div class="exchange-actions" style="margin-top:12px">
-    <div class="exchange-action-title" style="color:#38c8e8">🏢 クライアント管理（${activeClients.length}社契約中）</div>
-    ${clientActiveHtml}
-    <div style="margin-top:8px;font-size:11px;color:#888">📋 新規契約可能</div>
-    ${clientAcquireHtml}
-  </div>`;
 
   container.innerHTML = `
     <div class="exchange-morale-box">
@@ -2125,8 +2054,6 @@ function renderExchange() {
       ${ceoWarning}
       <div class="morale-effect">売上影響: <strong style="color:${Number(eff)>=0?'#4ade80':'#f87171'}">${Number(eff)>=0?'+':''}${eff}%</strong>（平均 ${avg.toFixed(0)}/100）</div>
     </div>
-    ${trendHtml}
-    ${rivalHtml}
     <div class="exchange-actions">
       <div class="exchange-action-title" style="color:#fbbf24">👔 社長アクション</div>
       ${ceoBtns}
@@ -2138,8 +2065,7 @@ function renderExchange() {
     <div class="exchange-actions" style="margin-top:12px">
       <div class="exchange-action-title" style="color:#93c5fd">👨‍💻 FL アクション</div>
       ${flBtns}
-    </div>
-    ${clientHtml}`;
+    </div>`;
 }
 
 // ---- 週次イベント ----
@@ -2975,6 +2901,54 @@ function renderUpgrades() {
       <button class="buy-btn${hackAvail && state.money >= hackCost ? '' : ' disabled'}" onclick="holdHackathon()">開催</button>
     </div>`;
 
+  // 技術トレンド・競合
+  if (state.techTrend) {
+    html += `<div class="tech-trend-box"><span class="tech-trend-emoji">${state.techTrend.emoji}</span> <strong>${state.techTrend.name}</strong> トレンド中 — FL単価×${state.techTrend.mult.toFixed(2)}</div>`;
+  }
+  if (state.rival) {
+    html += `<div class="rival-box">
+      ${state.rival.emoji} <strong>競合「${state.rival.name}」出現中</strong>（残${state.rival.weeksLeft}週）— FL収益${(state.rival.strength*100).toFixed(0)}%低下
+      <button class="rival-counter-btn" onclick="counterRival()">対抗（${yen(Math.max(1000000, Math.floor(getFlWeeklyIncome() * 4)))}）</button>
+    </div>`;
+  }
+
+  // クライアント管理
+  const upgradesSalesCount = state.employees['sales'] || 0;
+  const availClients  = getAvailableClients();
+  const activeClients = state.clients || [];
+  const clientActiveHtml = activeClients.length > 0
+    ? activeClients.map(c => {
+        const satColor = c.satisfaction >= 70 ? '#4ade80' : c.satisfaction >= 40 ? '#fbbf24' : '#f87171';
+        const income   = Math.floor(c.weeklyValue * c.satisfaction / 100);
+        return `<div class="client-card">
+          <span class="client-emoji">${c.emoji}</span>
+          <div class="client-info">
+            <div class="client-name">${c.name} <span style="color:#666;font-size:10px">${c.industry}</span></div>
+            <div class="client-stats">満足度 <span style="color:${satColor}">${c.satisfaction}</span>　残${c.weeksLeft}週　週収益 <span style="color:#4ade80">${yen(income)}</span></div>
+            <div class="morale-bar-wrap" style="margin-top:2px"><div class="morale-bar" style="width:${c.satisfaction}%;background:${satColor}"></div></div>
+          </div>
+        </div>`;
+      }).join('')
+    : `<div style="color:#555;font-size:12px;padding:6px 0">契約中のクライアントなし</div>`;
+  const clientAcquireHtml = availClients.length > 0
+    ? `<div class="client-acquire-list">
+        ${availClients.map((c, i) => {
+          const hasEnoughSales  = upgradesSalesCount >= c.minSales;
+          const canAffordClient = state.money >= (c.initCost || 0);
+          return `<button class="client-acquire-btn${hasEnoughSales && canAffordClient ? '' : ' disabled'}" onclick="acquireClient(${i})">
+            ${c.emoji} <strong>${c.name}</strong>（${c.industry}）
+            <span style="color:#fbbf24">${yen(c.weeklyValue)}/週</span>
+            <span style="color:#94a3b8;font-size:10px">　契約費 ${yen(c.initCost || 0)}</span>
+            ${!hasEnoughSales ? `<span style="color:#f87171">　要営業${c.minSales}名</span>` : !canAffordClient ? `<span style="color:#f87171">　資金不足</span>` : ''}
+          </button>`;
+        }).join('')}
+      </div>`
+    : `<div style="color:#555;font-size:12px;padding:6px 0">現在契約可能なクライアントなし</div>`;
+  html += `<div class="upgrade-group-hdr">🏢 クライアント管理 <span class="upgrade-group-effect">${activeClients.length}社契約中</span></div>
+    ${clientActiveHtml}
+    <div style="margin-top:8px;font-size:11px;color:#888">📋 新規契約可能</div>
+    ${clientAcquireHtml}`;
+
   // スキルツリー
   html += renderSkillTree();
 
@@ -3118,14 +3092,7 @@ function renderLabor() {
     </div>
     ${state.totalEarned >= IPO_THRESHOLD ? `<div class="ipo-ready-banner" onclick="document.getElementById('ipo-modal').classList.remove('hidden')">🚀 上場可能！タップして上場する</div>` : ''}
 
-    <div class="labor-section">
-      <div class="labor-section-title">🏦 銀行取引審査</div>
-      ${state.bankUnlocked
-        ? `<div style="color:#4ade80;font-size:13px;padding:4px 0">✅ 銀行取引口座 開設済み</div>`
-        : `<div style="font-size:11px;color:#94a3b8;margin-bottom:8px">直近4週間の利益率が20%以上の場合、銀行取引が解放されます。</div>
-           <button class="hire-btn${(state.reportHistory||[]).length >= 4 ? '' : ' disabled'}" onclick="applyBankReview()">審査を申請する</button>`
-      }
-    </div>
+    ${buildBankHtml()}
 
     ${(() => {
       const exp = calcMonthlyExpenses();
@@ -3942,7 +3909,6 @@ function renderAll() {
   renderUpgrades();
   renderLabor();
   renderSlots();
-  renderBank();
   renderExchange();
 }
 
