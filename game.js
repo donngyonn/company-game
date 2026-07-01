@@ -3924,6 +3924,306 @@ function renderOfficeScene() {
   else                     descEl.textContent = STAGE_DEFS[getCurrentStageIdx()].desc;
 }
 
+// ============================================================
+// 拠点タブ
+// ============================================================
+
+const BASE_CITIES = [
+  { id: 'tokyo',    name: '東京',   emoji: '🗼', sx: 172, sy: 127, desc: '超高層ビルが林立する世界都市' },
+  { id: 'osaka',   name: '大阪',   emoji: '🏯', sx: 108, sy: 173, desc: '商都・関西のビジネス&グルメ拠点' },
+  { id: 'hokkaido',name: '北海道', emoji: '🦌', sx: 158, sy: 32,  desc: '広大な大地・北の玄関口' },
+  { id: 'fukuoka', name: '福岡',   emoji: '🍜', sx: 50,  sy: 218, desc: '九州の玄関口・食と文化の街' },
+];
+
+// 0=道路/隙間 1=公園 2=低層ビル 3=中層ビル 4=高層ビル 5=飲食ビル 6=商業施設
+const CITY_LAYOUTS = {
+  tokyo: [
+    [4,4,0,4,4,0,4,4,0,4],
+    [4,3,0,4,3,0,3,4,0,3],
+    [0,0,0,0,0,0,0,0,0,0],
+    [4,4,0,4,4,0,4,3,0,4],
+    [3,4,0,4,3,0,4,4,0,3],
+    [0,0,0,0,0,0,0,0,0,0],
+    [4,3,0,4,4,0,3,4,0,3],
+    [3,4,0,3,3,0,4,3,0,4],
+    [0,0,0,0,0,0,0,0,0,0],
+    [5,6,5,6,5,6,5,6,5,6],
+  ],
+  osaka: [
+    [3,3,0,3,4,0,3,3,0,3],
+    [3,4,0,3,3,0,4,3,0,3],
+    [0,0,0,0,0,0,0,0,0,0],
+    [6,5,6,5,6,0,6,5,6,5],
+    [5,6,5,6,5,0,5,6,5,6],
+    [0,0,0,0,0,0,0,0,0,0],
+    [2,3,0,3,2,0,3,2,0,3],
+    [3,2,0,2,3,0,2,3,0,2],
+    [0,0,0,0,0,0,0,0,0,0],
+    [4,3,4,3,4,3,4,3,4,3],
+  ],
+  hokkaido: [
+    [1,1,0,2,1,0,1,2,0,1],
+    [2,1,0,1,2,0,2,1,0,1],
+    [0,0,0,0,0,0,0,0,0,0],
+    [2,2,0,2,3,0,2,2,0,2],
+    [2,3,0,2,2,0,3,2,0,2],
+    [0,0,0,0,0,0,0,0,0,0],
+    [5,1,0,5,1,0,1,5,0,1],
+    [1,5,0,1,5,0,5,1,0,5],
+    [0,0,0,0,0,0,0,0,0,0],
+    [1,2,1,1,2,1,2,1,1,2],
+  ],
+  fukuoka: [
+    [2,3,0,3,2,0,2,3,0,2],
+    [3,2,0,2,3,0,3,2,0,3],
+    [0,0,0,0,0,0,0,0,0,0],
+    [5,5,5,5,5,0,5,5,5,5],
+    [5,2,0,2,5,0,2,5,0,2],
+    [0,0,0,0,0,0,0,0,0,0],
+    [3,3,0,3,3,0,2,3,0,3],
+    [2,3,0,2,3,0,3,2,0,2],
+    [0,0,0,0,0,0,0,0,0,0],
+    [6,5,5,6,5,5,5,6,5,6],
+  ],
+};
+
+// h=高さpx, top/left/right=面の色, wColor=窓の色(nullなら窓なし)
+const BTYPE_DEFS = [
+  null,
+  { h: 5,  top: '#2d6032', left: '#1a4020', right: '#24502a', wColor: null },        // 1 公園
+  { h: 22, top: '#c8cdd4', left: '#68737c', right: '#78838e', wColor: 'rgba(180,220,255,0.20)' }, // 2 低層
+  { h: 45, top: '#bec8d2', left: '#58686e', right: '#687880', wColor: 'rgba(180,220,255,0.30)' }, // 3 中層
+  { h: 80, top: '#8ab8e0', left: '#1c4c78', right: '#285e8a', wColor: 'rgba(200,235,255,0.55)' }, // 4 高層
+  { h: 18, top: '#f0b820', left: '#9e5600', right: '#b66800', wColor: 'rgba(255,215,60,0.70)'  }, // 5 飲食
+  { h: 28, top: '#42c886', left: '#0a6838', right: '#187848', wColor: 'rgba(80,255,140,0.30)'  }, // 6 商業
+];
+
+const ISO_TW = 30;
+const ISO_TH = 15;
+
+let baseSelectedCity = null;
+let baseCityAnimId   = null;
+let baseCityFrame    = 0;
+
+function renderBase() {
+  const container = document.getElementById('base-content');
+  if (!container) return;
+  if (baseSelectedCity) {
+    renderBaseCityView(container, baseSelectedCity);
+  } else {
+    renderBaseJapanMap(container);
+  }
+}
+
+function renderBaseJapanMap(container) {
+  if (baseCityAnimId) { cancelAnimationFrame(baseCityAnimId); baseCityAnimId = null; }
+
+  const W = 240, H = 290;
+  // 簡略化した日本列島 SVG ポリゴン
+  const hokkaido = '118,8 148,2 188,10 200,26 196,46 168,58 138,58 118,44 104,26';
+  const honshu   = '165,25 208,46 214,76 194,102 184,124 174,150 154,170 138,180 122,190 106,200 90,210 74,220 58,226 44,216 38,200 50,192 66,186 82,176 96,162 106,142 112,122 126,106 136,90 146,70 150,48 148,30';
+  const shikoku  = '88,216 116,206 130,216 120,234 92,234';
+  const kyushu   = '44,216 70,210 82,228 78,254 58,265 30,256 22,234';
+
+  const markers = BASE_CITIES.map(c => `
+    <g style="cursor:pointer" onclick="selectBaseCity('${c.id}')">
+      <circle cx="${c.sx}" cy="${c.sy}" r="14" fill="rgba(59,130,246,0.15)" stroke="none">
+        <animate attributeName="r" values="10;15;10" dur="2.4s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="${c.sx}" cy="${c.sy}" r="5" fill="#60a5fa" stroke="#93c5fd" stroke-width="1.5"/>
+      <text x="${c.sx}" y="${c.sy - 10}" text-anchor="middle" fill="#e2e8f0" font-size="9.5"
+            font-family="'Hiragino Sans','Meiryo',sans-serif" font-weight="600">${c.name}</text>
+    </g>`).join('');
+
+  container.innerHTML = `
+    <div style="padding:12px 12px 16px">
+      <div style="font-size:15px;font-weight:700;color:#e2e8f0;margin-bottom:4px">🗾 拠点マップ</div>
+      <div style="font-size:11px;color:#475569;margin-bottom:12px">都市をタップして市街地3Dビューへ</div>
+      <div style="display:flex;justify-content:center">
+        <svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}"
+             style="background:linear-gradient(160deg,#06101c,#0a182a);border-radius:12px;border:1px solid #1e3a50;display:block">
+          ${Array.from({length:12},(_,i)=>`<line x1="0" y1="${i*25}" x2="${W}" y2="${i*25}" stroke="#0c1e30" stroke-width="0.6"/>`).join('')}
+          ${Array.from({length:10},(_,i)=>`<line x1="${i*26}" y1="0" x2="${i*26}" y2="${H}" stroke="#0c1e30" stroke-width="0.6"/>`).join('')}
+          <polygon points="${hokkaido}" fill="#1a3828" stroke="#2a5238" stroke-width="1"/>
+          <polygon points="${honshu}"   fill="#1a3828" stroke="#2a5238" stroke-width="1"/>
+          <polygon points="${shikoku}"  fill="#1a3828" stroke="#2a5238" stroke-width="1"/>
+          <polygon points="${kyushu}"   fill="#1a3828" stroke="#2a5238" stroke-width="1"/>
+          ${markers}
+        </svg>
+      </div>
+      <div style="margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        ${BASE_CITIES.map(c => `
+          <button onclick="selectBaseCity('${c.id}')"
+            style="background:#0c1525;border:1px solid #1e3050;border-radius:8px;padding:10px 8px;text-align:left;cursor:pointer;width:100%">
+            <div style="font-size:20px;line-height:1.2">${c.emoji}</div>
+            <div style="font-size:12px;font-weight:700;color:#e2e8f0;margin-top:4px">${c.name}</div>
+            <div style="font-size:10px;color:#475569;margin-top:2px">${c.desc}</div>
+          </button>`).join('')}
+      </div>
+    </div>`;
+}
+
+function selectBaseCity(cityId) {
+  baseSelectedCity = cityId;
+  const container = document.getElementById('base-content');
+  if (container) renderBaseCityView(container, cityId);
+}
+
+function renderBaseCityView(container, cityId) {
+  const city = BASE_CITIES.find(c => c.id === cityId);
+  if (!city) return;
+  container.innerHTML = `
+    <div style="padding:12px 12px 16px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <button onclick="baseSelectedCity=null;renderBase()"
+          style="background:#1a2a3a;border:1px solid #334155;border-radius:6px;padding:4px 10px;color:#94a3b8;font-size:11px;cursor:pointer">← 戻る</button>
+        <div style="font-size:15px;font-weight:700;color:#e2e8f0">${city.emoji} ${city.name}</div>
+      </div>
+      <div style="font-size:11px;color:#475569;margin-bottom:8px">${city.desc}</div>
+      <div style="border-radius:10px;overflow:hidden;border:1px solid #1e3050;background:#05080f">
+        <canvas id="city-canvas" width="340" height="300" style="width:100%;display:block"></canvas>
+      </div>
+      <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:5px;font-size:10px;color:#64748b">
+        <span style="background:#0c1525;border:1px solid #1e3050;border-radius:4px;padding:2px 7px;color:#8ab8e0">🏢 高層</span>
+        <span style="background:#0c1525;border:1px solid #1e3050;border-radius:4px;padding:2px 7px;color:#bec8d2">🏬 中層</span>
+        <span style="background:#0c1525;border:1px solid #1e3050;border-radius:4px;padding:2px 7px;color:#c8cdd4">🏗 低層</span>
+        <span style="background:#0c1525;border:1px solid #1e3050;border-radius:4px;padding:2px 7px;color:#f0b820">🍜 飲食</span>
+        <span style="background:#0c1525;border:1px solid #1e3050;border-radius:4px;padding:2px 7px;color:#42c886">🛒 商業</span>
+        <span style="background:#0c1525;border:1px solid #1e3050;border-radius:4px;padding:2px 7px;color:#2d6032">🌳 公園</span>
+      </div>
+    </div>`;
+  if (baseCityAnimId) { cancelAnimationFrame(baseCityAnimId); baseCityAnimId = null; }
+  baseCityFrame = 0;
+  requestAnimationFrame(() => _startCityAnim(cityId));
+}
+
+function _startCityAnim(cityId) {
+  const canvas = document.getElementById('city-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  (function frame() {
+    if (!document.getElementById('city-canvas')) { baseCityAnimId = null; return; }
+    _drawIsoCity(ctx, canvas.width, canvas.height, cityId, baseCityFrame++);
+    baseCityAnimId = requestAnimationFrame(frame);
+  })();
+}
+
+function _seededRng(seed) {
+  let s = seed | 0;
+  return () => {
+    s = (s + 0x6D2B79F5) | 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function _drawIsoCity(ctx, W, H, cityId, frame) {
+  const layout = CITY_LAYOUTS[cityId];
+  if (!layout) return;
+  const tw = ISO_TW, th = ISO_TH;
+  const ox0 = W / 2, oy0 = 105;
+
+  ctx.clearRect(0, 0, W, H);
+
+  // 夜空背景
+  const sky = ctx.createLinearGradient(0, 0, 0, H);
+  sky.addColorStop(0, '#01060e');
+  sky.addColorStop(1, '#040d1a');
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, W, H);
+
+  // 星
+  const rng = _seededRng(9999 + (cityId.charCodeAt(0) || 0));
+  for (let i = 0; i < 50; i++) {
+    const sx = rng() * W, sy = rng() * (H * 0.45);
+    const bright = 0.2 + rng() * 0.8;
+    ctx.fillStyle = `rgba(255,255,255,${bright})`;
+    ctx.fillRect(sx, sy, 1, 1);
+  }
+
+  // タイルを奥から手前順にソート
+  const cells = [];
+  for (let r = 0; r < 10; r++)
+    for (let c = 0; c < 10; c++)
+      cells.push({ r, c, type: layout[r][c] });
+  cells.sort((a, b) => (a.r + a.c) - (b.r + b.c) || a.c - b.c);
+
+  for (const { r, c, type } of cells) {
+    const ox = ox0 + (c - r) * (tw / 2);
+    const oy = oy0 + (c + r) * (th / 2);
+
+    // 地面タイル
+    const gColor = type === 0 ? '#14182a' : '#0c1018';
+    _isoDiamond(ctx, ox, oy, tw, th, gColor);
+    if (type === 0 || type === null) continue;
+
+    const bd = BTYPE_DEFS[type];
+    if (!bd) continue;
+    const bh = bd.h;
+
+    // 左面（南面）
+    ctx.beginPath();
+    ctx.moveTo(ox - tw/2, oy + th/2);
+    ctx.lineTo(ox, oy + th);
+    ctx.lineTo(ox, oy + th - bh);
+    ctx.lineTo(ox - tw/2, oy + th/2 - bh);
+    ctx.closePath();
+    ctx.fillStyle = bd.left;
+    ctx.fill();
+
+    // 右面（東面）
+    ctx.beginPath();
+    ctx.moveTo(ox, oy + th);
+    ctx.lineTo(ox + tw/2, oy + th/2);
+    ctx.lineTo(ox + tw/2, oy + th/2 - bh);
+    ctx.lineTo(ox, oy + th - bh);
+    ctx.closePath();
+    ctx.fillStyle = bd.right;
+    ctx.fill();
+
+    // 屋上面
+    _isoDiamond(ctx, ox, oy - bh, tw, th, bd.top);
+
+    // 窓（中層以上）
+    if (bd.wColor && bh >= 18) {
+      // 窓の点滅: フレームごとにランダムに1灯暗くする
+      const dim = frame > 0 && (frame + r * 13 + c * 7) % 120 < 3;
+      const wAlpha = dim ? 0.2 : 1.0;
+      ctx.save();
+      ctx.globalAlpha = wAlpha;
+      ctx.strokeStyle = bd.wColor;
+      ctx.lineWidth = 1.5;
+      // 左面の水平ライン（各フロア）
+      ctx.beginPath();
+      for (let wl = 7; wl < bh - 3; wl += 9) {
+        ctx.moveTo(ox - tw/2 + 2, oy + th/2 - wl);
+        ctx.lineTo(ox - 2,        oy + th   - wl);
+      }
+      ctx.stroke();
+      // 右面の水平ライン
+      ctx.beginPath();
+      for (let wl = 7; wl < bh - 3; wl += 9) {
+        ctx.moveTo(ox + 2,        oy + th   - wl);
+        ctx.lineTo(ox + tw/2 - 2, oy + th/2 - wl);
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+}
+
+function _isoDiamond(ctx, ox, oy, tw, th, color) {
+  ctx.beginPath();
+  ctx.moveTo(ox,        oy);
+  ctx.lineTo(ox + tw/2, oy + th/2);
+  ctx.lineTo(ox,        oy + th);
+  ctx.lineTo(ox - tw/2, oy + th/2);
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
+}
+
 function renderAll() {
   renderHeader();   // renderHeader が renderOfficeScene を呼ぶ
   renderDepts();
@@ -3945,6 +4245,8 @@ function switchTab(tabId, btn) {
   if (tabId === 'slots')    renderSlots();
   if (tabId === 'bank')     renderBank();
   if (tabId === 'exchange') renderExchange();
+  if (tabId === 'base')     renderBase();
+  if (tabId !== 'base' && baseCityAnimId) { cancelAnimationFrame(baseCityAnimId); baseCityAnimId = null; }
 }
 
 // ---- モーダル ----
