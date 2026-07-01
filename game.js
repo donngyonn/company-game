@@ -4536,6 +4536,9 @@ function applyDevMode() {
   state.morale = { ceo: 100, employee: 100, freelance: 100 };
   state.freelancerMult = 1;
   state.ceoSalary = 1000000;
+  state.bankUnlocked   = true;
+  state.dispatchOpened = true;
+  state.dispatchCount  = 10;
 
   const badge = document.createElement('div');
   badge.textContent = '🛠 DEV MODE';
