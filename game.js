@@ -3910,6 +3910,7 @@ function renderAll() {
   renderLabor();
   renderSlots();
   renderExchange();
+  updateTabVisibility();
 }
 
 // ---- タブ切り替え ----
