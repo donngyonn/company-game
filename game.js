@@ -770,7 +770,8 @@ let state = {
   periodEarned: 0,      // 当期累計収益（3月決算で課税）
   periodDeductible: 0,  // 当期損金（家賃・給与）
   loans: [],
-  properties: [],   // 購入済み投資物件 [{cityId, spotId}]
+  properties: [],          // 購入済み投資物件 [{cityId, spotId}]
+  propertyMultipliers: {}, // spotId -> 相場倍率 (1.0=基準)
   morale: { ceo: 90, employee: 90, freelance: 90 },
   gameStarted: false,   // 事務所契約後に true
   bankrupt: false,
@@ -990,10 +991,21 @@ function getFreelancerBaseIncome() {
 
 function getPropWeeklyIncome() {
   if (!state.properties || state.properties.length === 0) return 0;
+  const mults = state.propertyMultipliers || {};
   return state.properties.reduce((sum, p) => {
     const spot = (CITY_OFFICE_SPOTS[p.cityId] || []).find(s => s.id === p.spotId);
-    return spot ? sum + Math.round(spot.monthlyRent / MONTH_WEEKS) : sum;
+    if (!spot) return sum;
+    const mult = mults[p.spotId] ?? 1.0;
+    return sum + Math.round(spot.monthlyRent / MONTH_WEEKS * mult);
   }, 0);
+}
+
+function getPropMarketLabel(mult) {
+  if (mult >= 1.5) return { text: '🚀 急騰', color: '#4ade80' };
+  if (mult >= 1.2) return { text: '📈 好調', color: '#86efac' };
+  if (mult >= 0.85) return { text: '📊 安定', color: '#94a3b8' };
+  if (mult >= 0.65) return { text: '📉 弱含み', color: '#fb923c' };
+  return { text: '⚠️ 下落', color: '#f87171' };
 }
 
 // 表示用週次収益（部署の秒収益×WEEK_SEC + FL週次利益 + 投資物件収益）
@@ -1340,7 +1352,10 @@ function _renderWeeklyModalContent(idx) {
   if ((r.dispatchIncome || 0) > 0) {
     html += `<div class="expense-row" style="color:#a3e635"><span>🏭 派遣請求（給与月次払）</span><span>＋${yen(r.dispatchIncome)}</span></div>`;
   }
-  const totalIncome = Math.floor(r.deptIncome) + Math.floor(r.flIncome) + (r.staffingFees || 0) + (r.dispatchIncome || 0);
+  if ((r.propIncome || 0) > 0) {
+    html += `<div class="expense-row" style="color:#fbbf24"><span>🏗 収益物件 賃貸収入</span><span>＋${yen(r.propIncome)}</span></div>`;
+  }
+  const totalIncome = Math.floor(r.deptIncome) + Math.floor(r.flIncome) + (r.staffingFees || 0) + (r.dispatchIncome || 0) + (r.propIncome || 0);
   html += `<div class="expense-row" style="font-weight:700;color:#4ade80;border-top:2px solid #2a2a50;padding-top:8px;margin-top:4px"><span>収入合計</span><span>＋${yen(totalIncome)}</span></div>`;
 
   // ---- 在籍人員 ----
@@ -1426,7 +1441,7 @@ function nextReport() {
   }
 }
 
-function showWeeklyModal(weekNum, deptIncome, flWeeklyIncome, flGross, flCost, monthlyExp, beforeMoney, staffingPlacements, staffingFees, dispatchIncome, weeklyLog) {
+function showWeeklyModal(weekNum, deptIncome, flWeeklyIncome, flGross, flCost, monthlyExp, beforeMoney, staffingPlacements, staffingFees, dispatchIncome, weeklyLog, propIncome) {
   const period      = Math.floor((weekNum - 1) / YEAR_WEEKS) + 1;
   const monthNum    = Math.floor(((weekNum - 1) % YEAR_WEEKS) / MONTH_WEEKS) + 1;
   const weekInMonth = ((weekNum - 1) % MONTH_WEEKS) + 1;
@@ -1452,6 +1467,7 @@ function showWeeklyModal(weekNum, deptIncome, flWeeklyIncome, flGross, flCost, m
     staffingPlacements: staffingPlacements || 0,
     staffingFees: staffingFees || 0,
     dispatchIncome: dispatchIncome || 0,
+    propIncome: propIncome || 0,
     weeklyLog: weeklyLog || [],
     empSnap: {
       sales:      state.employees['sales']      || 0,
@@ -1591,7 +1607,7 @@ function applyBankReview() {
   const hist = state.reportHistory || [];
   if (hist.length < 4) { showToast('⚠️ データ不足（最低4週分必要）'); return; }
   const last4 = hist.slice(-4);
-  const totalIncome  = last4.reduce((s, r) => s + (r.deptIncome || 0) + (r.flIncome || 0) + (r.staffingFees || 0) + (r.dispatchIncome || 0), 0);
+  const totalIncome  = last4.reduce((s, r) => s + (r.deptIncome || 0) + (r.flIncome || 0) + (r.staffingFees || 0) + (r.dispatchIncome || 0) + (r.propIncome || 0), 0);
   const totalExpense = last4.reduce((s, r) => s + (r.monthlyExp?.total || 0), 0);
   const profit = totalIncome - totalExpense;
   const margin = totalIncome > 0 ? profit / totalIncome : 0;
@@ -3279,6 +3295,56 @@ function renderLabor() {
     })()}
 
     ${(() => {
+      const props = state.properties || [];
+      if (props.length === 0) return '';
+      const mults = state.propertyMultipliers || {};
+      const byCity = {};
+      props.forEach(p => {
+        if (!byCity[p.cityId]) byCity[p.cityId] = [];
+        byCity[p.cityId].push(p);
+      });
+      const cityOrder = ['tokyo', 'osaka', 'hokkaido', 'fukuoka'];
+      let totalWeekly = 0;
+      const cityBlocks = cityOrder.filter(c => byCity[c]).map(cityId => {
+        const city = BASE_CITIES.find(c => c.id === cityId);
+        const rows = byCity[cityId].map(p => {
+          const spot = (CITY_OFFICE_SPOTS[cityId] || []).find(s => s.id === p.spotId);
+          if (!spot) return '';
+          const mult = mults[p.spotId] ?? 1.0;
+          const weeklyInc = Math.round(spot.monthlyRent / MONTH_WEEKS * mult);
+          const effYield  = ((spot.yieldRate || 0.05) * mult * 100).toFixed(2);
+          const lbl = getPropMarketLabel(mult);
+          totalWeekly += weeklyInc;
+          return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #1e2a40">
+            <div style="flex:1;min-width:0">
+              <div style="font-size:12px;color:#e2e8f0;font-weight:600">${spot.name}</div>
+              <div style="font-size:10px;color:#475569;margin-top:1px">${spot.cat === 'building' ? 'ビル' : spot.cat === 'mansion' ? 'マンション' : '倉庫'}</div>
+            </div>
+            <div style="text-align:center;min-width:60px">
+              <div style="font-size:9px;padding:2px 5px;border-radius:3px;font-weight:700;background:${lbl.color}22;color:${lbl.color}">${lbl.text}</div>
+              <div style="font-size:10px;color:#94a3b8;margin-top:1px">×${mult.toFixed(2)}</div>
+            </div>
+            <div style="text-align:right;min-width:70px">
+              <div style="font-size:12px;color:#fbbf24;font-weight:700">＋${yen(weeklyInc)}/週</div>
+              <div style="font-size:10px;color:#94a3b8">利回 ${effYield}%</div>
+            </div>
+          </div>`;
+        }).join('');
+        return `<div style="margin-bottom:8px">
+          <div style="font-size:10px;font-weight:700;color:#475569;margin-bottom:4px">${city?.emoji ?? ''} ${city?.name ?? cityId}</div>
+          ${rows}
+        </div>`;
+      }).join('');
+      return `<div class="labor-section">
+        <div class="labor-section-title">🏗 収益物件ポートフォリオ（${props.length}件）</div>
+        ${cityBlocks}
+        <div class="expense-row" style="font-weight:700;color:#fbbf24;border-top:2px solid #2a2a50;padding-top:8px;margin-top:4px">
+          <span>賃貸収入合計</span><span>＋${yen(totalWeekly)}/週</span>
+        </div>
+      </div>`;
+    })()}
+
+    ${(() => {
       const rows = [];
       if (activeFL > 0) {
         rows.push(`
@@ -3314,9 +3380,9 @@ function renderLabor() {
     ${(() => {
       if (hist.length === 0) return '';
       const calcPL = entries => entries.reduce((a, r) => ({
-        revenue: a.revenue + (r.deptIncome || 0) + (r.flGross || 0) + (r.staffingFees || 0) + (r.dispatchIncome || 0),
+        revenue: a.revenue + (r.deptIncome || 0) + (r.flGross || 0) + (r.staffingFees || 0) + (r.dispatchIncome || 0) + (r.propIncome || 0),
         flCost:  a.flCost  + (r.flCost    || 0),
-        gross:   a.gross   + (r.deptIncome || 0) + (r.flIncome || 0) + (r.staffingFees || 0) + (r.dispatchIncome || 0),
+        gross:   a.gross   + (r.deptIncome || 0) + (r.flIncome || 0) + (r.staffingFees || 0) + (r.dispatchIncome || 0) + (r.propIncome || 0),
         expense: a.expense + (r.monthlyExp ? r.monthlyExp.total : 0),
       }), { revenue: 0, flCost: 0, gross: 0, expense: 0 });
       const plRow = (label, d) => {
@@ -5079,6 +5145,7 @@ function doPurchaseProperty() {
   const spot = (CITY_OFFICE_SPOTS[cityId] || []).find(s => s.id === spotId);
   if (!spot || !spot.yieldRate) return;
   if (!state.properties) state.properties = [];
+  if (!state.propertyMultipliers) state.propertyMultipliers = {};
   if (state.properties.some(p => p.cityId === cityId && p.spotId === spotId)) {
     showToast('✅ すでに所有しています'); return;
   }
@@ -5228,12 +5295,28 @@ function gameLoop(ts) {
         state.flGrossRevenue = (state.flGrossRevenue || 0) + flWeeklyGross;
       }
 
-      // 投資物件週次収益
+      // 投資物件週次収益 & 相場変動
       const propWeeklyIncome = getPropWeeklyIncome();
       if (propWeeklyIncome > 0) {
         state.money += propWeeklyIncome;
         state.totalEarned += propWeeklyIncome;
         state.periodEarned = (state.periodEarned || 0) + propWeeklyIncome;
+      }
+      if (state.properties && state.properties.length > 0 && Math.random() < 0.30) {
+        if (!state.propertyMultipliers) state.propertyMultipliers = {};
+        const p = state.properties[Math.floor(Math.random() * state.properties.length)];
+        const spot = (CITY_OFFICE_SPOTS[p.cityId] || []).find(s => s.id === p.spotId);
+        if (spot) {
+          const prev = state.propertyMultipliers[p.spotId] ?? 1.0;
+          const delta = (Math.random() * 0.18 + 0.04) * (Math.random() < 0.5 ? 1 : -1);
+          const next = Math.max(0.50, Math.min(2.00, +(prev + delta).toFixed(2)));
+          state.propertyMultipliers[p.spotId] = next;
+          if (Math.abs(next - prev) >= 0.05) {
+            const isUp = next > prev;
+            const lbl = getPropMarketLabel(next);
+            weeklyLog.push({ emoji: isUp ? '📈' : '📉', text: `${spot.name} 相場${isUp ? '上昇' : '下落'} → ${lbl.text} (×${next.toFixed(2)})`, bad: !isUp });
+          }
+        }
       }
 
       // 月次経費（4週ごと）
@@ -5518,7 +5601,7 @@ function gameLoop(ts) {
       }
 
       // 週次サマリーモーダル表示
-      showWeeklyModal(currentWeekNum, state.weeklyIncomeAccum || 0, flWeeklyIncome, flWeeklyGross, flWeeklyCost, monthlyExp, beforeMoney, weeklyStaffingCount, weeklyStaffingFees, weeklyDispatchGross, weeklyLog);
+      showWeeklyModal(currentWeekNum, state.weeklyIncomeAccum || 0, flWeeklyIncome, flWeeklyGross, flWeeklyCost, monthlyExp, beforeMoney, weeklyStaffingCount, weeklyStaffingFees, weeklyDispatchGross, weeklyLog, propWeeklyIncome);
       state.weeklyIncomeAccum = 0;
     }
 
