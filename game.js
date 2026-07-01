@@ -500,7 +500,202 @@ const WEEK_EVENTS = [
   },
 ];
 
+const CITY_EVENTS = {
+  tokyo: [
+    // good
+    {
+      type: 'good', category: 'money', emoji: '🏙️', title: '六本木ヒルズ企業からコラボ打診！',
+      desc: '名刺交換から3ヶ月。まさかの大手からDM。東京の縁は侮れない。',
+      effect: s => { const b = Math.floor(_evWeeklyBase() * 4); s.money += b; s.totalEarned += b; return `業務提携金 ＋${yen(b)}`; },
+    },
+    {
+      type: 'good', category: 'multiplier', emoji: '🎉', title: '渋谷で社員のショート動画がバズった！',
+      desc: '社員がオフィス風景を投稿したら1000万回再生。採用問い合わせが殺到。',
+      effect: s => { s.eventBoost = { mult: 1.9, expiresAt: s.elapsedSeconds + WEEK_SEC * 1 }; return '収益×1.9（1週間）'; },
+    },
+    {
+      type: 'good', category: 'money', emoji: '🎆', title: '隅田川花火で取引先VIPと契約成立！',
+      desc: '花火大会の屋形船接待が功を奏し、その場でサイン。東京、やるじゃん。',
+      effect: s => { const b = Math.floor(_evWeeklyBase() * 3); s.money += b; s.totalEarned += b; return `花火商談成立 ＋${yen(b)}`; },
+    },
+    {
+      type: 'good', category: 'personnel', emoji: '🚃', title: '山手線広告に社名が掲載！',
+      desc: '業界誌の別冊付録に社名が載り、山手線一周分の誇りを得た社員のモラールが急上昇。',
+      effect: s => { const g = 18; s.morale.employee = Math.min(100, (s.morale.employee || 90) + g); return `社員モラール ＋${g}`; },
+    },
+    // bad
+    {
+      type: 'bad', category: 'money', emoji: '☀️', title: '猛暑でオフィスの電気代が爆発！',
+      desc: '東京の夏は異常。エアコンをフル稼働したら電力会社から封書が届いた。',
+      effect: s => { const loss = Math.floor(s.money * 0.08); s.money = Math.max(0, s.money - loss); return `電力超過料金 −${yen(loss)}`; },
+    },
+    {
+      type: 'bad', category: 'multiplier', emoji: '🎃', title: '渋谷ハロウィンで社員が帰宅困難！',
+      desc: '10月末、渋谷が封鎖状態。終電も逃し、翌日は全員ぐったり出社。',
+      effect: s => { s.eventBoost = { mult: 0.7, expiresAt: s.elapsedSeconds + WEEK_SEC * 2 }; return '収益×0.7（2週間）'; },
+    },
+    {
+      type: 'bad', category: 'personnel', emoji: '🚇', title: '山手線で人身事故、週3回遅延！',
+      desc: '通勤ラッシュに人身事故が重なり、社員のストレスが限界を超えた。',
+      effect: s => { const d = 15; s.morale.employee = Math.max(10, (s.morale.employee || 90) - d); return `社員モラール −${d}`; },
+    },
+    {
+      type: 'bad', category: 'money', emoji: '🏗️', title: '地価高騰でオフィス賃料値上げ通告！',
+      desc: 'オーナーから「周辺相場に合わせる」と一行メール。東京の容赦のなさよ。',
+      effect: s => { const loss = Math.floor(_evWeeklyBase() * 1.5); s.money = Math.max(0, s.money - loss); return `賃料差額 −${yen(loss)}`; },
+    },
+  ],
+  osaka: [
+    // good
+    {
+      type: 'good', category: 'multiplier', emoji: '🐯', title: '阪神タイガース優勝！商談が盛り上がる！',
+      desc: '大阪中が祭り状態。道頓堀での顔合わせがそのまま仮契約に。トラ、ありがとう。',
+      effect: s => { s.eventBoost = { mult: 2.0, expiresAt: s.elapsedSeconds + WEEK_SEC * 2 }; return '収益×2.0（2週間）'; },
+    },
+    {
+      type: 'good', category: 'money', emoji: '⛩️', title: 'えべっさん参拝翌日に大口案件が来た！',
+      desc: '十日戎でまぐろを奉納したら翌朝に着信。大阪の神様は仕事が早い。',
+      effect: s => { const b = Math.floor(_evWeeklyBase() * 4); s.money += b; s.totalEarned += b; return `えべっさん効果 ＋${yen(b)}`; },
+    },
+    {
+      type: 'good', category: 'money', emoji: '🤝', title: '大阪人の即決文化で成約率急上昇！',
+      desc: '「でっ、いくらなん？ええよそれで。」初回商談でサイン。大阪スゴイ。',
+      effect: s => { const b = Math.floor(_evWeeklyBase() * 3.5); s.money += b; s.totalEarned += b; return `速攻成約 ＋${yen(b)}`; },
+    },
+    {
+      type: 'good', category: 'personnel', emoji: '🐙', title: 'たこ焼きパーティーで士気が爆上がり！',
+      desc: 'ホットプレートを囲んで語らったら、深夜まで盛り上がった。大阪の底力。',
+      effect: s => { const g = 22; s.morale.employee = Math.min(100, (s.morale.employee || 90) + g); s.morale.freelance = Math.min(100, (s.morale.freelance || 90) + 10); return `社員モラール ＋${g}、FLモラール ＋10`; },
+    },
+    // bad
+    {
+      type: 'bad', category: 'money', emoji: '🌊', title: '道頓堀が浸水、取引先まで行けない！',
+      desc: '記録的豪雨で道頓堀が大変なことに。商談すっぽかし続出。',
+      effect: s => { const loss = Math.floor(_evWeeklyBase() * 1.5); s.money = Math.max(0, s.money - loss); return `交通費・違約金 −${yen(loss)}`; },
+    },
+    {
+      type: 'bad', category: 'multiplier', emoji: '🤦', title: '道頓堀に飛び込んで取引先が引いた…',
+      desc: '阪神優勝で社長が勢いで飛び込んだ動画が拡散。大切な案件が数件凍結。',
+      effect: s => { s.eventBoost = { mult: 0.78, expiresAt: s.elapsedSeconds + WEEK_SEC * 2 }; return '収益×0.78（2週間）'; },
+    },
+    {
+      type: 'bad', category: 'personnel', emoji: '⚾', title: '阪神が10連敗…大阪支社の士気が崩壊',
+      desc: '月曜朝のミーティングで誰も喋らない。大阪の敗北は心に刺さる。',
+      effect: s => { const d = 16; s.morale.employee = Math.max(10, (s.morale.employee || 90) - d); return `社員モラール −${d}`; },
+    },
+    {
+      type: 'bad', category: 'money', emoji: '🏗️', title: 'なんば再開発でオフィス周辺が工事地獄',
+      desc: '騒音・振動・迂回路。クライアント訪問のたびに迷子になる。',
+      effect: s => { const loss = Math.floor(s.money * 0.07); s.money = Math.max(0, s.money - loss); return `工事影響損失 −${yen(loss)}`; },
+    },
+  ],
+  hokkaido: [
+    // good
+    {
+      type: 'good', category: 'personnel', emoji: '🦀', title: '北海道グルメの大量差し入れ！全社大喜び',
+      desc: '地元のカニ・ウニ・イクラが届いた。社員全員がSNSに投稿して求人に繋がった。',
+      effect: s => { const g = 25; s.morale.employee = Math.min(100, (s.morale.employee || 90) + g); s.morale.freelance = Math.min(100, (s.morale.freelance || 90) + 15); return `社員モラール ＋${g}、FLモラール ＋15`; },
+    },
+    {
+      type: 'good', category: 'money', emoji: '⛷️', title: 'ニセコ接待スキーが大成功！大型契約締結',
+      desc: 'リフト上での1対1ミーティングが功を奏した。酒が入る前に話すべし。',
+      effect: s => { const b = Math.floor(_evWeeklyBase() * 3.5); s.money += b; s.totalEarned += b; return `接待成果 ＋${yen(b)}`; },
+    },
+    {
+      type: 'good', category: 'money', emoji: '🌾', title: '農業DXプロジェクトが採択された！',
+      desc: '北海道農協のシステム刷新プロジェクトに選ばれた。意外とデカいぞこれ。',
+      effect: s => { const b = Math.floor(_evWeeklyBase() * 4); s.money += b; s.totalEarned += b; return `農業DX受注 ＋${yen(b)}`; },
+    },
+    {
+      type: 'good', category: 'multiplier', emoji: '⛄', title: '雪まつりの雪像が会社ロゴそっくりと話題に！',
+      desc: '観光客が勝手にSNS拡散。本当に自社ロゴだったのかは今も不明。',
+      effect: s => { s.eventBoost = { mult: 1.6, expiresAt: s.elapsedSeconds + WEEK_SEC * 3 }; return '収益×1.6（3週間）'; },
+    },
+    // bad
+    {
+      type: 'bad', category: 'multiplier', emoji: '❄️', title: '記録的大雪でエンジニア全員が出勤不能！',
+      desc: '玄関が雪で埋まった。全員リモートのはずが全員回線も切れた。',
+      effect: s => { s.eventBoost = { mult: 0.6, expiresAt: s.elapsedSeconds + WEEK_SEC * 2 }; return '収益×0.6（2週間）'; },
+    },
+    {
+      type: 'bad', category: 'money', emoji: '🐻', title: '熊出没でオフィス一帯が一時封鎖！',
+      desc: '警察が立ち入り禁止テープを張った。社員は離れたカフェで仕事。経費爆増。',
+      effect: s => { const loss = Math.floor(s.money * 0.10); s.money = Math.max(0, s.money - loss); return `臨時対応費 −${yen(loss)}`; },
+    },
+    {
+      type: 'bad', category: 'money', emoji: '🔥', title: '暖房費が想定の3倍に！',
+      desc: '10月から暖房全開。12月には「これ家賃より高くない？」と経理から連絡が来た。',
+      effect: s => { const loss = Math.floor(_evWeeklyBase() * 2); s.money = Math.max(0, s.money - loss); return `暖房費超過 −${yen(loss)}`; },
+    },
+    {
+      type: 'bad', category: 'personnel', emoji: '🥶', title: '極寒でFLの稼働意欲が激減…',
+      desc: '「寒くて動けません」というSlackが増えた。布団から出られないのは理解できる。',
+      effect: s => { const d = 15; s.morale.freelance = Math.max(10, (s.morale.freelance || 90) - d); return `FLモラール −${d}`; },
+    },
+  ],
+  fukuoka: [
+    // good
+    {
+      type: 'good', category: 'money', emoji: '🍜', title: '博多ラーメン店主から大物を紹介された！',
+      desc: '深夜の屋台で隣に座ったのが地元名士。翌週に大型受注の商談へ。豚骨の縁。',
+      effect: s => { const b = Math.floor(_evWeeklyBase() * 3); s.money += b; s.totalEarned += b; return `紹介受注 ＋${yen(b)}`; },
+    },
+    {
+      type: 'good', category: 'multiplier', emoji: '🏮', title: '博多祇園山笠で地域との絆が強まった！',
+      desc: '法被を着て担いだら地元の人に「よかとよ！」と言われた。契約より大事なものを得た気がする。',
+      effect: s => { s.eventBoost = { mult: 1.7, expiresAt: s.elapsedSeconds + WEEK_SEC * 2 }; return '収益×1.7（2週間）'; },
+    },
+    {
+      type: 'good', category: 'money', emoji: '✈️', title: 'アジア向けビジネスで海外受注が急増！',
+      desc: '福岡空港の近さが武器に。アジア圏5社から同時に問い合わせが来た。',
+      effect: s => { const b = Math.floor(_evWeeklyBase() * 5); s.money += b; s.totalEarned += b; return `海外受注ラッシュ ＋${yen(b)}`; },
+    },
+    {
+      type: 'good', category: 'personnel', emoji: '🏙️', title: '福岡移住ブームで優秀な人材が集まる！',
+      desc: '「東京疲れた」系エンジニアが福岡に流入中。採用コストゼロで3名確保。',
+      effect: s => {
+        const g = 15; s.morale.employee = Math.min(100, (s.morale.employee || 90) + g);
+        const currentWeek = Math.floor(s.elapsedSeconds / WEEK_SEC);
+        s.flData.push({ gross: 700000 + Math.floor(Math.random() * 200001), profitRate: 0.13 + Math.random() * 0.07, hiredWeek: currentWeek });
+        s.freelancers = s.flData.length;
+        return `社員モラール ＋${g}、FL1名参加（計${s.freelancers}名）`;
+      },
+    },
+    // bad
+    {
+      type: 'bad', category: 'money', emoji: '🌀', title: '台風が直撃！福岡全域で停電発生',
+      desc: '瞬間最大風速60m。社員は全員无事だったが、機材と納期が犠牲になった。',
+      effect: s => { const loss = Math.floor(s.money * 0.15); s.money = Math.max(0, s.money - loss); return `台風損害 −${yen(loss)}`; },
+    },
+    {
+      type: 'bad', category: 'multiplier', emoji: '🍻', title: '屋台の誘惑に負けて残業ゼロになった',
+      desc: '17時になると全員消える。「屋台で考えます」というのは休憩ではなく退社だった。',
+      effect: s => { s.eventBoost = { mult: 0.78, expiresAt: s.elapsedSeconds + WEEK_SEC * 2 }; return '収益×0.78（2週間）'; },
+    },
+    {
+      type: 'bad', category: 'personnel', emoji: '🐗', title: '猪が出没してオフィス周辺が大騒ぎ！',
+      desc: '猪が正面玄関前を爆走。警備員が「もう無理」と言い出した。恐怖の1週間。',
+      effect: s => { const d = 12; s.morale.employee = Math.max(10, (s.morale.employee || 90) - d); return `社員モラール −${d}`; },
+    },
+    {
+      type: 'bad', category: 'money', emoji: '👘', title: '山笠の法被姿で大商談に臨んだ社長が失注',
+      desc: '「地域密着のアピールです」は通じなかった。先方のスーツ姿が目に痛かった。',
+      effect: s => { const loss = Math.floor(_evWeeklyBase() * 1.8); s.money = Math.max(0, s.money - loss); return `失注損失 −${yen(loss)}`; },
+    },
+  ],
+};
+
 function pickWeeklyEvent() {
+  // 拠点入居中は20%の確率で都市固有イベント
+  if (state.officeCityId && state.officeSpotId && Math.random() < 0.20) {
+    const cityPool = CITY_EVENTS[state.officeCityId] || [];
+    const type = Math.random() < 0.5 ? 'good' : 'bad';
+    const filtered = cityPool.filter(e => e.type === type);
+    if (filtered.length > 0) {
+      return filtered[Math.floor(Math.random() * filtered.length)];
+    }
+  }
+
   const catRand = Math.random();
   let category;
   if (catRand < 0.20)      category = 'personnel';
