@@ -4004,17 +4004,17 @@ const CITY_OFFICE_SPOTS = {
 // タイプ: 0=道路 1=公園 2=低層 3=中層 4=高層 5=飲食 6=商業 7=倉庫 8=住居 9=賃貸(小) 10=賃貸(中) 11=賃貸(大)
 const BTYPE_DEFS = [
   null,
-  { h: 5,   top: '#3c8a42', left: '#1c5822', right: '#287232', wColor: null,                       label: '🌳 公園' },
-  { h: 20,  top: '#c8b888', left: '#786848', right: '#8a7050', wColor: 'rgba(255,235,160,0.28)',   label: '🏗 低層' },
-  { h: 44,  top: '#9aaab4', left: '#484e58', right: '#565e68', wColor: 'rgba(160,210,255,0.38)',   label: '🏢 中層' },
-  { h: 82,  top: '#4a9cd8', left: '#103868', right: '#1a4878', wColor: 'rgba(150,225,255,0.68)',   label: '🏙 高層' },
-  { h: 16,  top: '#e09020', left: '#804800', right: '#9c5810', wColor: 'rgba(255,210,40,0.88)',    label: '🍜 飲食' },
-  { h: 26,  top: '#28a860', left: '#084e28', right: '#0e5e32', wColor: 'rgba(60,255,130,0.40)',    label: '🛒 商業' },
-  { h: 22,  top: '#505878', left: '#1e2238', right: '#282c48', wColor: null,                       label: '🏭 倉庫' },
-  { h: 36,  top: '#cbb878', left: '#704a28', right: '#885838', wColor: 'rgba(255,210,80,0.65)',    label: '🏠 住居' },
-  { h: 30,  top: '#28c8b8', left: '#085858', right: '#107068', wColor: 'rgba(60,255,240,0.62)',    label: '🏢 賃貸(小)', rentable: true },
-  { h: 58,  top: '#1880e0', left: '#003088', right: '#0038a8', wColor: 'rgba(120,215,255,0.78)',   label: '🏢 賃貸(中)', rentable: true },
-  { h: 100, top: '#40d8ff', left: '#002858', right: '#003870', wColor: 'rgba(140,248,255,0.92)',   label: '🏢 賃貸(大)', rentable: true },
+  { h: 6,   top: '#2a6030', left: '#123418', right: '#1a4422', wColor: null,      label: '🌳 公園' },
+  { h: 22,  top: '#a89068', left: '#584024', right: '#6c4e2c', wColor: '#f0c040', label: '🏗 低層' },
+  { h: 46,  top: '#7888a0', left: '#2c3848', right: '#384858', wColor: '#90c8ec', label: '🏢 中層' },
+  { h: 84,  top: '#3080d8', left: '#071c58', right: '#0b2468', wColor: '#a8d8ff', label: '🏙 高層' },
+  { h: 18,  top: '#c02818', left: '#640e00', right: '#841400', wColor: '#ff9028', label: '🍜 飲食' },
+  { h: 28,  top: '#1a9848', left: '#063a18', right: '#0a4c20', wColor: '#4cf870', label: '🛒 商業' },
+  { h: 24,  top: '#384050', left: '#101624', right: '#181e2c', wColor: null,      label: '🏭 倉庫' },
+  { h: 38,  top: '#b88c48', left: '#5a3810', right: '#6e481a', wColor: '#f0c030', label: '🏠 住居' },
+  { h: 32,  top: '#08d0b8', left: '#023848', right: '#065058', wColor: '#60fff0', label: '🏢 賃貸(小)', rentable: true },
+  { h: 60,  top: '#0878f0', left: '#000e68', right: '#001880', wColor: '#78c8ff', label: '🏢 賃貸(中)', rentable: true },
+  { h: 104, top: '#28e0ff', left: '#000c40', right: '#001058', wColor: '#b0f0ff', label: '🏢 賃貸(大)', rentable: true },
 ];
 
 const CITY_LAYOUTS = {
@@ -4323,16 +4323,16 @@ function _drawIsoCity(ctx, W, H, cityId, frame) {
   const tw = ISO_TW, th = ISO_TH, oy0 = 112;
   ctx.clearRect(0, 0, W, H);
   const sky = ctx.createLinearGradient(0, 0, 0, H);
-  sky.addColorStop(0, '#01050e'); sky.addColorStop(1, '#030c1a');
+  sky.addColorStop(0, '#01040c'); sky.addColorStop(1, '#020b18');
   ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
   // 星（ズーム対象外）
   const rng = _seededRng(9999 + (cityId.charCodeAt(0) || 0));
-  for (let i = 0; i < 60; i++) {
-    const sx = rng() * W, sy = rng() * H * 0.36;
-    const b = 0.15 + rng() * 0.85;
-    const twk = 0.7 + 0.3 * Math.sin(frame * 0.04 + i * 1.7);
+  for (let i = 0; i < 80; i++) {
+    const sx = rng() * W, sy = rng() * H * 0.38;
+    const b = 0.12 + rng() * 0.88;
+    const twk = 0.58 + 0.42 * Math.sin(frame * 0.045 + i * 2.0);
     ctx.fillStyle = `rgba(255,255,255,${(b * twk).toFixed(2)})`;
-    ctx.fillRect(sx, sy, rng() < 0.2 ? 1.5 : 1, rng() < 0.2 ? 1.5 : 1);
+    ctx.fillRect(sx, sy, rng() < 0.12 ? 1.5 : 1, rng() < 0.12 ? 1.5 : 1);
   }
   ctx.save();
   ctx.translate(cityPan.x, cityPan.y);
@@ -4345,12 +4345,22 @@ function _drawIsoCity(ctx, W, H, cityId, frame) {
   for (const { r, c, type } of cells) {
     const ox = W/2 + (c - r) * (tw/2);
     const oy = oy0 + (c + r) * (th/2);
-    _isoDiamond(ctx, ox, oy, tw, th, type === 0 ? '#141828' : '#0c0f1c');
-    if (!type) continue;
+    _isoDiamond(ctx, ox, oy, tw, th, type === 0 ? '#0d1220' : '#0a0d18');
+    if (type === 0) {
+      // 道路の中央線マーキング
+      ctx.save();
+      ctx.strokeStyle = 'rgba(35,45,90,0.55)';
+      ctx.lineWidth = 0.6;
+      ctx.beginPath();
+      ctx.moveTo(ox, oy + 1); ctx.lineTo(ox, oy + th - 1);
+      ctx.stroke();
+      ctx.restore();
+      continue;
+    }
     const bd = BTYPE_DEFS[type];
     if (!bd) continue;
     const bh = bd.h;
-    // 賃貸ビルのグロー
+    // 賃貸ビルのグロー（屋上事前描画）
     if (bd.rentable) {
       const spot = (CITY_OFFICE_SPOTS[cityId] || []).find(s => s.r === r && s.c === c);
       const isRented = spot && state.officeCityId === cityId && state.officeSpotId === spot.id;
@@ -4364,89 +4374,104 @@ function _drawIsoCity(ctx, W, H, cityId, frame) {
     }
     // 左面
     ctx.beginPath();
-    ctx.moveTo(ox - tw/2, oy + th/2);     ctx.lineTo(ox, oy + th);
-    ctx.lineTo(ox, oy + th - bh);          ctx.lineTo(ox - tw/2, oy + th/2 - bh);
+    ctx.moveTo(ox - tw/2, oy + th/2);    ctx.lineTo(ox, oy + th);
+    ctx.lineTo(ox, oy + th - bh);         ctx.lineTo(ox - tw/2, oy + th/2 - bh);
     ctx.closePath(); ctx.fillStyle = bd.left; ctx.fill();
     // 右面
     ctx.beginPath();
-    ctx.moveTo(ox, oy + th);               ctx.lineTo(ox + tw/2, oy + th/2);
+    ctx.moveTo(ox, oy + th);              ctx.lineTo(ox + tw/2, oy + th/2);
     ctx.lineTo(ox + tw/2, oy + th/2 - bh); ctx.lineTo(ox, oy + th - bh);
     ctx.closePath(); ctx.fillStyle = bd.right; ctx.fill();
     // 屋上
     _isoDiamond(ctx, ox, oy - bh, tw, th, bd.top);
-    // 窓
-    if (bd.wColor && bh >= 14) {
-      if (bd.rentable) {
-        // グリッド窓（賃貸ビル）
-        const flH  = type === 11 ? 6 : type === 10 ? 8 : 10;
-        const cols = type === 11 ? 5 : type === 10 ? 4 : 3;
-        const colW = (tw / 2) / (cols + 1);
-        ctx.strokeStyle = bd.wColor; ctx.lineWidth = 1;
-        ctx.save();
-        ctx.beginPath();
-        ctx.moveTo(ox - tw/2, oy + th/2);   ctx.lineTo(ox, oy + th);
-        ctx.lineTo(ox, oy + th - bh);        ctx.lineTo(ox - tw/2, oy + th/2 - bh);
-        ctx.closePath(); ctx.clip();
-        ctx.beginPath();
-        for (let wl = flH; wl < bh - 2; wl += flH) {
-          ctx.moveTo(ox - tw/2 + 1, oy + th/2 - wl);
-          ctx.lineTo(ox - 1,        oy + th   - wl);
-        }
-        for (let ci = 1; ci <= cols; ci++) {
-          const t = ci * colW;
-          ctx.moveTo(ox - tw/2 + t, oy + th/2 - bh + t * th/tw);
-          ctx.lineTo(ox - tw/2 + t, oy + th/2      + t * th/tw);
-        }
-        ctx.stroke(); ctx.restore();
-        ctx.save();
-        ctx.beginPath();
-        ctx.moveTo(ox, oy + th);               ctx.lineTo(ox + tw/2, oy + th/2);
-        ctx.lineTo(ox + tw/2, oy + th/2 - bh); ctx.lineTo(ox, oy + th - bh);
-        ctx.closePath(); ctx.clip();
-        ctx.beginPath();
-        for (let wl = flH; wl < bh - 2; wl += flH) {
-          ctx.moveTo(ox + 1,        oy + th   - wl);
-          ctx.lineTo(ox + tw/2 - 1, oy + th/2 - wl);
-        }
-        for (let ci = 1; ci <= cols; ci++) {
-          const t = ci * colW;
-          ctx.moveTo(ox + t, oy + th - bh - t * th/tw);
-          ctx.lineTo(ox + t, oy + th      - t * th/tw);
-        }
-        ctx.stroke(); ctx.restore();
-      } else if (type === 8) {
-        // ドット窓（住居マンション）
-        for (let wl = 8; wl < bh - 2; wl += 10) {
-          for (let ci = 0; ci < 3; ci++) {
-            const t = (ci + 0.5) * (tw / 2 / 3.5);
-            const dim = (frame + r * 11 + c * 7 + Math.floor(wl) * 3 + ci) % 80 < 5;
-            ctx.globalAlpha = dim ? 0.15 : 0.85;
-            ctx.fillStyle = bd.wColor;
-            ctx.fillRect(ox - tw/2 + t + 0.5, oy + th/2 - wl + t * th/tw - 1, 2, 2);
-            ctx.fillRect(ox + t + 0.5,        oy + th   - wl - t * th/tw - 1, 2, 2);
-          }
-        }
-        ctx.globalAlpha = 1;
-      } else {
-        // 横線窓（一般ビル）
-        const dim = frame > 0 && (frame + r * 13 + c * 7) % 120 < 3;
-        ctx.save();
-        ctx.globalAlpha = dim ? 0.2 : 1.0;
-        ctx.strokeStyle = bd.wColor; ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        for (let wl = 7; wl < bh - 3; wl += 9) {
-          ctx.moveTo(ox - tw/2 + 2, oy + th/2 - wl);
-          ctx.lineTo(ox - 2,        oy + th   - wl);
-        }
-        ctx.stroke();
-        ctx.beginPath();
-        for (let wl = 7; wl < bh - 3; wl += 9) {
-          ctx.moveTo(ox + 2,        oy + th   - wl);
-          ctx.lineTo(ox + tw/2 - 2, oy + th/2 - wl);
-        }
-        ctx.stroke();
-        ctx.restore();
+    // リムハイライト（エッジ輝線でデプス感）
+    ctx.save();
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(255,255,255,0.40)';
+    ctx.beginPath();
+    ctx.moveTo(ox - tw/2, oy + th/2 - bh); ctx.lineTo(ox, oy - bh);
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,255,255,0.16)';
+    ctx.beginPath();
+    ctx.moveTo(ox, oy - bh); ctx.lineTo(ox + tw/2, oy + th/2 - bh);
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,255,255,0.14)';
+    ctx.beginPath();
+    ctx.moveTo(ox - tw/2, oy + th/2); ctx.lineTo(ox - tw/2, oy + th/2 - bh);
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(0,0,0,0.60)';
+    ctx.beginPath();
+    ctx.moveTo(ox - tw/2, oy + th/2); ctx.lineTo(ox, oy + th); ctx.lineTo(ox + tw/2, oy + th/2);
+    ctx.stroke();
+    ctx.restore();
+    // タイプ別デコレーション
+    if (type === 1) {
+      _drawParkTrees(ctx, ox, oy, tw, th, bh, r, c);
+    } else if (type === 7) {
+      // 倉庫: 外壁パネルライン（工業感）
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(ox - tw/2, oy + th/2); ctx.lineTo(ox, oy + th);
+      ctx.lineTo(ox, oy + th - bh);     ctx.lineTo(ox - tw/2, oy + th/2 - bh);
+      ctx.closePath(); ctx.clip();
+      ctx.strokeStyle = 'rgba(70,90,120,0.38)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let wl = 4; wl < bh; wl += 4) {
+        ctx.moveTo(ox - tw/2, oy + th/2 - wl); ctx.lineTo(ox, oy + th - wl);
       }
+      ctx.stroke();
+      ctx.restore();
+    } else if (type === 5) {
+      // 飲食: 上部ネオン看板帯（赤）
+      const sh = 5;
+      ctx.beginPath();
+      ctx.moveTo(ox - tw/2, oy + th/2 - bh);
+      ctx.lineTo(ox, oy + th - bh);
+      ctx.lineTo(ox, oy + th - bh + sh);
+      ctx.lineTo(ox - tw/2, oy + th/2 - bh + sh);
+      ctx.closePath(); ctx.fillStyle = '#ff5010'; ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(ox, oy + th - bh);
+      ctx.lineTo(ox + tw/2, oy + th/2 - bh);
+      ctx.lineTo(ox + tw/2, oy + th/2 - bh + sh);
+      ctx.lineTo(ox, oy + th - bh + sh);
+      ctx.closePath(); ctx.fillStyle = '#cc3e08'; ctx.fill();
+    } else if (type === 6) {
+      // 商業: 下部ショーウィンドウ（緑の光）
+      const dh = 7;
+      ctx.beginPath();
+      ctx.moveTo(ox - tw/2, oy + th/2 - dh);
+      ctx.lineTo(ox, oy + th - dh);
+      ctx.lineTo(ox, oy + th);
+      ctx.lineTo(ox - tw/2, oy + th/2);
+      ctx.closePath(); ctx.fillStyle = 'rgba(30,210,90,0.30)'; ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(ox, oy + th - dh);
+      ctx.lineTo(ox + tw/2, oy + th/2 - dh);
+      ctx.lineTo(ox + tw/2, oy + th/2);
+      ctx.lineTo(ox, oy + th);
+      ctx.closePath(); ctx.fillStyle = 'rgba(20,185,75,0.28)'; ctx.fill();
+    }
+    // 窓
+    if (bd.wColor && bh >= 14 && type !== 1 && type !== 7) {
+      if (bd.rentable) {
+        _drawRentableWindows(ctx, ox, oy, tw, th, bd, type);
+      } else {
+        _drawWindowDots(ctx, ox, oy, tw, th, bd, type, r, c, frame);
+      }
+    }
+    // 高層・超高層アンテナ（点滅ライト付き）
+    if (type === 4 || type === 11) {
+      ctx.save();
+      ctx.strokeStyle = '#4a5468';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(ox, oy - bh); ctx.lineTo(ox, oy - bh - 9);
+      ctx.stroke();
+      ctx.fillStyle = (frame % 60) < 30 ? '#ff2828' : '#701010';
+      ctx.fillRect(ox - 1, oy - bh - 10, 2, 2);
+      ctx.restore();
     }
     // 賃貸ビルのフロートラベル
     if (bd.rentable) {
@@ -4479,6 +4504,113 @@ function _isoDiamond(ctx, ox, oy, tw, th, color) {
   ctx.closePath();
   ctx.fillStyle = color;
   ctx.fill();
+}
+
+function _drawParkTrees(ctx, ox, oy, tw, th, bh, r, c) {
+  const rng = _seededRng(r * 31 + c * 17 + 3);
+  const count = 1 + Math.floor(rng() * 3);
+  for (let i = 0; i < count; i++) {
+    const pu = (rng() * 2 - 1) * 0.32;
+    const pv = (rng() * 2 - 1) * 0.32;
+    const tx = ox + (pu - pv) * (tw / 2);
+    const ty = oy - bh + (pu + pv) * (th / 2) + th / 2;
+    const h  = 5 + rng() * 4;
+    ctx.fillStyle = '#2a1008';
+    ctx.fillRect(Math.round(tx) - 1, Math.round(ty - h * 0.55), 1, Math.round(h * 0.5));
+    ctx.fillStyle = '#143820';
+    ctx.beginPath(); ctx.arc(tx + 0.5, ty - h + 1, h * 0.68, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#1c5a28';
+    ctx.beginPath(); ctx.arc(tx, ty - h, h * 0.68, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#2c7838';
+    ctx.beginPath(); ctx.arc(tx - 1, ty - h - 1, h * 0.42, 0, Math.PI * 2); ctx.fill();
+  }
+}
+
+function _drawWindowDots(ctx, ox, oy, tw, th, bd, type, r, c, frame) {
+  const bh   = bd.h;
+  const cols = type === 4 ? 3 : 2;
+  const rows = Math.max(1, Math.floor(bh / (type === 5 ? 8 : 10)));
+  const rngL = _seededRng(r * 37 + c * 23 + type * 7);
+  const rngR = _seededRng(r * 37 + c * 23 + type * 7 + 5000);
+  // 左面
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(ox - tw/2, oy + th/2); ctx.lineTo(ox, oy + th);
+  ctx.lineTo(ox, oy + th - bh);     ctx.lineTo(ox - tw/2, oy + th/2 - bh);
+  ctx.closePath(); ctx.clip();
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      if (rngL() > 0.73) continue;
+      const u = (col + 0.5) / cols;
+      const v = (row + 1) / (rows + 1);
+      const sx = (ox - tw/2) + u * (tw / 2);
+      const sy = (oy + th/2 + u * th/2) - v * bh;
+      const blink = ((frame + r*19 + c*11 + row*7 + col*5) % 290) < 5;
+      ctx.globalAlpha = blink ? 0.06 : 0.82;
+      ctx.fillStyle = bd.wColor;
+      ctx.fillRect(Math.round(sx) - 1, Math.round(sy) - 1, 2, 2);
+    }
+  }
+  ctx.restore();
+  // 右面
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(ox, oy + th);               ctx.lineTo(ox + tw/2, oy + th/2);
+  ctx.lineTo(ox + tw/2, oy + th/2 - bh); ctx.lineTo(ox, oy + th - bh);
+  ctx.closePath(); ctx.clip();
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      if (rngR() > 0.73) continue;
+      const u = (col + 0.5) / cols;
+      const v = (row + 1) / (rows + 1);
+      const sx = ox + u * (tw / 2);
+      const sy = (oy + th - u * th/2) - v * bh;
+      const blink = ((frame + r*19 + c*11 + row*7 + col*5 + 80) % 290) < 5;
+      ctx.globalAlpha = blink ? 0.06 : 0.82;
+      ctx.fillStyle = bd.wColor;
+      ctx.fillRect(Math.round(sx) - 1, Math.round(sy) - 1, 2, 2);
+    }
+  }
+  ctx.restore();
+  ctx.globalAlpha = 1;
+}
+
+function _drawRentableWindows(ctx, ox, oy, tw, th, bd, type) {
+  const bh   = bd.h;
+  const flH  = type === 11 ? 6 : type === 10 ? 8 : 10;
+  const cols = type === 11 ? 5 : type === 10 ? 4 : 3;
+  const colW = (tw / 2) / (cols + 1);
+  ctx.strokeStyle = bd.wColor; ctx.lineWidth = 1;
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(ox - tw/2, oy + th/2);   ctx.lineTo(ox, oy + th);
+  ctx.lineTo(ox, oy + th - bh);        ctx.lineTo(ox - tw/2, oy + th/2 - bh);
+  ctx.closePath(); ctx.clip();
+  ctx.beginPath();
+  for (let wl = flH; wl < bh - 2; wl += flH) {
+    ctx.moveTo(ox - tw/2 + 1, oy + th/2 - wl); ctx.lineTo(ox - 1, oy + th - wl);
+  }
+  for (let ci = 1; ci <= cols; ci++) {
+    const t = ci * colW;
+    ctx.moveTo(ox - tw/2 + t, oy + th/2 - bh + t * th/tw);
+    ctx.lineTo(ox - tw/2 + t, oy + th/2      + t * th/tw);
+  }
+  ctx.stroke(); ctx.restore();
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(ox, oy + th);               ctx.lineTo(ox + tw/2, oy + th/2);
+  ctx.lineTo(ox + tw/2, oy + th/2 - bh); ctx.lineTo(ox, oy + th - bh);
+  ctx.closePath(); ctx.clip();
+  ctx.beginPath();
+  for (let wl = flH; wl < bh - 2; wl += flH) {
+    ctx.moveTo(ox + 1, oy + th - wl); ctx.lineTo(ox + tw/2 - 1, oy + th/2 - wl);
+  }
+  for (let ci = 1; ci <= cols; ci++) {
+    const t = ci * colW;
+    ctx.moveTo(ox + t, oy + th - bh - t * th/tw);
+    ctx.lineTo(ox + t, oy + th      - t * th/tw);
+  }
+  ctx.stroke(); ctx.restore();
 }
 
 function showOfficeRentModal(cityId, spotId) {
