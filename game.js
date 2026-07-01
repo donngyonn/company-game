@@ -770,6 +770,7 @@ let state = {
   periodEarned: 0,      // 当期累計収益（3月決算で課税）
   periodDeductible: 0,  // 当期損金（家賃・給与）
   loans: [],
+  properties: [],   // 購入済み投資物件 [{cityId, spotId}]
   morale: { ceo: 90, employee: 90, freelance: 90 },
   gameStarted: false,   // 事務所契約後に true
   bankrupt: false,
@@ -987,11 +988,20 @@ function getFreelancerBaseIncome() {
   return 0;
 }
 
-// 表示用週次収益（部署の秒収益×WEEK_SEC + FL週次利益）
+function getPropWeeklyIncome() {
+  if (!state.properties || state.properties.length === 0) return 0;
+  return state.properties.reduce((sum, p) => {
+    const spot = (CITY_OFFICE_SPOTS[p.cityId] || []).find(s => s.id === p.spotId);
+    return spot ? sum + Math.round(spot.monthlyRent / MONTH_WEEKS) : sum;
+  }, 0);
+}
+
+// 表示用週次収益（部署の秒収益×WEEK_SEC + FL週次利益 + 投資物件収益）
 function getDisplayWeeklyIncome() {
   const deptPerWeek = getTotalIncome() * WEEK_SEC;
   const flPerWeek = getFlWeeklyIncome();
-  return deptPerWeek + flPerWeek;
+  const propPerWeek = getPropWeeklyIncome();
+  return deptPerWeek + flPerWeek + propPerWeek;
 }
 
 function getTotalIncome() {
@@ -4182,38 +4192,38 @@ const CITY_OFFICE_SPOTS = {
   tokyo: [
     { id: 'tok_o1', cat: 'office',    r: 9, c: 2, level: 1, name: 'コワーキング渋谷',      capacity: 5,    monthlyRent: 50000,    unlockAt: 0 },
     { id: 'tok_o2', cat: 'office',    r: 4, c: 5, level: 2, name: '品川サテライトオフィス', capacity: 15,   monthlyRent: 200000,   unlockAt: 3000000 },
-    { id: 'tok_b1', cat: 'building',  r: 3, c: 1, level: 3, name: '新宿中規模ビル',         capacity: 40,   monthlyRent: 800000,   unlockAt: 20000000 },
-    { id: 'tok_b2', cat: 'building',  r: 6, c: 3, level: 4, name: '恵比寿プレイス',         capacity: 120,  monthlyRent: 3000000,  unlockAt: 100000000 },
-    { id: 'tok_b3', cat: 'building',  r: 0, c: 4, level: 5, name: '丸の内大型ビル',         capacity: 400,  monthlyRent: 12000000, unlockAt: 500000000 },
-    { id: 'tok_b4', cat: 'building',  r: 0, c: 2, level: 6, name: '東京本社タワー',         capacity: 1500, monthlyRent: 50000000, unlockAt: 5000000000 },
-    { id: 'tok_m1', cat: 'mansion',   r: 6, c: 1,           name: 'パークコート渋谷',        capacity: 8,    monthlyRent: 280000,   unlockAt: 5000000 },
-    { id: 'tok_m2', cat: 'mansion',   r: 4, c: 7,           name: 'プレステージ赤坂',        capacity: 25,   monthlyRent: 900000,   unlockAt: 40000000 },
-    { id: 'tok_w1', cat: 'warehouse', r: 7, c: 3,           name: '東京物流倉庫',            capacity: 15,   monthlyRent: 100000,   unlockAt: 6000000 },
-    { id: 'tok_w2', cat: 'warehouse', r: 7, c: 7,           name: '無敵倉庫',                capacity: 50,   monthlyRent: 380000,   unlockAt: 50000000 },
+    { id: 'tok_b1', cat: 'building',  r: 3, c: 1, level: 3, name: '新宿中規模ビル',         monthlyRent: 200000,   unlockAt: 20000000,   yieldRate: 0.030 },
+    { id: 'tok_b2', cat: 'building',  r: 6, c: 3, level: 4, name: '恵比寿プレイス',         monthlyRent: 750000,   unlockAt: 100000000,  yieldRate: 0.030 },
+    { id: 'tok_b3', cat: 'building',  r: 0, c: 4, level: 5, name: '丸の内大型ビル',         monthlyRent: 3000000,  unlockAt: 500000000,  yieldRate: 0.030 },
+    { id: 'tok_b4', cat: 'building',  r: 0, c: 2, level: 6, name: '東京本社タワー',         monthlyRent: 12000000, unlockAt: 5000000000, yieldRate: 0.028 },
+    { id: 'tok_m1', cat: 'mansion',   r: 6, c: 1,           name: 'パークコート渋谷',        monthlyRent: 70000,    unlockAt: 5000000,    yieldRate: 0.028 },
+    { id: 'tok_m2', cat: 'mansion',   r: 4, c: 7,           name: 'プレステージ赤坂',        monthlyRent: 220000,   unlockAt: 40000000,   yieldRate: 0.028 },
+    { id: 'tok_w1', cat: 'warehouse', r: 7, c: 3,           name: '東京物流倉庫',            monthlyRent: 25000,    unlockAt: 6000000,    yieldRate: 0.035 },
+    { id: 'tok_w2', cat: 'warehouse', r: 7, c: 7,           name: '無敵倉庫',                monthlyRent: 95000,    unlockAt: 50000000,   yieldRate: 0.035 },
   ],
   osaka: [
     { id: 'osa_o1', cat: 'office',    r: 9, c: 1, level: 1, name: '梅田コワーキング',       capacity: 5,    monthlyRent: 45000,    unlockAt: 0 },
-    { id: 'osa_b1', cat: 'building',  r: 3, c: 3, level: 2, name: '本町ミニオフィス',       capacity: 40,   monthlyRent: 720000,   unlockAt: 15000000 },
-    { id: 'osa_b2', cat: 'building',  r: 0, c: 5, level: 3, name: 'WTCコスモタワー',        capacity: 400,  monthlyRent: 10000000, unlockAt: 400000000 },
-    { id: 'osa_b3', cat: 'building',  r: 0, c: 2, level: 4, name: 'あべのハルカス',         capacity: 1200, monthlyRent: 40000000, unlockAt: 3000000000 },
-    { id: 'osa_m1', cat: 'mansion',   r: 6, c: 1,           name: '心斎橋レジデンス',       capacity: 8,    monthlyRent: 250000,   unlockAt: 4000000 },
-    { id: 'osa_w1', cat: 'warehouse', r: 7, c: 2,           name: '大阪港倉庫',             capacity: 15,   monthlyRent: 90000,    unlockAt: 5000000 },
-    { id: 'osa_w2', cat: 'warehouse', r: 7, c: 6,           name: '堺鉄壁倉庫',             capacity: 50,   monthlyRent: 320000,   unlockAt: 40000000 },
+    { id: 'osa_b1', cat: 'building',  r: 3, c: 3, level: 2, name: '本町ミニオフィス',       monthlyRent: 150000,   unlockAt: 15000000,   yieldRate: 0.050 },
+    { id: 'osa_b2', cat: 'building',  r: 0, c: 5, level: 3, name: 'WTCコスモタワー',        monthlyRent: 2000000,  unlockAt: 400000000,  yieldRate: 0.050 },
+    { id: 'osa_b3', cat: 'building',  r: 0, c: 2, level: 4, name: 'あべのハルカス',         monthlyRent: 8000000,  unlockAt: 3000000000, yieldRate: 0.048 },
+    { id: 'osa_m1', cat: 'mansion',   r: 6, c: 1,           name: '心斎橋レジデンス',       monthlyRent: 47000,    unlockAt: 4000000,    yieldRate: 0.045 },
+    { id: 'osa_w1', cat: 'warehouse', r: 7, c: 2,           name: '大阪港倉庫',             monthlyRent: 20000,    unlockAt: 5000000,    yieldRate: 0.055 },
+    { id: 'osa_w2', cat: 'warehouse', r: 7, c: 6,           name: '堺鉄壁倉庫',             monthlyRent: 70000,    unlockAt: 40000000,   yieldRate: 0.055 },
   ],
   hokkaido: [
     { id: 'hok_o1', cat: 'office',    r: 9, c: 2, level: 1, name: '札幌コワーキング',       capacity: 5,    monthlyRent: 30000,    unlockAt: 0 },
-    { id: 'hok_b1', cat: 'building',  r: 3, c: 3, level: 2, name: '北5条ミニオフィス',      capacity: 25,   monthlyRent: 350000,   unlockAt: 10000000 },
-    { id: 'hok_m1', cat: 'mansion',   r: 6, c: 1,           name: '円山プレミアム',         capacity: 6,    monthlyRent: 130000,   unlockAt: 3000000 },
-    { id: 'hok_w1', cat: 'warehouse', r: 7, c: 3,           name: '北海道農産倉庫',         capacity: 20,   monthlyRent: 70000,    unlockAt: 4000000 },
-    { id: 'hok_w2', cat: 'warehouse', r: 7, c: 7,           name: '千歳物流センター',        capacity: 60,   monthlyRent: 250000,   unlockAt: 30000000 },
+    { id: 'hok_b1', cat: 'building',  r: 3, c: 3, level: 2, name: '北5条ミニオフィス',      monthlyRent: 67000,    unlockAt: 10000000,   yieldRate: 0.055 },
+    { id: 'hok_m1', cat: 'mansion',   r: 6, c: 1,           name: '円山プレミアム',         monthlyRent: 27000,    unlockAt: 3000000,    yieldRate: 0.052 },
+    { id: 'hok_w1', cat: 'warehouse', r: 7, c: 3,           name: '北海道農産倉庫',         monthlyRent: 17500,    unlockAt: 4000000,    yieldRate: 0.060 },
+    { id: 'hok_w2', cat: 'warehouse', r: 7, c: 7,           name: '千歳物流センター',        monthlyRent: 60000,    unlockAt: 30000000,   yieldRate: 0.060 },
   ],
   fukuoka: [
     { id: 'fuk_o1', cat: 'office',    r: 9, c: 3, level: 1, name: '天神コワーキング',       capacity: 5,    monthlyRent: 35000,    unlockAt: 0 },
-    { id: 'fuk_b1', cat: 'building',  r: 3, c: 3, level: 2, name: '天神中規模ビル',         capacity: 30,   monthlyRent: 420000,   unlockAt: 12000000 },
-    { id: 'fuk_b2', cat: 'building',  r: 0, c: 4, level: 3, name: '福岡本社ビル',           capacity: 200,  monthlyRent: 5000000,  unlockAt: 200000000 },
-    { id: 'fuk_m1', cat: 'mansion',   r: 6, c: 1,           name: '大名レジデンス',         capacity: 7,    monthlyRent: 150000,   unlockAt: 3500000 },
-    { id: 'fuk_w1', cat: 'warehouse', r: 7, c: 2,           name: '博多港倉庫',             capacity: 15,   monthlyRent: 80000,    unlockAt: 5000000 },
-    { id: 'fuk_w2', cat: 'warehouse', r: 7, c: 6,           name: '筑後超速倉庫',           capacity: 40,   monthlyRent: 220000,   unlockAt: 25000000 },
+    { id: 'fuk_b1', cat: 'building',  r: 3, c: 3, level: 2, name: '天神中規模ビル',         monthlyRent: 88000,    unlockAt: 12000000,   yieldRate: 0.050 },
+    { id: 'fuk_b2', cat: 'building',  r: 0, c: 4, level: 3, name: '福岡本社ビル',           monthlyRent: 1000000,  unlockAt: 200000000,  yieldRate: 0.050 },
+    { id: 'fuk_m1', cat: 'mansion',   r: 6, c: 1,           name: '大名レジデンス',         monthlyRent: 30000,    unlockAt: 3500000,    yieldRate: 0.048 },
+    { id: 'fuk_w1', cat: 'warehouse', r: 7, c: 2,           name: '博多港倉庫',             monthlyRent: 19000,    unlockAt: 5000000,    yieldRate: 0.058 },
+    { id: 'fuk_w2', cat: 'warehouse', r: 7, c: 6,           name: '筑後超速倉庫',           monthlyRent: 52000,    unlockAt: 25000000,   yieldRate: 0.058 },
   ],
 };
 
@@ -4441,19 +4451,40 @@ function _updateSpotCatUI(cityId) {
     listEl.innerHTML = `<div style="padding:12px;text-align:center;color:#475569;font-size:11px">このカテゴリは現在利用不可</div>`;
     return;
   }
+  const isOffice = _baseSpotCat === 'office';
+  const laborUnlocked = (state.employees?.['finance'] || 0) >= 1;
   listEl.innerHTML = spots.map(s => {
-    const isRented = state.officeCityId === cityId && state.officeSpotId === s.id;
     const isLocked = (s.unlockAt || 0) > 0 && (state.totalEarned || 0) < s.unlockAt;
-    const sc = isRented ? '#4ade80' : isLocked ? '#475569' : '#60a5fa';
-    const st = isRented ? '✅ 入居中' : isLocked ? `🔒 ¥${Math.floor(s.unlockAt / 10000)}万～` : '空室';
-    return `<div onclick="${isLocked ? '' : `showOfficeRentModal('${cityId}','${s.id}')`}"
-      style="background:#0c1525;border:1px solid ${isRented ? '#1e5030' : '#1e3050'};border-radius:6px;padding:8px 10px;margin-bottom:4px;cursor:${isLocked ? 'default' : 'pointer'};display:flex;justify-content:space-between;align-items:center">
-      <div>
-        <div style="font-size:11px;font-weight:700;color:${isRented ? '#4ade80' : isLocked ? '#475569' : '#e2e8f0'}">${s.name}</div>
-        <div style="font-size:10px;color:#475569">👥 ${s.capacity}名 ／ 💴 ${yen(s.monthlyRent)}/月</div>
-      </div>
-      <div style="font-size:10px;font-weight:700;color:${sc};flex-shrink:0;margin-left:8px">${st}</div>
-    </div>`;
+    if (isOffice) {
+      const isRented = state.officeCityId === cityId && state.officeSpotId === s.id;
+      const sc = isRented ? '#4ade80' : isLocked ? '#475569' : '#60a5fa';
+      const st = isRented ? '✅ 入居中' : isLocked ? `🔒 累計${yen(s.unlockAt)}～` : '空室';
+      return `<div onclick="${isLocked ? '' : `showOfficeRentModal('${cityId}','${s.id}')`}"
+        style="background:#0c1525;border:1px solid ${isRented ? '#1e5030' : '#1e3050'};border-radius:6px;padding:8px 10px;margin-bottom:4px;cursor:${isLocked ? 'default' : 'pointer'};display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-size:11px;font-weight:700;color:${isRented ? '#4ade80' : isLocked ? '#475569' : '#e2e8f0'}">${s.name}</div>
+          <div style="font-size:10px;color:#475569">👥 ${s.capacity}名 ／ 💴 ${yen(s.monthlyRent)}/月</div>
+        </div>
+        <div style="font-size:10px;font-weight:700;color:${sc};flex-shrink:0;margin-left:8px">${st}</div>
+      </div>`;
+    } else {
+      // 投資物件
+      const isPurchased = (state.properties || []).some(p => p.cityId === cityId && p.spotId === s.id);
+      const purchasePrice = Math.round(s.monthlyRent * 12 / (s.yieldRate || 0.05));
+      const weeklyIncome  = Math.round(s.monthlyRent / MONTH_WEEKS);
+      const yieldPct = ((s.yieldRate || 0.05) * 100).toFixed(1);
+      const canBuy = !isLocked && laborUnlocked && !isPurchased && state.money >= purchasePrice;
+      const sc = isPurchased ? '#4ade80' : isLocked ? '#475569' : !laborUnlocked ? '#fbbf24' : '#60a5fa';
+      const st = isPurchased ? '✅ 所有中' : isLocked ? `🔒 累計${yen(s.unlockAt)}～` : !laborUnlocked ? '🔒 財務タブ解放後' : (state.money >= purchasePrice ? '購入可' : '💸 資金不足');
+      return `<div onclick="${(isLocked || !laborUnlocked) ? '' : `showOfficeRentModal('${cityId}','${s.id}')`}"
+        style="background:#0c1525;border:1px solid ${isPurchased ? '#1e5030' : '#1e3050'};border-radius:6px;padding:8px 10px;margin-bottom:4px;cursor:${(isLocked || !laborUnlocked || isPurchased) ? 'default' : 'pointer'}">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div style="font-size:11px;font-weight:700;color:${isPurchased ? '#4ade80' : isLocked ? '#475569' : '#e2e8f0'}">${s.name}</div>
+          <div style="font-size:10px;font-weight:700;color:${sc};flex-shrink:0;margin-left:8px">${st}</div>
+        </div>
+        <div style="font-size:10px;color:#475569;margin-top:2px">💰 ${yen(purchasePrice)} ／ 利回り${yieldPct}% ／ 💹 ＋${yen(weeklyIncome)}/週</div>
+      </div>`;
+    }
   }).join('');
 }
 
@@ -4468,7 +4499,7 @@ function _setupCityCanvasEvents(cityId) {
     if (!cityDragging) return;
     const nx = e.clientX - cityDragStart.x, ny = e.clientY - cityDragStart.y;
     if (Math.abs(nx - cityPan.x) > 3 || Math.abs(ny - cityPan.y) > 3) cityDragged = true;
-    cityPan = { x: nx, y: ny };
+    cityPan = { x: Math.max(-100, Math.min(100, nx)), y: Math.max(-70, Math.min(70, ny)) };
   });
   canvas.addEventListener('mouseup', e => {
     if (!cityDragged) _handleCityClick(e.clientX, e.clientY, canvas, cityId);
@@ -4483,7 +4514,7 @@ function _setupCityCanvasEvents(cityId) {
     const cy = (e.clientY - rect.top)  * (canvas.height / rect.height);
     cityPan.x = cx + (cityPan.x - cx) * f;
     cityPan.y = cy + (cityPan.y - cy) * f;
-    cityZoom = Math.max(0.8, Math.min(2.5, cityZoom * f));
+    cityZoom = Math.max(0.8, Math.min(1.5, cityZoom * f));
   }, { passive: false });
   canvas.addEventListener('touchstart', e => {
     e.preventDefault();
@@ -4506,16 +4537,16 @@ function _setupCityCanvasEvents(cityId) {
         const tdy = e.touches[0].clientY - cityTouchStartClient.y;
         if (Math.hypot(tdx, tdy) > 8) cityDragged = true;
       }
-      cityPan = { x: nx, y: ny };
+      cityPan = { x: Math.max(-100, Math.min(100, nx)), y: Math.max(-70, Math.min(70, ny)) };
     } else if (e.touches.length === 2 && cityTouchDist) {
       const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
       const f = dist / cityTouchDist;
       const rect = canvas.getBoundingClientRect();
       const cx = ((e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left) * (canvas.width / rect.width);
       const cy = ((e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top)  * (canvas.height / rect.height);
-      cityPan.x = cx + (cityPan.x - cx) * f;
-      cityPan.y = cy + (cityPan.y - cy) * f;
-      cityZoom = Math.max(0.8, Math.min(2.5, cityZoom * f));
+      cityPan.x = Math.max(-100, Math.min(100, cx + (cityPan.x - cx) * f));
+      cityPan.y = Math.max(-70,  Math.min(70,  cy + (cityPan.y - cy) * f));
+      cityZoom = Math.max(0.8, Math.min(1.5, cityZoom * f));
       cityTouchDist = dist;
     }
   }, { passive: false });
@@ -4596,38 +4627,48 @@ function _drawIsoCity(ctx, W, H, cityId, frame) {
   ctx.translate(cityPan.x, cityPan.y);
   ctx.scale(cityZoom, cityZoom);
   const cells = [];
-  for (let r = 0; r < 10; r++)
-    for (let c = 0; c < 10; c++)
-      cells.push({ r, c, type: layout[r][c] });
-  cells.sort((a, b) => (a.r + a.c) - (b.r + b.c) || (BTYPE_DEFS[b.type]?.h || 0) - (BTYPE_DEFS[a.type]?.h || 0));
-  for (const { r, c, type } of cells) {
+  for (let r = 0; r < 10; r++) {
+    for (let c = 0; c < 10; c++) {
+      const rawType = layout[r][c];
+      // 空マス(0)を道路(row 2/5/8)か公園(それ以外)に変換
+      const visType = rawType !== 0 ? rawType : (r === 2 || r === 5 || r === 8) ? 0 : 1;
+      cells.push({ r, c, type: rawType, visType });
+    }
+  }
+  cells.sort((a, b) => (a.r + a.c) - (b.r + b.c) || (BTYPE_DEFS[b.visType]?.h || 0) - (BTYPE_DEFS[a.visType]?.h || 0));
+  for (const { r, c, type, visType } of cells) {
     const ox = W/2 + (c - r) * (tw/2);
     const oy = oy0 + (c + r) * (th/2);
-    _isoDiamond(ctx, ox, oy, tw, th, type === 0 ? '#0d1220' : '#0a0d18');
-    if (type === 0) {
-      // 道路の中央線マーキング
+    _isoDiamond(ctx, ox, oy, tw, th, visType === 0 ? '#0d1220' : '#0a0d18');
+    if (visType === 0) {
+      // 道路: 中央線＋対角線マーキング
       ctx.save();
-      ctx.strokeStyle = 'rgba(35,45,90,0.55)';
-      ctx.lineWidth = 0.6;
+      ctx.strokeStyle = 'rgba(50,65,120,0.60)';
+      ctx.lineWidth = 0.7;
       ctx.beginPath();
       ctx.moveTo(ox, oy + 1); ctx.lineTo(ox, oy + th - 1);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(ox - tw/4, oy + th/4 + 1); ctx.lineTo(ox + tw/4, oy + 3*th/4 - 1);
       ctx.stroke();
       ctx.restore();
       continue;
     }
-    const bd = BTYPE_DEFS[type];
+    const bd = BTYPE_DEFS[visType];
     if (!bd) continue;
     const bh = bd.h;
-    const spot = (CITY_OFFICE_SPOTS[cityId] || []).find(s => s.r === r && s.c === c);
-    // 賃貸スポットのグロー（屋上事前描画）
+    const spot = type === 0 ? null : (CITY_OFFICE_SPOTS[cityId] || []).find(s => s.r === r && s.c === c);
+    // スポットのグロー（屋上事前描画）
     if (spot) {
-      const isRented = state.officeCityId === cityId && state.officeSpotId === spot.id;
+      const isActive = spot.cat === 'office'
+        ? (state.officeCityId === cityId && state.officeSpotId === spot.id)
+        : (state.properties || []).some(p => p.cityId === cityId && p.spotId === spot.id);
       const isLocked = (spot.unlockAt || 0) > 0 && (state.totalEarned || 0) < spot.unlockAt;
       const pulse = 0.5 + 0.5 * Math.sin(frame * 0.06);
       ctx.save();
       const gc = spot.cat === 'mansion' ? '#f0d050' : spot.cat === 'warehouse' ? '#60c0c8' : '#38d8f8';
-      ctx.shadowColor = isRented ? '#4ade80' : isLocked ? '#1e293b' : gc;
-      ctx.shadowBlur  = isRented ? 14 + 6 * pulse : isLocked ? 3 : 8 + 5 * pulse;
+      ctx.shadowColor = isActive ? '#4ade80' : isLocked ? '#1e293b' : gc;
+      ctx.shadowBlur  = isActive ? 14 + 6 * pulse : isLocked ? 3 : 8 + 5 * pulse;
       _isoDiamond(ctx, ox, oy - bh, tw, th, bd.top);
       ctx.restore();
     }
@@ -4664,9 +4705,9 @@ function _drawIsoCity(ctx, W, H, cityId, frame) {
     ctx.stroke();
     ctx.restore();
     // タイプ別デコレーション
-    if (type === 1) {
+    if (visType === 1) {
       _drawParkTrees(ctx, ox, oy, tw, th, bh, r, c);
-    } else if (type === 7) {
+    } else if (visType === 7) {
       // 倉庫: 外壁パネルライン（工業感）
       ctx.save();
       ctx.beginPath();
@@ -4681,7 +4722,7 @@ function _drawIsoCity(ctx, W, H, cityId, frame) {
       }
       ctx.stroke();
       ctx.restore();
-    } else if (type === 5) {
+    } else if (visType === 5) {
       // 飲食: 上部ネオン看板帯（赤）
       const sh = 5;
       ctx.beginPath();
@@ -4696,7 +4737,7 @@ function _drawIsoCity(ctx, W, H, cityId, frame) {
       ctx.lineTo(ox + tw/2, oy + th/2 - bh + sh);
       ctx.lineTo(ox, oy + th - bh + sh);
       ctx.closePath(); ctx.fillStyle = '#cc3e08'; ctx.fill();
-    } else if (type === 6) {
+    } else if (visType === 6) {
       // 商業: 下部ショーウィンドウ（緑の光）
       const dh = 7;
       ctx.beginPath();
@@ -4713,15 +4754,15 @@ function _drawIsoCity(ctx, W, H, cityId, frame) {
       ctx.closePath(); ctx.fillStyle = 'rgba(20,185,75,0.28)'; ctx.fill();
     }
     // 窓
-    if (bd.wColor && bh >= 14 && type !== 1 && type !== 7) {
+    if (bd.wColor && bh >= 14 && visType !== 1 && visType !== 7) {
       if (spot) {
-        _drawRentableWindows(ctx, ox, oy, tw, th, bd, type);
+        _drawRentableWindows(ctx, ox, oy, tw, th, bd, visType);
       } else {
-        _drawWindowDots(ctx, ox, oy, tw, th, bd, type, r, c, frame);
+        _drawWindowDots(ctx, ox, oy, tw, th, bd, visType, r, c, frame);
       }
     }
     // 高層・超高層アンテナ（点滅ライト付き）
-    if (type === 4 || type === 11) {
+    if (visType === 4 || visType === 11) {
       ctx.save();
       ctx.strokeStyle = '#4a5468';
       ctx.lineWidth = 1;
@@ -4734,18 +4775,20 @@ function _drawIsoCity(ctx, W, H, cityId, frame) {
     }
     // 賃貸スポットのフロートラベル
     if (spot) {
-      const isRented = state.officeCityId === cityId && state.officeSpotId === spot.id;
+      const isActive = spot.cat === 'office'
+        ? (state.officeCityId === cityId && state.officeSpotId === spot.id)
+        : (state.properties || []).some(p => p.cityId === cityId && p.spotId === spot.id);
       const isLocked = (spot.unlockAt || 0) > 0 && (state.totalEarned || 0) < spot.unlockAt;
       const ly = oy - bh - 14 - 3 * Math.sin(frame * 0.07);
       ctx.save();
       ctx.textAlign = 'center';
       ctx.font = 'bold 11px sans-serif';
-      const _lc = isRented ? '#4ade80' : isLocked ? '#475569' : (spot.cat === 'mansion' ? '#f0d050' : spot.cat === 'warehouse' ? '#60c8c0' : '#60d8ff');
+      const _lc = isActive ? '#4ade80' : isLocked ? '#475569' : (spot.cat === 'mansion' ? '#f0d050' : spot.cat === 'warehouse' ? '#60c8c0' : '#60d8ff');
       ctx.fillStyle = _lc;
       const _catIco = { office: '🏢', building: '🏙', mansion: '🏠', warehouse: '🏭' };
-      ctx.fillText(isRented ? '✅' : isLocked ? '🔒' : (_catIco[spot.cat] || '🏢'), ox, ly);
+      ctx.fillText(isActive ? '✅' : isLocked ? '🔒' : (_catIco[spot.cat] || '🏢'), ox, ly);
       ctx.font = '7px "Hiragino Sans","Meiryo",sans-serif';
-      ctx.fillStyle = isRented ? '#4ade80' : isLocked ? '#334155' : '#38b8d8';
+      ctx.fillStyle = isActive ? '#4ade80' : isLocked ? '#334155' : '#38b8d8';
       ctx.fillText(spot.name.substring(0, 6), ox, ly - 10);
       ctx.restore();
     }
@@ -4875,8 +4918,10 @@ function showOfficeRentModal(cityId, spotId) {
   const spots = CITY_OFFICE_SPOTS[cityId] || [];
   const spot = spots.find(s => s.id === spotId);
   if (!spot) return;
+  if (spot.cat !== 'office') { showPropertyModal(cityId, spotId); return; }
   const city = BASE_CITIES.find(c => c.id === cityId);
   pendingRentOffice = { cityId, spotId };
+  document.getElementById('office-rent-btn').onclick = doRentOffice;
   const isRented = state.officeCityId === cityId && state.officeSpotId === spotId;
   const isLocked = spot.unlockAt > 0 && (state.totalEarned || 0) < spot.unlockAt;
   const curSpot  = state.officeCityId ? (CITY_OFFICE_SPOTS[state.officeCityId] || []).find(s => s.id === state.officeSpotId) : null;
@@ -4946,6 +4991,93 @@ function doRentOffice() {
   }
   closeOfficeRentModal();
   renderBase(); renderDepts(); renderHeader();
+}
+
+function showPropertyModal(cityId, spotId) {
+  const spot = (CITY_OFFICE_SPOTS[cityId] || []).find(s => s.id === spotId);
+  if (!spot) return;
+  const city = BASE_CITIES.find(c => c.id === cityId);
+  pendingRentOffice = { cityId, spotId };
+
+  const isPurchased    = (state.properties || []).some(p => p.cityId === cityId && p.spotId === spotId);
+  const isLocked       = (spot.unlockAt || 0) > 0 && (state.totalEarned || 0) < spot.unlockAt;
+  const laborUnlocked  = (state.employees?.['finance'] || 0) >= 1;
+  const purchasePrice  = Math.round(spot.monthlyRent * 12 / (spot.yieldRate || 0.05));
+  const weeklyIncome   = Math.round(spot.monthlyRent / MONTH_WEEKS);
+  const annualYield    = ((spot.yieldRate || 0.05) * 100).toFixed(1);
+  const canAfford      = state.money >= purchasePrice;
+
+  const _catTitle = { building: '🏙 ビル', mansion: '🏠 マンション', warehouse: '🏭 倉庫' };
+  document.getElementById('office-rent-title').textContent = `${_catTitle[spot.cat] || '🏗'} — ${spot.name}`;
+
+  const statusHtml = [
+    isPurchased   ? `<div style="background:#0a2010;border:1px solid #1e5030;border-radius:6px;padding:8px;text-align:center;color:#4ade80;font-weight:700">✅ 所有中・週次収益 ＋${yen(weeklyIncome)}/週 発生中</div>` : '',
+    !laborUnlocked && !isPurchased ? `<div style="background:#1a1000;border:1px solid #3a2e00;border-radius:6px;padding:8px;color:#fbbf24;font-size:11px">⚠️ 財務部を1人以上雇用後に購入可能</div>` : '',
+    isLocked      ? `<div style="background:#0f1525;border:1px solid #1e3050;border-radius:6px;padding:8px;color:#94a3b8;font-size:11px">🔒 解放条件: 累計売上 ${yen(spot.unlockAt)} 以上</div>` : '',
+    (!canAfford && laborUnlocked && !isPurchased && !isLocked) ? `<div style="background:#200a0a;border:1px solid #501010;border-radius:6px;padding:8px;color:#f87171;font-size:11px">💸 資金不足（現在 ${yen(state.money)} / 必要 ${yen(purchasePrice)}）</div>` : '',
+  ].filter(Boolean).join('');
+
+  document.getElementById('office-rent-content').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0">
+      <div style="background:#0c1525;border-radius:6px;padding:8px">
+        <div style="font-size:10px;color:#475569">📍 所在地</div>
+        <div style="font-size:13px;font-weight:700;color:#e2e8f0">${city?.name || ''}</div>
+      </div>
+      <div style="background:#0c1525;border-radius:6px;padding:8px">
+        <div style="font-size:10px;color:#475569">📈 年間利回り</div>
+        <div style="font-size:13px;font-weight:700;color:#4ade80">${annualYield}%</div>
+      </div>
+      <div style="background:#0c1525;border-radius:6px;padding:8px">
+        <div style="font-size:10px;color:#475569">💰 購入価格</div>
+        <div style="font-size:13px;font-weight:700;color:#fbbf24">${yen(purchasePrice)}</div>
+      </div>
+      <div style="background:#0c1525;border-radius:6px;padding:8px">
+        <div style="font-size:10px;color:#475569">💹 週次収益</div>
+        <div style="font-size:13px;font-weight:700;color:#60a5fa">＋${yen(weeklyIncome)}/週</div>
+      </div>
+    </div>
+    ${statusHtml}`;
+
+  const btn = document.getElementById('office-rent-btn');
+  if (isPurchased) {
+    btn.textContent = '✅ 所有中'; btn.disabled = true;
+    btn.style.cssText = 'flex:1;background:#0a2010;border-color:#1e5030;color:#4ade80';
+  } else if (!laborUnlocked) {
+    btn.textContent = '🔒 財務部を雇用してから購入可能'; btn.disabled = true;
+    btn.style.cssText = 'flex:1;background:#1a1000;border-color:#3a2e00;color:#fbbf24';
+  } else if (isLocked) {
+    btn.textContent = '🔒 条件未達成'; btn.disabled = true;
+    btn.style.cssText = 'flex:1;background:#0f1525;border-color:#1e3050;color:#475569';
+  } else if (!canAfford) {
+    btn.textContent = '💸 資金不足'; btn.disabled = true;
+    btn.style.cssText = 'flex:1;background:#200a0a;border-color:#501010;color:#f87171';
+  } else {
+    btn.textContent = `買う（${yen(purchasePrice)}）`;
+    btn.disabled = false; btn.style.cssText = 'flex:1';
+    btn.onclick = doPurchaseProperty;
+  }
+  document.getElementById('office-rent-modal').classList.remove('hidden');
+}
+
+function doPurchaseProperty() {
+  if (!pendingRentOffice) return;
+  const { cityId, spotId } = pendingRentOffice;
+  const spot = (CITY_OFFICE_SPOTS[cityId] || []).find(s => s.id === spotId);
+  if (!spot || !spot.yieldRate) return;
+  if (!state.properties) state.properties = [];
+  if (state.properties.some(p => p.cityId === cityId && p.spotId === spotId)) {
+    showToast('✅ すでに所有しています'); return;
+  }
+  const purchasePrice = Math.round(spot.monthlyRent * 12 / spot.yieldRate);
+  if (state.money < purchasePrice) {
+    showToast(`💸 資金不足 (${yen(purchasePrice)} 必要)`); return;
+  }
+  state.money -= purchasePrice;
+  state.properties.push({ cityId, spotId });
+  const weeklyIncome = Math.round(spot.monthlyRent / MONTH_WEEKS);
+  showToast(`🏗 ${spot.name}を取得！週次収益 ＋${yen(weeklyIncome)}/週`);
+  closeOfficeRentModal();
+  renderBase(); renderHeader();
 }
 
 function renderAll() {
@@ -5080,6 +5212,14 @@ function gameLoop(ts) {
         state.periodDeductible = (state.periodDeductible || 0) + flWeeklyCost;
         state.deptRevenue['freelancer'] = (state.deptRevenue['freelancer'] || 0) + flWeeklyIncome;
         state.flGrossRevenue = (state.flGrossRevenue || 0) + flWeeklyGross;
+      }
+
+      // 投資物件週次収益
+      const propWeeklyIncome = getPropWeeklyIncome();
+      if (propWeeklyIncome > 0) {
+        state.money += propWeeklyIncome;
+        state.totalEarned += propWeeklyIncome;
+        state.periodEarned = (state.periodEarned || 0) + propWeeklyIncome;
       }
 
       // 月次経費（4週ごと）
