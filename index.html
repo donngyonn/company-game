@@ -79,6 +79,7 @@
     <button class="tab-btn" onclick="switchTab('exchange', this)">🤝 交流</button>
     <button class="tab-btn" id="labor-tab-btn" disabled onclick="switchTab('labor', this)">🔒 財務</button>
     <button class="tab-btn" id="bank-tab-btn" disabled onclick="switchTab('bank', this)">🔒 銀行</button>
+    <button class="tab-btn" onclick="switchTab('base', this)">🗾 拠点</button>
     <button class="tab-btn" onclick="switchTab('slots', this)">💾 セーブ</button>
   </nav>
 
@@ -108,6 +109,11 @@
   <!-- 銀行タブ -->
   <section id="tab-bank" class="tab-content hidden">
     <div id="bank-content"></div>
+  </section>
+
+  <!-- 拠点タブ -->
+  <section id="tab-base" class="tab-content hidden">
+    <div id="base-content"></div>
   </section>
 
   <!-- 交流タブ -->
