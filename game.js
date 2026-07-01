@@ -193,14 +193,14 @@ function getExecMonthlySalary() {
 
 // ---- クライアント管理 ----
 const CLIENT_POOL = [
-  { name: '東京テック',      industry: 'IT',       emoji: '💻', weeklyValue:  400000, minSales: 1, duration: [ 8, 16] },
-  { name: '大阪製造工業',    industry: '製造',     emoji: '🏭', weeklyValue:  700000, minSales: 3, duration: [12, 24] },
-  { name: 'ファイナンスA',   industry: '金融',     emoji: '💰', weeklyValue:  600000, minSales: 2, duration: [10, 18] },
-  { name: 'メディアX',       industry: 'メディア', emoji: '📱', weeklyValue:  350000, minSales: 2, duration: [ 8, 12] },
-  { name: 'ロジスティクスB', industry: '物流',     emoji: '🚚', weeklyValue:  500000, minSales: 2, duration: [12, 20] },
-  { name: 'ヘルステック',    industry: '医療',     emoji: '🏥', weeklyValue:  800000, minSales: 4, duration: [16, 28] },
-  { name: 'Eコマースプロ',   industry: 'EC',       emoji: '🛒', weeklyValue:  450000, minSales: 2, duration: [ 8, 16] },
-  { name: 'グローバルSI',    industry: 'SIer',     emoji: '🌐', weeklyValue: 1000000, minSales: 5, duration: [20, 40] },
+  { name: '東京テック',      industry: 'IT',       emoji: '💻', weeklyValue:  80000, initCost:  500000, minSales: 1, duration: [ 8, 16] },
+  { name: '大阪製造工業',    industry: '製造',     emoji: '🏭', weeklyValue: 150000, initCost: 1000000, minSales: 3, duration: [12, 24] },
+  { name: 'ファイナンスA',   industry: '金融',     emoji: '💰', weeklyValue: 120000, initCost:  800000, minSales: 2, duration: [10, 18] },
+  { name: 'メディアX',       industry: 'メディア', emoji: '📱', weeklyValue:  70000, initCost:  400000, minSales: 2, duration: [ 8, 12] },
+  { name: 'ロジスティクスB', industry: '物流',     emoji: '🚚', weeklyValue: 100000, initCost:  600000, minSales: 2, duration: [12, 20] },
+  { name: 'ヘルステック',    industry: '医療',     emoji: '🏥', weeklyValue: 160000, initCost: 1200000, minSales: 4, duration: [16, 28] },
+  { name: 'Eコマースプロ',   industry: 'EC',       emoji: '🛒', weeklyValue:  90000, initCost:  500000, minSales: 2, duration: [ 8, 16] },
+  { name: 'グローバルSI',    industry: 'SIer',     emoji: '🌐', weeklyValue: 200000, initCost: 2000000, minSales: 5, duration: [20, 40] },
 ];
 
 // ---- 技術トレンド ----
@@ -224,22 +224,22 @@ const RIVAL_DEFS = [
 // ---- スキルツリー ----
 const SKILL_TREE = {
   sales: [
-    { id: 'sk_recruit', name: '採用加速',   desc: 'FL採用確率+25%',       emoji: '⚡', cost: 3 },
-    { id: 'sk_rate',    name: '高単価開拓', desc: 'FL単価+20%',           emoji: '💎', cost: 3 },
-    { id: 'sk_retain',  name: '定着強化',   desc: 'FL離脱率−25%削減',    emoji: '🔒', cost: 3 },
+    { id: 'sk_recruit', name: '採用加速',   desc: 'FL採用確率+10%',       emoji: '⚡', cost: 3 },
+    { id: 'sk_rate',    name: '高単価開拓', desc: 'FL単価+10%',           emoji: '💎', cost: 3 },
+    { id: 'sk_retain',  name: '定着強化',   desc: 'FL離脱率−15%削減',    emoji: '🔒', cost: 3 },
   ],
   staffing: [
-    { id: 'sk_find',    name: '発掘強化',   desc: '紹介発掘率+20%',       emoji: '🔍', cost: 3 },
-    { id: 'sk_fee',     name: '高紹介料',   desc: '紹介フィー上限+10%',   emoji: '💰', cost: 3 },
-    { id: 'sk_exec',    name: '幹部特化',   desc: '成約率+15%全候補',     emoji: '👔', cost: 4 },
+    { id: 'sk_find',    name: '発掘強化',   desc: '紹介発掘率+10%',       emoji: '🔍', cost: 3 },
+    { id: 'sk_fee',     name: '高紹介料',   desc: '紹介フィー上限+5%',    emoji: '💰', cost: 3 },
+    { id: 'sk_exec',    name: '幹部特化',   desc: '成約率+8%全候補',      emoji: '👔', cost: 4 },
   ],
   marketing: [
-    { id: 'sk_brand',   name: 'ブランド力', desc: '採用率マーケ効果×2',   emoji: '🏅', cost: 3 },
+    { id: 'sk_brand',   name: 'ブランド力', desc: '採用率マーケ効果×1.5', emoji: '🏅', cost: 3 },
     { id: 'sk_viral',   name: 'バイラル',   desc: 'FL/社員自然回復+1/週', emoji: '📣', cost: 4 },
-    { id: 'sk_data',    name: 'データ分析', desc: 'FL粗利率+5%',          emoji: '📊', cost: 3 },
+    { id: 'sk_data',    name: 'データ分析', desc: 'FL粗利率+3%',          emoji: '📊', cost: 3 },
   ],
   finance: [
-    { id: 'sk_cost',    name: 'コスト削減', desc: '月次経費−10%',         emoji: '✂️',  cost: 3 },
+    { id: 'sk_cost',    name: 'コスト削減', desc: '月次経費−5%',          emoji: '✂️',  cost: 3 },
     { id: 'sk_interest',name: '低金利',     desc: '借入金利−30%',         emoji: '🏦', cost: 3 },
     { id: 'sk_reserve', name: '内部留保',   desc: 'ボーナスプール+5%',    emoji: '📈', cost: 4 },
   ],
@@ -611,7 +611,9 @@ let state = {
   rival:         null,         // { name, strength, emoji, desc, weeksLeft }
   lastRivalWeek: 0,
   lastFairWeek:  -99,
+  fairCount:     0,
   lastHackWeek:  -99,
+  hackCount:     0,
   techTrend:     null,         // { id, name, emoji, mult, desc }
   pendingBonus:  0,
 };
@@ -711,13 +713,13 @@ function getStaffingSeasonalLabel() {
 function getRecruitChance() {
   const salesMult    = state.deptMults['sales'] || 1;
   const mktBase      = (state.employees['marketing'] || 0) * 0.001;
-  const mktBonus     = hasSkill('sk_brand') ? mktBase * 2 : mktBase;
+  const mktBonus     = hasSkill('sk_brand') ? mktBase * 1.5 : mktBase;
   const seasonal     = getSESSeasonal();
   const empMorale    = state.morale?.employee || 90;
   const moraleBonus  = (empMorale - 90) * 0.001;
   const mgrCount     = state.managers?.mgr_ses || 0;
   const mgrBonus     = mgrCount > 0 ? 0.12 * (Math.pow(1.25, mgrCount) - 1) : 0;
-  const skillBonus   = hasSkill('sk_recruit') ? 0.25 : 0;
+  const skillBonus   = hasSkill('sk_recruit') ? 0.10 : 0;
   return Math.min(0.95, Math.max(0.01, (0.45 + mktBonus + seasonal + moraleBonus + mgrBonus + skillBonus) * salesMult));
 }
 
@@ -727,7 +729,7 @@ function getStaffingFindRate() {
   const seasonal     = getStaffingSeasonal();
   const mgrCount     = state.managers?.mgr_staffing || 0;
   const mgrBonus     = mgrCount > 0 ? 0.12 * (Math.pow(1.25, mgrCount) - 1) : 0;
-  const skillBonus   = hasSkill('sk_find') ? 0.20 : 0;
+  const skillBonus   = hasSkill('sk_find') ? 0.10 : 0;
   return Math.min(0.80, Math.max(0.01, (0.10 + mktBonus + seasonal + mgrBonus + skillBonus) * staffingMult));
 }
 
@@ -767,7 +769,7 @@ function getRivalPenalty()  { return state.rival ? (1 - state.rival.strength) : 
 function getFlWeeklyGross() {
   if (!state.flData || state.flData.length === 0) return 0;
   const currentWeek = Math.floor(state.elapsedSeconds / WEEK_SEC);
-  const skillMult = hasSkill('sk_rate') ? 1.20 : 1;
+  const skillMult = hasSkill('sk_rate') ? 1.10 : 1;
   const mult = getEmpMoraleMult() * (state.freelancerMult || 1) * getTechTrendMult() * getRivalPenalty() * skillMult;
   return state.flData
     .filter(fl => (fl.hiredWeek ?? 0) < currentWeek)
@@ -777,9 +779,9 @@ function getFlWeeklyGross() {
 function getFlWeeklyIncome() {
   if (!state.flData || state.flData.length === 0) return 0;
   const currentWeek = Math.floor(state.elapsedSeconds / WEEK_SEC);
-  const skillMult = hasSkill('sk_rate') ? 1.20 : 1;
+  const skillMult = hasSkill('sk_rate') ? 1.10 : 1;
   const mult = getEmpMoraleMult() * (state.freelancerMult || 1) * getTechTrendMult() * getRivalPenalty() * skillMult;
-  const mktProfitBonus = getMarketingFlProfitBonus() + (hasSkill('sk_data') ? 0.05 : 0);
+  const mktProfitBonus = getMarketingFlProfitBonus() + (hasSkill('sk_data') ? 0.03 : 0);
   return state.flData
     .filter(fl => (fl.hiredWeek ?? 0) < currentWeek)
     .reduce((sum, fl) => sum + Math.floor(fl.gross / 4 * Math.min(0.80, fl.profitRate + mktProfitBonus) * mult), 0);
@@ -1061,7 +1063,7 @@ function calcMonthlyExpenses() {
   const rawTotal = rent + utilities + supplies + salesperson + staffingSalary + marketingSalary
        + financeSalary + investmentSalary + dispatchSalary
        + loanPay + ceoSalary + execSalary + mgrSalary;
-  const costMult = hasSkill('sk_cost') ? 0.90 : 1;
+  const costMult = hasSkill('sk_cost') ? 0.95 : 1;
   return {
     rent, utilities, supplies,
     salesperson, staffingSalary, marketingSalary, financeSalary, investmentSalary,
@@ -1818,6 +1820,9 @@ function acquireClient(poolIdx) {
   const pool = getAvailableClients();
   if (poolIdx >= pool.length) return;
   const def = pool[poolIdx];
+  const initCost = def.initCost || 0;
+  if (state.money < initCost) { showToast(`💸 資金不足（契約費: ${yen(initCost)}）`); return; }
+  state.money -= initCost;
   const totalWeeks = def.duration[0] + Math.floor(Math.random() * (def.duration[1] - def.duration[0] + 1));
   if (!state.clients) state.clients = [];
   state.clients.push({
@@ -1830,7 +1835,7 @@ function acquireClient(poolIdx) {
     weeksLeft: totalWeeks,
     totalWeeks,
   });
-  showToast(`🤝 ${def.emoji} ${def.name} と契約しました！（${totalWeeks}週間）`);
+  showToast(`🤝 ${def.emoji} ${def.name} と契約！初期費用 ${yen(initCost)} 支払い（${totalWeeks}週間）`);
   renderExchange();
 }
 
@@ -1891,17 +1896,23 @@ function counterRival() {
 
 // ---- 採用フェア / ハッカソン ----
 
+function getFairCost() {
+  return Math.floor(FAIR_COST * Math.pow(1.5, state.fairCount || 0));
+}
+
 function holdFair() {
   const currentWeekNum = Math.floor(state.elapsedSeconds / WEEK_SEC);
   const elapsed = currentWeekNum - (state.lastFairWeek ?? -99);
   if (elapsed < FAIR_COOLDOWN) { showToast(`採用フェアはクールダウン中（あと${FAIR_COOLDOWN - elapsed}週）`); return; }
-  if (state.money < FAIR_COST) { showToast(`💸 資金不足（必要: ${yen(FAIR_COST)}）`); return; }
+  const cost = getFairCost();
+  if (state.money < cost) { showToast(`💸 資金不足（必要: ${yen(cost)}）`); return; }
   const salesCount = state.employees['sales'] || 0;
   const flCap = salesCount * 15;
   if (state.flData.length >= flCap) { showToast('FL上限に達しています'); return; }
-  state.money -= FAIR_COST;
+  state.money -= cost;
   state.lastFairWeek = currentWeekNum;
-  const toHire = Math.min(10 + Math.floor(salesCount / 2), flCap - state.flData.length);
+  state.fairCount = (state.fairCount || 0) + 1;
+  const toHire = Math.min(5, flCap - state.flData.length);
   for (let i = 0; i < toHire; i++) {
     state.flData.push({ gross: 600000 + Math.floor(Math.random() * 400001), profitRate: 0.10 + Math.random() * 0.10, hiredWeek: currentWeekNum });
   }
@@ -1910,13 +1921,19 @@ function holdFair() {
   renderAll();
 }
 
+function getHackCost() {
+  return Math.floor(HACK_COST * Math.pow(1.5, state.hackCount || 0));
+}
+
 function holdHackathon() {
   const currentWeekNum = Math.floor(state.elapsedSeconds / WEEK_SEC);
   const elapsed = currentWeekNum - (state.lastHackWeek ?? -99);
   if (elapsed < HACK_COOLDOWN) { showToast(`ハッカソンはクールダウン中（あと${HACK_COOLDOWN - elapsed}週）`); return; }
-  if (state.money < HACK_COST) { showToast(`💸 資金不足（必要: ${yen(HACK_COST)}）`); return; }
-  state.money -= HACK_COST;
+  const cost = getHackCost();
+  if (state.money < cost) { showToast(`💸 資金不足（必要: ${yen(cost)}）`); return; }
+  state.money -= cost;
   state.lastHackWeek = currentWeekNum;
+  state.hackCount = (state.hackCount || 0) + 1;
   state.morale.employee  = Math.min(100, (state.morale.employee  || 90) + 20);
   state.morale.freelance = Math.min(100, (state.morale.freelance || 90) + 15);
   state.skillPoints = (state.skillPoints || 0) + 1;
@@ -2056,36 +2073,7 @@ function renderExchange() {
       </div>`
     : '';
 
-  // 採用フェア / ハッカソン
-  const currentWeekNum = Math.floor(state.elapsedSeconds / WEEK_SEC);
-  const fairCd  = FAIR_COOLDOWN - (currentWeekNum - (state.lastFairWeek ?? -99));
-  const hackCd  = HACK_COOLDOWN - (currentWeekNum - (state.lastHackWeek ?? -99));
-  const fairAvail = fairCd <= 0;
-  const hackAvail = hackCd <= 0;
   const salesCount = state.employees['sales'] || 0;
-  const eventHtml = `<div class="exchange-actions" style="margin-top:12px">
-    <div class="exchange-action-title" style="color:#fb923c">🎪 採用・交流イベント</div>
-    <button class="exchange-btn${fairAvail && salesCount >= 1 ? '' : ' disabled'}" onclick="holdFair()" style="margin-bottom:6px">
-      <div class="exchange-btn-left">
-        <span class="exchange-btn-name">🎪 採用フェア開催</span>
-        <span class="exchange-btn-desc">FL ${10 + Math.floor(salesCount/2)}名を一括採用${fairAvail ? '' : `（クールダウン あと${fairCd}週）`}</span>
-      </div>
-      <div class="exchange-btn-right">
-        <div class="exchange-btn-cost"><span style="color:#fbbf24">${yen(FAIR_COST)}</span></div>
-        <span class="exchange-btn-effect" style="color:#fb923c">即時採用</span>
-      </div>
-    </button>
-    <button class="exchange-btn${hackAvail ? '' : ' disabled'}" onclick="holdHackathon()">
-      <div class="exchange-btn-left">
-        <span class="exchange-btn-name">🏆 ハッカソン開催</span>
-        <span class="exchange-btn-desc">社員+20 FL+15 SP+1${hackAvail ? '' : `（クールダウン あと${hackCd}週）`}</span>
-      </div>
-      <div class="exchange-btn-right">
-        <div class="exchange-btn-cost"><span style="color:#fbbf24">${yen(HACK_COST)}</span></div>
-        <span class="exchange-btn-effect" style="color:#a78bfa">モラール大幅UP</span>
-      </div>
-    </button>
-  </div>`;
 
   // クライアント管理
   const availClients = getAvailableClients();
@@ -2113,10 +2101,12 @@ function renderExchange() {
     ? `<div class="client-acquire-list">
         ${availClients.map((c, i) => {
           const hasEnoughSales = salesCount >= c.minSales;
-          return `<button class="client-acquire-btn${hasEnoughSales ? '' : ' disabled'}" onclick="acquireClient(${i})">
+          const canAffordClient = state.money >= (c.initCost || 0);
+          return `<button class="client-acquire-btn${hasEnoughSales && canAffordClient ? '' : ' disabled'}" onclick="acquireClient(${i})">
             ${c.emoji} <strong>${c.name}</strong>（${c.industry}）
             <span style="color:#fbbf24">${yen(c.weeklyValue)}/週</span>
-            ${hasEnoughSales ? '' : `<span style="color:#f87171">　要営業${c.minSales}名</span>`}
+            <span style="color:#94a3b8;font-size:10px">　契約費 ${yen(c.initCost || 0)}</span>
+            ${!hasEnoughSales ? `<span style="color:#f87171">　要営業${c.minSales}名</span>` : !canAffordClient ? `<span style="color:#f87171">　資金不足</span>` : ''}
           </button>`;
         }).join('')}
       </div>`
@@ -2149,7 +2139,6 @@ function renderExchange() {
       <div class="exchange-action-title" style="color:#93c5fd">👨‍💻 FL アクション</div>
       ${flBtns}
     </div>
-    ${eventHtml}
     ${clientHtml}`;
 }
 
@@ -2290,7 +2279,9 @@ function load() {
     if (state.rival === undefined)                   state.rival = null;
     if (!state.lastRivalWeek)                        state.lastRivalWeek = 0;
     if (state.lastFairWeek === undefined)            state.lastFairWeek = -99;
+    if (state.fairCount === undefined)               state.fairCount = 0;
     if (state.lastHackWeek === undefined)            state.lastHackWeek = -99;
+    if (state.hackCount === undefined)               state.hackCount = 0;
     if (state.techTrend === undefined)               state.techTrend = null;
     if (state.pendingBonus === undefined)            state.pendingBonus = 0;
     if (state.bgmMuted === undefined)                 state.bgmMuted = false;
@@ -2769,9 +2760,6 @@ function renderDepts() {
     ${_buildDeptRow('global')}
   </div>`;
 
-  // スキルツリー
-  html += renderSkillTree();
-
   container.innerHTML = html;
 }
 
@@ -2957,6 +2945,38 @@ function renderUpgrades() {
   if (!html) {
     html = '<div class="empty-msg">部署に社員を雇うと<br>アップグレードが解放されます 🔓</div>';
   }
+
+  // 採用フェア / ハッカソン
+  const currentWeekNum = Math.floor(state.elapsedSeconds / WEEK_SEC);
+  const fairCd   = FAIR_COOLDOWN - (currentWeekNum - (state.lastFairWeek ?? -99));
+  const hackCd   = HACK_COOLDOWN - (currentWeekNum - (state.lastHackWeek ?? -99));
+  const fairAvail = fairCd <= 0;
+  const hackAvail = hackCd <= 0;
+  const salesCountU = state.employees['sales'] || 0;
+  const fairCost = getFairCost();
+  const hackCost = getHackCost();
+  html += `<div class="upgrade-group-hdr">🎪 採用・交流イベント <span class="upgrade-group-effect">SP/モラール強化</span></div>
+    <div class="upgrade-card${fairAvail && salesCountU >= 1 ? '' : ' cant-afford'}" style="cursor:default">
+      <div class="upgrade-emoji">🎪</div>
+      <div class="upgrade-info">
+        <div class="upgrade-name">採用フェア開催（${state.fairCount || 0}回目）</div>
+        <div class="upgrade-effect">FL5名を一括採用　CDあと${Math.max(0, fairCd)}週</div>
+        <div class="upgrade-cost">${yen(fairCost)}</div>
+      </div>
+      <button class="buy-btn${fairAvail && salesCountU >= 1 && state.money >= fairCost ? '' : ' disabled'}" onclick="holdFair()">開催</button>
+    </div>
+    <div class="upgrade-card${hackAvail ? '' : ' cant-afford'}" style="cursor:default">
+      <div class="upgrade-emoji">🏆</div>
+      <div class="upgrade-info">
+        <div class="upgrade-name">ハッカソン開催（${state.hackCount || 0}回目）</div>
+        <div class="upgrade-effect">社員+20 FL+15 SP+1　CDあと${Math.max(0, hackCd)}週</div>
+        <div class="upgrade-cost">${yen(hackCost)}</div>
+      </div>
+      <button class="buy-btn${hackAvail && state.money >= hackCost ? '' : ' disabled'}" onclick="holdHackathon()">開催</button>
+    </div>`;
+
+  // スキルツリー
+  html += renderSkillTree();
 
   const badge = document.getElementById('upgrade-badge');
   badge.textContent = availableCount > 0 ? availableCount : '';
@@ -4129,7 +4149,7 @@ function gameLoop(ts) {
         const empMor     = state.morale.employee  || 90;
         const empPenalty = Math.max(0, (90 - empMor) * 0.001);
         const mgrQuitR    = (state.managers?.mgr_ses || 0) * 0.005;
-        const skillRetain = hasSkill('sk_retain') ? 0.25 : 0;
+        const skillRetain = hasSkill('sk_retain') ? 0.15 : 0;
         const quitBase    = Math.max(0, 0.03 + (100 - flFavor) * 0.002 + empPenalty - mgrQuitR);
         const quitRate    = Math.min(0.55, quitBase * (1 - skillRetain));
         for (let i = state.flData.length - 1; i >= 0; i--) {
@@ -4219,9 +4239,9 @@ function gameLoop(ts) {
             const annualSalary = 3000000 + Math.floor(salaryRand * 7000001);
             const diffRatio      = (annualSalary - 3000000) / 7000000;
             const placementBase  = 0.85 - diffRatio * 0.65;
-            const placementRate  = hasSkill('sk_exec') ? Math.min(0.95, placementBase + 0.15) : placementBase;
+            const placementRate  = hasSkill('sk_exec') ? Math.min(0.95, placementBase + 0.08) : placementBase;
             if (Math.random() < placementRate) {
-              const feeCap  = hasSkill('sk_fee') ? 0.60 : 0.50;
+              const feeCap  = hasSkill('sk_fee') ? 0.55 : 0.50;
               const feeRate = Math.min(feeCap, 0.35 + getMarketingStaffingFeeBonus());
               const fee = Math.floor(annualSalary * feeRate);
               state.money       += fee;
