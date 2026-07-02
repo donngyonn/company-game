@@ -731,16 +731,16 @@ const UPGRADE_DEFS = [
 
 // ---- 会社ステージ ----
 const STAGE_DEFS = [
-  { threshold: 0,            name: '個人事業',     emoji: '🧑‍💻', color: '#8B7355', desc: '社長自らが客先に常駐中。「社長＝全戦力」のSES。' },
-  { threshold: 30000000,     name: '零細SES',      emoji: '🏢', color: '#2E8B57', desc: 'FL数名でなんとか回している。案件は口コミのみ。' },
-  { threshold: 300000000,    name: '中小SES',      emoji: '🏬', color: '#2166AC', desc: '案件が安定してきた。協力会社との取引も始まった。' },
-  { threshold: 3000000000,   name: '成長SES',      emoji: '🏭', color: '#762A83', desc: '「御社のFL、また来月もお願いします！」が増えてきた。' },
-  { threshold: 30000000000,  name: '大手SES',      emoji: '🏙️', color: '#D4A017', desc: 'IT業界誌の特集記事。「IT人材不足を解決する企業」として注目。' },
-  { threshold: 60000000000,  name: '上場準備中',   emoji: '📈', color: '#C0392B', desc: '証券会社から打診。「SES業界のリーディングカンパニーとして...」' },
-  { threshold: 80000000000,  name: '上場直前',     emoji: '🚀', color: '#E67E22', desc: '東証プライム申請完了！ITサービス企業として全国注目。' },
+  { threshold: 0,            name: '個人事業',     emoji: '🧑‍💻', color: '#8B7355', desc: '社長自らが客先に常駐中。「社長＝全戦力」の人材ビジネス。' },
+  { threshold: 30000000,     name: '零細人材会社', emoji: '🏢', color: '#2E8B57', desc: 'FL数名でなんとか回している。案件は口コミのみ。' },
+  { threshold: 300000000,    name: '中小人材会社', emoji: '🏬', color: '#2166AC', desc: '案件が安定してきた。協力会社との取引も始まった。' },
+  { threshold: 3000000000,   name: '成長人材会社', emoji: '🏭', color: '#762A83', desc: '「御社のFL、また来月もお願いします！」が増えてきた。' },
+  { threshold: 10000000000,  name: '大手人材会社', emoji: '🏙️', color: '#D4A017', desc: 'IT業界誌の特集記事。「IT人材不足を解決する企業」として注目。' },
+  { threshold: 15000000000,  name: '上場準備中',   emoji: '📈', color: '#C0392B', desc: '証券会社から打診が来た。上場すれば一気に資金調達できる。' },
+  { threshold: 20000000000,  name: '上場直前',     emoji: '🚀', color: '#E67E22', desc: '第三者委員会との連携開始。利益率30%・士気98%以上を維持せよ！' },
+  { threshold: Infinity,     name: '世界へ',       emoji: '🌏', color: '#00B4D8', desc: '東証プライム上場を達成！次なるステージは世界市場だ。' },
 ];
 
-const IPO_THRESHOLD  = 100000000000; // 1000億
 const CORP_TAX_RATE  = 0.30;          // 法人税率30%（3月決算）
 
 // ---- ゲームステート ----
@@ -751,6 +751,9 @@ let state = {
   lastTimestamp: Date.now(),
   prestige: 0,
   prestigeMult: 1,
+  ipoDecision: null,     // null=未決定 'yes'=上場推進 'no'=見送り
+  ipoPitchShown: false,  // 証券会社打診イベント表示済み
+  ipoCleared: false,     // 上場完了（ゲームクリア）フラグ
   employees: {},
   upgrades: {},
   deptMults: {},
@@ -1030,8 +1033,9 @@ function getHireCost(deptId) {
 }
 
 function getCurrentStageIdx() {
+  if (state.ipoCleared) return STAGE_DEFS.length - 1;
   let idx = 0;
-  for (let i = 0; i < STAGE_DEFS.length; i++) {
+  for (let i = 0; i < STAGE_DEFS.length - 1; i++) {
     if (state.totalEarned >= STAGE_DEFS[i].threshold) idx = i;
   }
   return idx;
@@ -1182,39 +1186,92 @@ function buyUpgrade(upgradeId) {
 }
 
 
-function calcIpoFunds() {
-  const annualRevenue = getTotalIncome() * 365;
-  return Math.floor(annualRevenue * 3 * 0.25);
-}
-
 function checkIPO() {
-  const modal = document.getElementById('ipo-modal');
-  if (state.totalEarned >= IPO_THRESHOLD && !modal.classList.contains('shown')) {
-    modal.classList.remove('hidden');
-    modal.classList.add('shown');
-    const funds = calcIpoFunds();
+  if (state.ipoPitchShown || state.ipoCleared) return;
+  const si = getCurrentStageIdx();
+  if (si >= 5) {
+    state.ipoPitchShown = true;
     const income = getTotalIncome();
-    document.getElementById('ipo-count').textContent = state.prestige + 1;
-    document.getElementById('ipo-mult').textContent  = (state.prestigeMult * 1.5).toFixed(1);
-    document.getElementById('ipo-annual-rev').textContent  = yen(income * 365);
-    document.getElementById('ipo-market-cap').textContent  = yen(income * 365 * 3);
-    document.getElementById('ipo-funds').textContent       = yen(funds);
+    const marketCap = Math.round(income * 365 * 3);
+    const funds = Math.round(marketCap * 0.20);
+    document.getElementById('ipo-marketcap').textContent = yen(marketCap);
+    document.getElementById('ipo-funds').textContent = yen(funds);
+    document.getElementById('ipo-modal').classList.remove('hidden');
   }
 }
 
-function doPrestige() {
-  const funds = calcIpoFunds();
-  state.prestige++;
-  state.prestigeMult *= 1.5;
-  state.money += funds;
-  state.totalEarned = 0;
-  state.periodEarned = 0;
-  DEPT_DEFS.forEach(d => { state.deptRevenue[d.id] = 0; state.deptCost[d.id] = 0; });
-  state.lastTimestamp = Date.now();
+function acceptIPO() {
+  state.ipoDecision = 'yes';
   document.getElementById('ipo-modal').classList.add('hidden');
-  document.getElementById('ipo-modal').classList.remove('shown');
+  showToast('📈 上場審査プロセス開始！毎月5,000万円の費用が発生します');
   renderAll();
-  showToast(`🎉 第${state.prestige}回上場！${yen(funds)}を調達。`);
+}
+
+function declineIPO() {
+  state.ipoDecision = 'no';
+  document.getElementById('ipo-modal').classList.add('hidden');
+  showToast('📋 上場を見送りました');
+  renderAll();
+}
+
+function doIPOClear() {
+  if (state.ipoCleared) return;
+  state.ipoCleared = true;
+  const income = getTotalIncome();
+  const marketCap = Math.round(income * 365 * 3);
+  const funds = Math.round(marketCap * 0.20);
+  state.money += funds;
+  state.totalEarned += funds;
+  document.getElementById('ipo-clear-marketcap').textContent = yen(marketCap);
+  document.getElementById('ipo-clear-funds').textContent = yen(funds);
+  document.getElementById('ipo-clear-earned').textContent = yen(state.totalEarned);
+  document.getElementById('ipo-clear-modal').classList.remove('hidden');
+  document.getElementById('ipo-clear-modal').classList.add('shown');
+  _launchIpoConfetti();
+  renderAll();
+}
+
+function closeIpoClearModal() {
+  document.getElementById('ipo-clear-modal').classList.add('hidden');
+  renderAll();
+}
+
+function _launchIpoConfetti() {
+  const canvas = document.getElementById('confetti-canvas');
+  if (!canvas) return;
+  canvas.style.display = 'block';
+  const ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  const pieces = Array.from({ length: 120 }, () => ({
+    x: Math.random() * canvas.width,
+    y: Math.random() * canvas.height - canvas.height,
+    w: 8 + Math.random() * 8,
+    h: 4 + Math.random() * 4,
+    color: ['#FFD700','#FF6B6B','#4ECDC4','#45B7D1','#96E6A1','#DDA0DD','#F7DC6F'][Math.floor(Math.random()*7)],
+    vy: 2 + Math.random() * 3,
+    vx: (Math.random() - 0.5) * 2,
+    rot: Math.random() * 360,
+    vrot: (Math.random() - 0.5) * 6,
+  }));
+  let frame = 0;
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    pieces.forEach(p => {
+      p.x += p.vx; p.y += p.vy; p.rot += p.vrot;
+      if (p.y > canvas.height) { p.y = -10; p.x = Math.random() * canvas.width; }
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot * Math.PI / 180);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.w/2, -p.h/2, p.w, p.h);
+      ctx.restore();
+    });
+    frame++;
+    if (frame < 300) requestAnimationFrame(draw);
+    else canvas.style.display = 'none';
+  }
+  draw();
 }
 
 // ---- 月次費用 ----
@@ -1274,14 +1331,21 @@ function calcMonthlyExpenses() {
 
   const dispatchSalary = (state.dispatchCount || 0) * DISPATCH_MONTHLY_SALARY;
 
+  // IPO関連費用（上場推進中のみ、上場完了後は不要）
+  let ipoCost = 0;
+  if (state.ipoDecision === 'yes' && !state.ipoCleared) {
+    const _si = getCurrentStageIdx();
+    if (_si >= 6) ipoCost = 100000000; // 上場直前: ¥1億/月（第三者委員含む）
+    else if (_si >= 5) ipoCost = 50000000; // 上場準備中: ¥5千万/月
+  }
   const rawTotal = rent + utilities + supplies + salesperson + staffingSalary + marketingSalary
        + financeSalary + investmentSalary + dispatchSalary
-       + loanPay + ceoSalary + execSalary + mgrSalary;
+       + loanPay + ceoSalary + execSalary + mgrSalary + ipoCost;
   const costMult = hasSkill('sk_cost') ? 0.95 : 1;
   return {
     rent, utilities, supplies,
     salesperson, staffingSalary, marketingSalary, financeSalary, investmentSalary,
-    dispatchSalary, loanPay, ceoSalary, execSalary, mgrSalary,
+    dispatchSalary, loanPay, ceoSalary, execSalary, mgrSalary, ipoCost,
     total: Math.floor(rawTotal * costMult),
   };
 }
@@ -1301,6 +1365,10 @@ function showExpenseModal(exp, before) {
   if (exp.investmentSalary > 0) rows += `<div class="expense-row"><span>📉 資産運用スタッフ（${state.employees['investment']||0}名）人件費＋社保</span><span>−${yen(exp.investmentSalary)}</span></div>`;
   if (exp.dispatchSalary > 0)   rows += `<div class="expense-row"><span>🏭 派遣スタッフ（${state.dispatchCount||0}名）給与＋社保</span><span>−${yen(exp.dispatchSalary)}</span></div>`;
   if (exp.loanPay > 0)          rows += `<div class="expense-row" style="color:#f87171"><span>🏦 ローン返済</span><span>−${yen(exp.loanPay)}</span></div>`;
+  if (exp.ipoCost > 0) {
+    const siLabel = getCurrentStageIdx() >= 6 ? '上場直前・第三者委員' : '上場審査';
+    rows += `<div class="expense-row" style="color:#fbbf24"><span>📈 IPO関連費用（${siLabel}）</span><span>−${yen(exp.ipoCost)}</span></div>`;
+  }
 
   const after = before - exp.total;
   document.getElementById('expense-detail').innerHTML = rows;
@@ -1682,7 +1750,6 @@ function triggerBankruptcy() {
   document.getElementById('bankrupt-period').textContent  = `第${gt.period}期 ${gt.month}月`;
   document.getElementById('bankrupt-fl').textContent      = state.freelancers || 0;
   document.getElementById('bankrupt-earned').textContent  = yen(state.totalEarned);
-  document.getElementById('bankrupt-prestige').textContent = state.prestige;
   document.getElementById('bankrupt-modal').classList.remove('hidden');
 }
 
@@ -1707,6 +1774,15 @@ function processCorpTax() {
     if (profitRate >= 0.20) {
       state.dispatchOpened = true;
       showToast('🏭 派遣事業部が解放されました！');
+    }
+  }
+  // 上場達成条件チェック（上場直前ステージ・上場推進中・決算時）
+  if (!state.ipoCleared && state.ipoDecision === 'yes' && getCurrentStageIdx() >= 6) {
+    const profitRate = revenue > 0 ? netIncome / revenue : 0;
+    const morale = state.morale || { ceo: 0, employee: 0, freelance: 0 };
+    const avgMorale = (morale.ceo + morale.employee + morale.freelance) / 3;
+    if (profitRate >= 0.30 && avgMorale >= 98) {
+      setTimeout(() => doIPOClear(), 2000);
     }
   }
   const taxable    = Math.max(0, netIncome);
@@ -2448,6 +2524,9 @@ function load() {
     if (state.hackCount === undefined)               state.hackCount = 0;
     if (state.techTrend === undefined)               state.techTrend = null;
     if (state.pendingBonus === undefined)            state.pendingBonus = 0;
+    if (state.ipoDecision === undefined) state.ipoDecision = null;
+    if (state.ipoPitchShown === undefined) state.ipoPitchShown = false;
+    if (state.ipoCleared === undefined) state.ipoCleared = false;
     if (state.bgmMuted === undefined)                 state.bgmMuted = false;
     bgmMuted = state.bgmMuted;
     const bgmBtn = document.getElementById('bgm-btn');
@@ -2565,7 +2644,7 @@ function renderSlots() {
           </div>
           <div class="slot-stage">${stage.emoji} ${stage.name}</div>
           <div class="slot-meta">累計売上: <strong>${yen(data.totalEarned || 0)}</strong></div>
-          <div class="slot-meta">FL: ${data.freelancers||0}名　上場: ${data.prestige||0}回</div>
+          <div class="slot-meta">FL: ${data.freelancers||0}名　${data.ipoCleared ? '✅ 上場達成' : `ステージ: ${(STAGE_DEFS[Math.min(data.slotStageIdx??0, STAGE_DEFS.length-2)]||STAGE_DEFS[0]).name}`}</div>
           <div class="slot-date">📅 ${ds}</div>
           <div class="slot-actions">
             <button class="slot-save-btn" onclick="saveToSlot(${n})">💾 上書き</button>
@@ -2608,17 +2687,44 @@ function renderHeader() {
   document.getElementById('week-progress').style.width = (gt.weekProgress * 100) + '%';
 
   // ステージ進捗バー
-  const allStages = [...STAGE_DEFS, { threshold: IPO_THRESHOLD, name: '上場！', emoji: '🎉' }];
-  const nextStage = allStages[stageIdx + 1];
-  if (nextStage) {
-    const prev = allStages[stageIdx].threshold;
+  if (state.ipoCleared) {
+    document.getElementById('stage-progress').style.width = '100%';
+    document.getElementById('stage-label').textContent = '🌏 上場達成！世界市場へ進出！';
+  } else if (stageIdx >= 6) {
+    // 上場直前: IPO条件進捗を表示
+    const morale = state.morale || { ceo: 0, employee: 0, freelance: 0 };
+    const avgMorale = (morale.ceo + morale.employee + morale.freelance) / 3;
+    const moraleProgress = Math.min(1, avgMorale / 98);
+    document.getElementById('stage-progress').style.width = (moraleProgress * 100) + '%';
+    if (state.ipoDecision === 'yes') {
+      document.getElementById('stage-label').textContent =
+        `🚀 上場審査中 | 士気 ${avgMorale.toFixed(0)}% / 98%以上 & 利益率30%以上で上場！`;
+    } else {
+      document.getElementById('stage-label').textContent =
+        `🚀 上場直前 | 財務タブから上場の意思決定をしてください`;
+    }
+  } else if (stageIdx === 5) {
+    // 上場準備中
+    const nextStage = STAGE_DEFS[6];
+    const prev = STAGE_DEFS[5].threshold;
     const prog = Math.min(1, (state.totalEarned - prev) / (nextStage.threshold - prev));
     document.getElementById('stage-progress').style.width = (prog * 100) + '%';
     document.getElementById('stage-label').textContent =
-      `次: ${nextStage.emoji} ${nextStage.name} まで ${yen(nextStage.threshold - state.totalEarned)}`;
+      state.ipoDecision === 'yes'
+        ? `📈 上場準備中（費用¥5千万/月） まで ${yen(nextStage.threshold - state.totalEarned)}`
+        : `📈 次: ${nextStage.emoji} ${nextStage.name} まで ${yen(nextStage.threshold - state.totalEarned)}`;
   } else {
-    document.getElementById('stage-progress').style.width = '100%';
-    document.getElementById('stage-label').textContent = '🎉 最高峰に到達！';
+    const nextStage = STAGE_DEFS[stageIdx + 1];
+    if (nextStage && nextStage.threshold !== Infinity) {
+      const prev = STAGE_DEFS[stageIdx].threshold;
+      const prog = Math.min(1, (state.totalEarned - prev) / (nextStage.threshold - prev));
+      document.getElementById('stage-progress').style.width = (prog * 100) + '%';
+      document.getElementById('stage-label').textContent =
+        `次: ${nextStage.emoji} ${nextStage.name} まで ${yen(nextStage.threshold - state.totalEarned)}`;
+    } else {
+      document.getElementById('stage-progress').style.width = '100%';
+      document.getElementById('stage-label').textContent = '🎉 最高峰に到達！';
+    }
   }
 }
 
@@ -3263,8 +3369,6 @@ function renderLabor() {
       <div class="stat-item"><div class="stat-label">週次収益</div><div class="stat-value">${yen(getDisplayWeeklyIncome())}/週</div></div>
       <div class="stat-item"><div class="stat-label">累計売上</div><div class="stat-value">${yen(state.totalEarned)}</div></div>
       <div class="stat-item"><div class="stat-label">当期収益</div><div class="stat-value">${yen(state.periodEarned)}</div></div>
-      <div class="stat-item"><div class="stat-label">上場回数</div><div class="stat-value">${state.prestige}回</div></div>
-      <div class="stat-item"><div class="stat-label">株主倍率</div><div class="stat-value">×${state.prestigeMult.toFixed(1)}</div></div>
       <div class="stat-item"><div class="stat-label">FL単価倍率</div><div class="stat-value">×${(state.freelancerMult||1).toFixed(2)}</div></div>
     </div>
 
@@ -3420,7 +3524,19 @@ function renderLabor() {
       <h3>🎬 広告視聴で収益2倍（30秒）</h3>
       <button class="ad-btn" onclick="watchAd()">動画広告を見る</button>
     </div>
-    ${state.totalEarned >= IPO_THRESHOLD ? `<div class="ipo-ready-banner" onclick="document.getElementById('ipo-modal').classList.remove('hidden')">🚀 上場可能！タップして上場する</div>` : ''}
+    ${(!state.ipoCleared && getCurrentStageIdx() >= 5 && state.ipoDecision !== 'yes') ? `<div class="ipo-ready-banner" onclick="document.getElementById('ipo-modal').classList.remove('hidden');document.getElementById('ipo-marketcap').textContent=yen(Math.round(getTotalIncome()*365*3));document.getElementById('ipo-funds').textContent=yen(Math.round(getTotalIncome()*365*3*0.2))">📈 上場の意思決定ができます</div>` : ''}
+    ${(!state.ipoCleared && state.ipoDecision === 'yes') ? (() => {
+      const morale = state.morale || { ceo: 0, employee: 0, freelance: 0 };
+      const avgMorale = (morale.ceo + morale.employee + morale.freelance) / 3;
+      const si = getCurrentStageIdx();
+      const ipoCostNow = si >= 6 ? 100000000 : 50000000;
+      return `<div style="background:#1a1000;border:1px solid #c0392b;border-radius:8px;padding:10px 12px;margin-bottom:12px">
+        <div style="font-size:10px;font-weight:700;color:#c0392b;margin-bottom:6px">📈 上場審査進捗</div>
+        <div class="expense-row"><span>士気平均</span><span style="color:${avgMorale>=98?'#4ade80':'#fbbf24'}">${avgMorale.toFixed(1)}% / 98%以上</span></div>
+        <div class="expense-row"><span>月次IPO費用</span><span style="color:#f87171">−${yen(ipoCostNow)}/月</span></div>
+        ${si < 6 ? `<div class="expense-row" style="color:#94a3b8;font-size:11px"><span>累計売上 ¥200億達成で上場直前へ</span></div>` : ''}
+      </div>`;
+    })() : ''}
 
     ${state.executives?.exec_finance_dir ? (() => {
       const exp = calcMonthlyExpenses();
@@ -3439,6 +3555,7 @@ function renderLabor() {
         exp.investmentSalary > 0 ? `<div class="expense-row"><span>📉 資産運用スタッフ（${state.employees['investment']||0}名）人件費＋社保</span><span>−${yen(exp.investmentSalary)}</span></div>` : '',
         exp.dispatchSalary > 0 ? `<div class="expense-row"><span>🏭 派遣スタッフ（${state.dispatchCount||0}名）給与＋社保</span><span>−${yen(exp.dispatchSalary)}</span></div>` : '',
         exp.loanPay       > 0 ? `<div class="expense-row" style="color:#f87171"><span>🏦 ローン返済</span><span>−${yen(exp.loanPay)}</span></div>` : '',
+        exp.ipoCost > 0 ? `<div class="expense-row" style="color:#fbbf24"><span>📈 IPO関連費用（${getCurrentStageIdx() >= 6 ? '上場直前・第三者委員' : '上場審査'}）</span><span>−${yen(exp.ipoCost)}</span></div>` : '',
       ].join('');
       const netProfit = monthlyRevenue - exp.total;
       const netColor = netProfit >= 0 ? '#4ade80' : '#f87171';
@@ -5238,7 +5355,7 @@ function togglePause() {
 
 function isGamePaused() {
   if (state.isPaused) return true;
-  return ['weekly-modal', 'event-modal', 'expense-modal', 'ipo-modal'].some(id => {
+  return ['weekly-modal', 'event-modal', 'expense-modal', 'ipo-modal', 'ipo-clear-modal'].some(id => {
     const el = document.getElementById(id);
     return el && !el.classList.contains('hidden');
   });
