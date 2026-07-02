@@ -149,19 +149,44 @@
     </div>
   </div>
 
-  <!-- 上場モーダル -->
-  <div id="ipo-modal" class="modal-overlay hidden">
+  <!-- 証券会社打診モーダル -->
+  <div id="ipo-modal" class="modal-overlay hidden" onclick="event.stopPropagation()">
     <div class="modal-box">
-      <div class="modal-title">🎉 上場承認！</div>
-      <p>東証プライム上場が承認されました！</p>
-      <p style="margin-top:6px;font-size:12px;color:#888">第 <strong id="ipo-count"></strong> 回上場</p>
+      <div class="modal-title">📈 証券会社から打診！</div>
+      <p style="font-size:13px;color:#94a3b8;margin-bottom:12px">おめでとうございます！大手証券会社から東証プライム上場の打診が届きました。</p>
       <div class="ipo-finance-box">
-        <div class="ipo-row"><span>📈 年間売上高</span><span id="ipo-annual-rev">―</span></div>
-        <div class="ipo-row"><span>🏢 推定時価総額</span><span id="ipo-market-cap">―</span></div>
-        <div class="ipo-row ipo-highlight"><span>💰 公募調達予定額</span><span id="ipo-funds" style="color:#4ade80;font-weight:800">―</span></div>
+        <div class="ipo-row"><span>🏢 推定時価総額</span><span id="ipo-marketcap" style="color:#60a5fa;font-weight:800">―</span></div>
+        <div class="ipo-row ipo-highlight"><span>💰 公募調達予定額（時価の20%）</span><span id="ipo-funds" style="color:#4ade80;font-weight:800">―</span></div>
       </div>
-      <p style="margin-top:10px;font-size:12px">調達資金を手に＋<strong style="color:#fbbf24">収益×<span id="ipo-mult"></span>の株主ボーナス</strong><br>で第二創業スタート！</p>
-      <button class="modal-btn" onclick="doPrestige()">🚀 上場する！資金を調達する</button>
+      <div style="background:#1a1000;border:1px solid #3a2e00;border-radius:6px;padding:10px;margin-top:12px;font-size:12px;color:#fbbf24">
+        ⚠️ 上場審査中は毎月 <strong>5,000万円</strong> のコストが発生<br>
+        上場直前になると第三者委員会費用が加算され <strong>合計1億円/月</strong> になります
+      </div>
+      <p style="margin-top:10px;font-size:12px;color:#94a3b8">上場条件: <strong style="color:#e2e8f0">利益率30%以上 + 士気平均98%以上</strong> で年度決算を迎えること</p>
+      <div style="display:flex;gap:8px;margin-top:14px">
+        <button class="modal-btn" onclick="acceptIPO()" style="flex:1;background:#0e2a1a;border-color:#4ade80;color:#4ade80">🚀 上場を目指す！</button>
+        <button class="modal-btn" onclick="declineIPO()" style="flex:1;background:#1a2030;border-color:#334155;color:#94a3b8">⏸ 今は見送る</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 上場クリアモーダル -->
+  <div id="ipo-clear-modal" class="modal-overlay hidden">
+    <canvas id="confetti-canvas" style="position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9998;display:none"></canvas>
+    <div class="modal-box" style="border:2px solid #FFD700;background:linear-gradient(135deg,#0a0a20,#1a1000);position:relative;z-index:9999" onclick="event.stopPropagation()">
+      <div style="text-align:center;font-size:36px;margin-bottom:4px">🎉🎊🎉</div>
+      <div class="modal-title" style="color:#FFD700;font-size:20px">東証プライム 上場達成！</div>
+      <p style="text-align:center;font-size:13px;color:#94a3b8;margin-bottom:14px">あなたの会社がついに上場企業の仲間入りをしました！</p>
+      <div class="ipo-finance-box" style="border-color:#FFD70033">
+        <div class="ipo-row"><span>🏢 上場時 時価総額</span><span id="ipo-clear-marketcap" style="color:#60a5fa;font-weight:800">―</span></div>
+        <div class="ipo-row ipo-highlight"><span>💰 公募調達額</span><span id="ipo-clear-funds" style="color:#4ade80;font-weight:800">―</span></div>
+        <div class="ipo-row"><span>📊 累計売上高</span><span id="ipo-clear-earned" style="color:#fbbf24;font-weight:800">―</span></div>
+      </div>
+      <p style="margin-top:12px;text-align:center;font-size:13px;color:#e2e8f0">
+        🌏 次なるステージは <strong style="color:#00B4D8">世界市場</strong> だ！<br>
+        <span style="font-size:11px;color:#475569">ゲームはそのまま続けられます</span>
+      </p>
+      <button class="modal-btn" onclick="closeIpoClearModal()" style="margin-top:16px;background:linear-gradient(135deg,#b8860b,#daa520);color:#000;font-weight:800;font-size:15px">🌏 世界を目指す！</button>
     </div>
   </div>
 
@@ -201,7 +226,6 @@
         <div class="bankrupt-stat"><span>📅 倒産時期</span><span id="bankrupt-period">―</span></div>
         <div class="bankrupt-stat"><span>👨‍💻 FL在籍</span><span><span id="bankrupt-fl">0</span>名</span></div>
         <div class="bankrupt-stat"><span>💰 累計売上</span><span id="bankrupt-earned">¥0</span></div>
-        <div class="bankrupt-stat"><span>🚀 上場回数</span><span><span id="bankrupt-prestige">0</span>回</span></div>
       </div>
       <button class="modal-btn bankrupt-restart-btn" onclick="restartGame()">🔄 最初からやり直す</button>
     </div>
